@@ -14,6 +14,11 @@ import {
   BedDouble,
   Bath,
   Landmark,
+  Wifi,
+  Clock,
+  KeyRound,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 const bookingUrl = "https://www.booking.com/Share-OQe9T5";
@@ -21,8 +26,9 @@ const bookingUrl = "https://www.booking.com/Share-OQe9T5";
 const whatsappUrl =
   "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informazioni%20su%20Gelone%20Lungomare";
 
-const mapsUrl =
-  "https://www.google.com/maps/search/?api=1&query=Via%20Pascoli%201%20Gela";
+const mapsUrl = "https://maps.app.goo.gl/JwYWW3RqFz5VdtCu6";
+
+const guestInfoUrl = "https://www.gelone.it/#ospiti";
 
 const gallery = [
   {
@@ -112,6 +118,18 @@ function WhatsAppButton({ compact = false }) {
   );
 }
 
+function GuestCard({ icon: Icon, title, children }) {
+  return (
+    <div className="rounded-2xl border border-[#e4d8c2] bg-white p-6 shadow-sm">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f4ead7] text-[#9b6b25]">
+        <Icon size={24} />
+      </div>
+      <h3 className="mt-4 font-serif text-2xl text-[#0a1d35]">{title}</h3>
+      <div className="mt-4 space-y-3 leading-7 text-[#555]">{children}</div>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <main className="min-h-screen bg-[#faf6ee] text-[#0a1d35]">
@@ -135,8 +153,8 @@ export default function App() {
             <a href="#posizione" className="hover:text-[#9b6b25]">
               Dove siamo
             </a>
-            <a href="#info" className="hover:text-[#9b6b25]">
-              Info
+            <a href="#ospiti" className="hover:text-[#9b6b25]">
+              Info ospiti
             </a>
             <a href="#privacy" className="hover:text-[#9b6b25]">
               Privacy
@@ -246,7 +264,8 @@ export default function App() {
             <p>
               Gelone Lungomare è una locazione turistica pensata per ospitare
               fino a 2 persone. Dispone di una camera da letto, un bagno, una
-              cucina e una terrazza esterna che rende il soggiorno più piacevole.
+              cucina e una terrazza esterna che rende il soggiorno più
+              piacevole.
             </p>
             <p className="mt-5">
               È una scelta adatta per chi vuole vivere Gela con una posizione
@@ -360,6 +379,120 @@ export default function App() {
         </div>
       </section>
 
+      <section id="ospiti" className="bg-[#faf6ee] px-5 py-16">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-10">
+            <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+              Info ospiti
+            </p>
+            <h2 className="mt-3 font-serif text-4xl md:text-5xl">
+              Benvenuto a Gelone Lungomare
+            </h2>
+            <p className="mt-5 max-w-3xl text-lg leading-8 text-[#555]">
+              Questa sezione è pensata per il QR code da mettere in appartamento.
+              Qui l'ospite trova contatti, posizione, regole principali e
+              collegamenti rapidi.
+            </p>
+          </div>
+
+          <div className="mb-8 rounded-[2rem] border border-[#d7c49f] bg-white p-6 shadow-sm">
+            <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+              Link QR ospiti
+            </p>
+            <p className="mt-3 break-all text-lg font-semibold text-[#0a1d35]">
+              {guestInfoUrl}
+            </p>
+            <p className="mt-3 text-[#555]">
+              Il QR code dovrà puntare a questo indirizzo, così l'ospite arriva
+              direttamente alle informazioni utili.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            <GuestCard icon={Phone} title="Contatti rapidi">
+              <p>Telefono / WhatsApp: 3476308456</p>
+              <p>Secondo numero: 3479461999</p>
+              <p>Email: info@gelone.it</p>
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex rounded-full bg-[#f5c84b] px-6 py-3 font-bold text-[#0a1d35]"
+              >
+                Scrivi su WhatsApp
+              </a>
+            </GuestCard>
+
+            <GuestCard icon={MapPin} title="Posizione">
+              <p>Gelone Lungomare</p>
+              <p>Via Pascoli 1, Gela</p>
+              <p>Provincia di Caltanissetta, Sicilia</p>
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex rounded-full bg-[#0a1d35] px-6 py-3 font-semibold text-white"
+              >
+                Apri Google Maps
+              </a>
+            </GuestCard>
+
+            <GuestCard icon={Home} title="Soggiorno">
+              <p>Ospiti: massimo 2 persone</p>
+              <p>Camera: 1 camera da letto</p>
+              <p>Bagno: 1 bagno</p>
+              <p>Cucina: presente</p>
+            </GuestCard>
+
+            <GuestCard icon={Clock} title="Check-in / Check-out">
+              <p>Check-in: da confermare prima dell'arrivo</p>
+              <p>Check-out: da confermare prima della partenza</p>
+              <p>Per esigenze particolari contattaci su WhatsApp.</p>
+            </GuestCard>
+
+            <GuestCard icon={Wifi} title="Wi-Fi">
+              <p>Nome rete Wi-Fi: da inserire</p>
+              <p>Password Wi-Fi: da inserire</p>
+              <p>
+                Se la rete non dovesse funzionare, contattaci tramite WhatsApp.
+              </p>
+            </GuestCard>
+
+            <GuestCard icon={KeyRound} title="Chiavi e accesso">
+              <p>Le istruzioni di accesso vengono comunicate prima dell'arrivo.</p>
+              <p>Conserva le chiavi con attenzione durante il soggiorno.</p>
+              <p>In caso di problemi, contattaci subito.</p>
+            </GuestCard>
+
+            <GuestCard icon={Trash2} title="Regole principali">
+              <p>Rispetta gli orari di silenzio.</p>
+              <p>Non arrecare disturbo ai vicini.</p>
+              <p>Lascia l'appartamento in ordine alla partenza.</p>
+              <p>Segui le indicazioni per la raccolta dei rifiuti.</p>
+            </GuestCard>
+
+            <GuestCard icon={AlertTriangle} title="Emergenze">
+              <p>Per emergenze gravi chiama il 112.</p>
+              <p>Per problemi legati all'appartamento contattaci su WhatsApp.</p>
+              <p>Telefono: 3476308456</p>
+            </GuestCard>
+
+            <GuestCard icon={ExternalLink} title="Prenotazione">
+              <p>Puoi gestire la prenotazione tramite Booking.</p>
+              <p>Per informazioni dirette puoi scriverci su WhatsApp.</p>
+              <a
+                href={bookingUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex rounded-full bg-[#f5c84b] px-6 py-3 font-bold text-[#0a1d35]"
+              >
+                Apri Booking
+              </a>
+            </GuestCard>
+          </div>
+        </div>
+      </section>
+
       <section id="contatti" className="mx-auto max-w-7xl px-5 py-16">
         <div className="rounded-[2rem] border border-[#d7c49f] bg-white p-8 shadow-sm md:p-12">
           <div className="grid gap-10 md:grid-cols-[1fr_1fr]">
@@ -418,30 +551,73 @@ export default function App() {
           </h2>
 
           <div className="mt-6 space-y-5 leading-7 text-[#555]">
+            <p>Ultimo aggiornamento: 11/05/2026.</p>
+
             <p>
-              Questo sito presenta la locazione turistica Gelone Lungomare e
-              permette di contattare la struttura tramite telefono, email,
-              WhatsApp e link esterni di prenotazione.
+              Il titolare del trattamento è Gelone Lungomare, locazione
+              turistica a Gela. Per qualsiasi richiesta è possibile contattare la
+              struttura all'indirizzo email info@gelone.it oppure ai numeri
+              3476308456 e 3479461999.
+            </p>
+
+            <p>
+              Il sito www.gelone.it presenta la struttura e permette all'utente
+              di contattarla tramite telefono, email, WhatsApp e collegamenti
+              esterni verso piattaforme di prenotazione.
             </p>
 
             <p>
               Il sito non raccoglie dati personali tramite moduli interni,
               registrazioni, newsletter o pagamenti diretti. I dati eventualmente
               comunicati volontariamente tramite email, telefono o WhatsApp
-              vengono usati solo per rispondere alle richieste di informazioni,
-              disponibilità e assistenza.
+              vengono utilizzati per rispondere alle richieste di informazioni,
+              verificare disponibilità, fornire assistenza e gestire eventuali
+              comunicazioni collegate al soggiorno.
             </p>
 
             <p>
-              Il sito contiene collegamenti verso Booking, WhatsApp e Google
-              Maps. Cliccando su questi collegamenti l'utente accede a servizi
-              esterni, soggetti alle rispettive informative privacy e cookie.
+              I dati eventualmente trattati possono includere nome, cognome,
+              numero di telefono, indirizzo email, date richieste per il
+              soggiorno e altre informazioni comunicate volontariamente
+              dall'utente.
+            </p>
+
+            <p>
+              Il trattamento avviene sulla base dell'esecuzione di misure
+              precontrattuali o contrattuali richieste dall'interessato,
+              dell'adempimento di eventuali obblighi di legge e del legittimo
+              interesse a rispondere alle richieste ricevute.
+            </p>
+
+            <p>
+              I dati vengono conservati per il tempo necessario a rispondere alle
+              richieste o, in caso di prenotazione e soggiorno, per i tempi
+              previsti dalla normativa amministrativa, fiscale o di pubblica
+              sicurezza applicabile.
+            </p>
+
+            <p>
+              Il sito contiene collegamenti verso servizi esterni come Booking,
+              WhatsApp e Google Maps. Cliccando su questi collegamenti l'utente
+              lascia il sito www.gelone.it e accede a piattaforme gestite da
+              soggetti terzi, soggette alle rispettive informative privacy e
+              cookie.
             </p>
 
             <p>
               Nella versione attuale il sito non utilizza cookie di profilazione,
-              strumenti pubblicitari, newsletter, moduli di contatto interni o
-              sistemi di pagamento diretto.
+              strumenti pubblicitari, newsletter, moduli di contatto interni,
+              sistemi di pagamento diretto o strumenti di tracciamento marketing.
+              Il sito può utilizzare solo eventuali cookie tecnici necessari al
+              corretto funzionamento della navigazione.
+            </p>
+
+            <p>
+              L'utente può esercitare i diritti previsti dalla normativa privacy,
+              tra cui accesso, rettifica, cancellazione, limitazione e opposizione
+              al trattamento, scrivendo a info@gelone.it. L'utente ha inoltre
+              diritto di proporre reclamo al Garante per la Protezione dei Dati
+              Personali.
             </p>
 
             <div className="rounded-2xl bg-white p-5 text-sm leading-7">
@@ -476,6 +652,12 @@ export default function App() {
           Locazione turistica a Gela · CIN IT084001B4D36830 · CIR 190840010022
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-5">
+          <a
+            href="#ospiti"
+            className="underline underline-offset-4 hover:text-[#9b6b25]"
+          >
+            Info ospiti
+          </a>
           <a
             href="#privacy"
             className="underline underline-offset-4 hover:text-[#9b6b25]"
