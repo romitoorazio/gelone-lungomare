@@ -3,7 +3,6 @@ import {
   MapPin,
   Phone,
   Mail,
-  CalendarDays,
   Waves,
   Home,
   Camera,
@@ -81,18 +80,34 @@ function Feature({ icon: Icon, title, text }) {
   );
 }
 
-function ButtonLink({ href, children, variant = "primary" }) {
-  const base =
-    "inline-flex items-center justify-center gap-2 rounded-full px-7 py-4 text-center font-semibold transition";
-
-  const styles =
-    variant === "primary"
-      ? "bg-[#0a1d35] text-white shadow-md hover:bg-[#132f52]"
-      : "border border-[#0a1d35] bg-white/75 text-[#0a1d35] hover:bg-white";
-
+function BookingButton({ compact = false }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className={`${base} ${styles}`}>
-      {children}
+    <a
+      href={bookingUrl}
+      target="_blank"
+      rel="noreferrer"
+      className={`inline-flex items-center justify-center gap-2 rounded-full border border-[#b88416] bg-[#f5c84b] text-center font-bold text-[#0a1d35] shadow-md transition hover:bg-[#ffd96a] ${
+        compact ? "px-5 py-3 text-sm" : "px-7 py-4"
+      }`}
+    >
+      {compact ? "Booking" : "Prenota su Booking"}
+      {!compact && <ExternalLink size={18} />}
+    </a>
+  );
+}
+
+function WhatsAppButton({ compact = false }) {
+  return (
+    <a
+      href={whatsappUrl}
+      target="_blank"
+      rel="noreferrer"
+      className={`inline-flex items-center justify-center gap-2 rounded-full border border-[#0a1d35] bg-white text-center font-semibold text-[#0a1d35] transition hover:bg-[#faf6ee] ${
+        compact ? "px-5 py-3 text-sm" : "px-7 py-4"
+      }`}
+    >
+      {compact ? "WhatsApp" : "Scrivici su WhatsApp"}
+      {!compact && <MessageCircle size={18} />}
     </a>
   );
 }
@@ -101,8 +116,8 @@ export default function App() {
   return (
     <main className="min-h-screen bg-[#faf6ee] text-[#0a1d35]">
       <header className="sticky top-0 z-40 border-b border-[#e4d8c2] bg-[#faf6ee]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-          <a href="#home" className="block">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4">
+          <a href="#home" className="block shrink-0">
             <p className="text-[10px] uppercase tracking-[0.35em] text-[#9b6b25]">
               Locazione turistica
             </p>
@@ -128,14 +143,7 @@ export default function App() {
             </a>
           </nav>
 
-          <a
-            href={bookingUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-full bg-[#0a1d35] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#132f52]"
-          >
-            Prenota
-          </a>
+          <BookingButton compact />
         </div>
       </header>
 
@@ -154,19 +162,14 @@ export default function App() {
             </h2>
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-[#4c4c4c]">
-              Locazione turistica a Gela con terrazza e vista mare. Una soluzione
-              comoda e riservata per 2 persone, ideale per coppie o viaggiatori
-              che cercano tranquillità, posizione e praticità.
+              Locazione turistica a Gela con terrazza e vista mare. Una
+              soluzione comoda e riservata per 2 persone, ideale per coppie o
+              viaggiatori che cercano tranquillità, posizione e praticità.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <ButtonLink href={bookingUrl}>
-                Prenota su Booking <ExternalLink size={18} />
-              </ButtonLink>
-
-              <ButtonLink href={whatsappUrl} variant="secondary">
-                Scrivici su WhatsApp <MessageCircle size={18} />
-              </ButtonLink>
+              <BookingButton />
+              <WhatsAppButton />
             </div>
 
             <div className="mt-8 grid max-w-xl grid-cols-2 gap-3 text-sm text-[#4c4c4c] sm:grid-cols-4">
@@ -373,13 +376,8 @@ export default function App() {
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <ButtonLink href={bookingUrl}>
-                  Prenota su Booking <ExternalLink size={18} />
-                </ButtonLink>
-
-                <ButtonLink href={whatsappUrl} variant="secondary">
-                  WhatsApp <MessageCircle size={18} />
-                </ButtonLink>
+                <BookingButton />
+                <WhatsAppButton />
               </div>
             </div>
 
@@ -415,7 +413,9 @@ export default function App() {
           <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
             Privacy e Cookie
           </p>
-          <h2 className="mt-3 font-serif text-4xl">Informativa privacy</h2>
+          <h2 className="mt-3 font-serif text-4xl">
+            Informativa privacy e cookie policy
+          </h2>
 
           <div className="mt-6 space-y-5 leading-7 text-[#555]">
             <p>
@@ -425,29 +425,28 @@ export default function App() {
             </p>
 
             <p>
-              I dati forniti volontariamente tramite email, telefono o WhatsApp
-              vengono utilizzati esclusivamente per rispondere alle richieste di
-              informazioni, disponibilità e assistenza relative al soggiorno.
+              Il sito non raccoglie dati personali tramite moduli interni,
+              registrazioni, newsletter o pagamenti diretti. I dati eventualmente
+              comunicati volontariamente tramite email, telefono o WhatsApp
+              vengono usati solo per rispondere alle richieste di informazioni,
+              disponibilità e assistenza.
             </p>
 
             <p>
-              Il sito contiene collegamenti verso servizi esterni come Booking,
-              WhatsApp e Google Maps. Cliccando su questi collegamenti l'utente
-              accede a piattaforme esterne, soggette alle rispettive informative
-              privacy e cookie.
+              Il sito contiene collegamenti verso Booking, WhatsApp e Google
+              Maps. Cliccando su questi collegamenti l'utente accede a servizi
+              esterni, soggetti alle rispettive informative privacy e cookie.
             </p>
 
             <p>
-              Al momento questo sito non utilizza moduli di contatto interni,
-              newsletter, pagamenti diretti o strumenti pubblicitari di
-              profilazione. Se in futuro saranno aggiunti strumenti di analisi,
-              marketing o prenotazione diretta, questa informativa verrà
-              aggiornata.
+              Nella versione attuale il sito non utilizza cookie di profilazione,
+              strumenti pubblicitari, newsletter, moduli di contatto interni o
+              sistemi di pagamento diretto.
             </p>
 
             <div className="rounded-2xl bg-white p-5 text-sm leading-7">
               <p>
-                <strong>Titolare del sito:</strong> Gelone Lungomare
+                <strong>Titolare:</strong> Gelone Lungomare
               </p>
               <p>
                 <strong>Email:</strong> info@gelone.it
@@ -494,22 +493,8 @@ export default function App() {
 
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#d7c49f] bg-[#faf6ee]/95 p-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
         <div className="grid grid-cols-2 gap-3">
-          <a
-            href={bookingUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-full bg-[#0a1d35] px-4 py-3 text-center text-sm font-semibold text-white"
-          >
-            Booking
-          </a>
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-full border border-[#0a1d35] bg-white px-4 py-3 text-center text-sm font-semibold text-[#0a1d35]"
-          >
-            WhatsApp
-          </a>
+          <BookingButton compact />
+          <WhatsAppButton compact />
         </div>
       </div>
     </main>
