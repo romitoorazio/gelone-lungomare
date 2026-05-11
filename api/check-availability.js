@@ -1,3 +1,34 @@
+import { adminDb } from "./_firebaseAdmin.js";
+
+const UNIT_ID = "lunarossa1";
+
+function isValidDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function toDateInputValue(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getNightDates(checkIn, checkOut) {
+  const nights = [];
+
+  const [startYear, startMonth, startDay] = checkIn.split("-").map(Number);
+  const [endYear, endMonth, endDay] = checkOut.split("-").map(Number);
+
+  const start = new Date(Date.UTC(startYear, startMonth - 1, startDay));
+  const end = new Date(Date.UTC(endYear, endMonth - 1, endDay));
+
+  const cursor = new Date(start);
+
+  while (cursor < end) {
+    nights.push(toDateInputValue(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return nights;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -6,126 +37,72 @@ export default async function handler(req, res) {
     });
   }
 
-  const backendUrl = process.env.GELONE_APPS_SCRIPT_URL;
-  const backendToken = process.env.GELONE_APPS_SCRIPT_TOKEN || "";
-
-  if (!backendUrl) {
-    return res.status(500).json({
-      ok: false,
-      message:
-        "Servizio disponibilità non configurato. Manca GELONE_APPS_SCRIPT_URL su Vercel.",
-    });
-  }
-
-  const { unit = "lunarossa1", checkIn, checkOut } = req.body || {};
-
-  if (!checkIn || !checkOut) {
-    return res.status(400).json({
-      ok: false,
-      message: "Data arrivo e data partenza sono obbligatorie.",
-    });
-  }
-
-  if (checkOut <= checkIn) {
-    return res.status(400).json({
-      ok: false,
-      message: "La data di partenza deve essere successiva alla data di arrivo.",
-    });
-  }
-
   try {
-    const params = new URLSearchParams({
-      action: "availability",
-      unit,
-      checkIn,
-      checkOut,
-    });
+    const { checkIn, checkOut } = req.body || {};
 
-    if (backendToken) {
-      params.set("token", backendToken);
-    }
-
-    const separator = backendUrl.includes("?") ? "&" : "?";
-    const requestUrl = `${backendUrl}${separator}${params.toString()}`;
-
-    const upstreamResponse = await fetch(requestUrl, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-    });
-
-    const contentType = upstreamResponse.headers.get("content-type") || "";
-    const rawText = await upstreamResponse.text();
-
-    let upstreamData = null;
-
-    if (contentType.includes("application/json")) {
-      try {
-        upstreamData = JSON.parse(rawText);
-      } catch {
-        upstreamData = null;
-      }
-    } else {
-      try {
-        upstreamData = JSON.parse(rawText);
-      } catch {
-        upstreamData = {
-          raw: rawText,
-        };
-      }
-    }
-
-    if (!upstreamResponse.ok) {
-      return res.status(502).json({
+    if (!isValidDate(checkIn) || !isValidDate(checkOut)) {
+      return res.status(400).json({
         ok: false,
-        message:
-          upstreamData?.message ||
-          "Errore nella risposta del sistema interno disponibilità.",
+        message: "Inserisci date valide.",
       });
     }
 
-    const available =
-      upstreamData?.available ??
-      upstreamData?.disponibile ??
-      upstreamData?.libero ??
-      (upstreamData?.status === "available"
-        ? true
-        : upstreamData?.status === "booked"
-        ? false
-        : upstreamData?.status === "occupied"
-        ? false
-        : null);
-
-    let message = upstreamData?.message || "";
-
-    if (!message) {
-      if (available === true) {
-        message =
-          "Le date risultano libere nel sistema interno. La conferma definitiva deve essere fatta dalla struttura.";
-      } else if (available === false) {
-        message =
-          "Le date risultano occupate nel sistema interno. Puoi provare altre date o contattarci.";
-      } else {
-        message =
-          "Il sistema ha risposto, ma non è stato possibile interpretare automaticamente la disponibilità.";
-      }
+    if (checkOut <= checkIn) {
+      return res.status(400).json({
+        ok: false,
+        message: "La data di partenza deve essere successiva alla data di arrivo.",
+      });
     }
+
+    const nights = getNightDates(checkIn, checkOut);
+
+    if (nights.length < 1) {
+      return res.status(400).json({
+        ok: false,
+        message: "Devi selezionare almeno una notte.",
+      });
+    }
+
+    if (nights.length > 60) {
+      return res.status(400).json({
+        ok: false,
+        message: "Per soggiorni superiori a 60 notti contatta la struttura.",
+      });
+    }
+
+    const nightRefs = nights.map((night) =>
+      adminDb.collection("nights").doc(`${UNIT_ID}_${night}`)
+    );
+
+    const nightSnapshots = await adminDb.getAll(...nightRefs);
+
+    const occupiedNights = nightSnapshots
+      .filter((snapshot) => {
+        if (!snapshot.exists) return false;
+        const data = snapshot.data();
+        return data?.status !== "cancelled";
+      })
+      .map((snapshot) => snapshot.data()?.date)
+      .filter(Boolean);
+
+    const available = occupiedNights.length === 0;
 
     return res.status(200).json({
       ok: true,
-      unit,
+      unitId: UNIT_ID,
       checkIn,
       checkOut,
+      nights,
       available,
-      message,
-      source: "internal-availability-check",
+      message: available
+        ? "Le date risultano disponibili."
+        : "Le date selezionate non risultano disponibili.",
     });
   } catch (error) {
     return res.status(500).json({
       ok: false,
       message:
-        "Errore tecnico durante il controllo disponibilità. Riprova più tardi o contattaci su WhatsApp.",
+        "Errore tecnico durante il controllo disponibilità. Riprova più tardi o contatta la struttura.",
     });
   }
 }
