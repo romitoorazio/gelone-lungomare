@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   MapPin,
   Phone,
@@ -17,12 +17,10 @@ import {
   CalendarCheck,
   ClipboardList,
   Euro,
+  SearchCheck,
 } from "lucide-react";
 
 const bookingUrl = "https://www.booking.com/Share-OQe9T5";
-
-const directBookingUrl =
-  "https://script.google.com/macros/s/AKfycbwB4GtU2uI3F8HXfXF_Iujkb5_U2w4cM48usTpzjWEsjsgnlsTt_IqMa0-_fdsqyFTAyQ/exec";
 
 const whatsappUrl =
   "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informazioni%20su%20Gelone%20Lungomare";
@@ -101,17 +99,15 @@ function BookingButton({ compact = false }) {
   );
 }
 
-function DirectBookingButton({ compact = false }) {
+function AvailabilityButton({ compact = false }) {
   return (
     <a
-      href={directBookingUrl}
-      target="_blank"
-      rel="noreferrer"
+      href="#verifica-disponibilita"
       className={`inline-flex items-center justify-center gap-2 rounded-full border border-[#0a1d35] bg-[#0a1d35] text-center font-bold text-white shadow-md transition hover:bg-[#132f52] ${
         compact ? "px-5 py-3 text-sm" : "px-7 py-4"
       }`}
     >
-      {compact ? "Dal sito" : "Richiedi disponibilità dal sito"}
+      {compact ? "Disponibilità" : "Verifica disponibilità"}
       {!compact && <CalendarCheck size={18} />}
     </a>
   );
@@ -146,6 +142,158 @@ function MapsButton() {
   );
 }
 
+function AvailabilityForm() {
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setError("");
+    setResult(null);
+
+    if (!checkIn || !checkOut) {
+      setError("Inserisci data di arrivo e data di partenza.");
+      return;
+    }
+
+    if (checkOut <= checkIn) {
+      setError("La data di partenza deve essere successiva alla data di arrivo.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch("/api/check-availability", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          unit: "lunarossa1",
+          checkIn,
+          checkOut,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message || "Non è stato possibile verificare la disponibilità."
+        );
+      }
+
+      setResult(data);
+    } catch (err) {
+      setError(
+        err?.message ||
+          "Errore durante il controllo disponibilità. Puoi contattarci su WhatsApp."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const whatsappWithDates = `https://wa.me/393476308456?text=${encodeURIComponent(
+    `Ciao, vorrei informazioni su Gelone Lungomare. Date richieste: ${checkIn || "arrivo"} - ${
+      checkOut || "partenza"
+    }`
+  )}`;
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-[2rem] border border-[#d7c49f] bg-white p-6 shadow-sm md:p-8"
+    >
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="block">
+          <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
+            Data arrivo
+          </span>
+          <input
+            type="date"
+            value={checkIn}
+            onChange={(event) => setCheckIn(event.target.value)}
+            className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
+            Data partenza
+          </span>
+          <input
+            type="date"
+            value={checkOut}
+            onChange={(event) => setCheckOut(event.target.value)}
+            className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
+          />
+        </label>
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-7 py-4 font-bold text-white shadow-md transition hover:bg-[#132f52] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
+      >
+        {loading ? "Controllo in corso..." : "Controlla disponibilità Lunarossa 1"}
+        <SearchCheck size={18} />
+      </button>
+
+      {error && (
+        <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800">
+          {error}
+        </div>
+      )}
+
+      {result && (
+        <div
+          className={`mt-5 rounded-2xl border p-5 ${
+            result.available === true
+              ? "border-green-200 bg-green-50 text-green-900"
+              : result.available === false
+              ? "border-red-200 bg-red-50 text-red-900"
+              : "border-[#d7c49f] bg-[#faf6ee] text-[#0a1d35]"
+          }`}
+        >
+          <p className="font-bold">
+            {result.available === true
+              ? "Le date risultano disponibili."
+              : result.available === false
+              ? "Le date non risultano disponibili."
+              : "Risultato disponibilità"}
+          </p>
+
+          <p className="mt-2 leading-7">
+            {result.message ||
+              "La verifica è stata completata. Per conferma definitiva contattaci prima di prenotare."}
+          </p>
+
+          {result.available === true && (
+            <a
+              href={whatsappWithDates}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-flex rounded-full bg-[#f5c84b] px-6 py-3 font-bold text-[#0a1d35]"
+            >
+              Richiedi conferma su WhatsApp
+            </a>
+          )}
+        </div>
+      )}
+
+      <p className="mt-5 text-sm leading-6 text-[#555]">
+        La verifica serve solo a controllare se Lunarossa 1 risulta libera. La
+        prenotazione è confermata solo dopo risposta della struttura.
+      </p>
+    </form>
+  );
+}
+
 export default function App() {
   return (
     <main className="min-h-screen bg-[#faf6ee] text-[#0a1d35]">
@@ -169,8 +317,8 @@ export default function App() {
             <a href="#posizione" className="hover:text-[#9b6b25]">
               Dove siamo
             </a>
-            <a href="#prenotazione-diretta" className="hover:text-[#9b6b25]">
-              Prenota
+            <a href="#verifica-disponibilita" className="hover:text-[#9b6b25]">
+              Disponibilità
             </a>
             <a href="#privacy" className="hover:text-[#9b6b25]">
               Privacy
@@ -203,7 +351,7 @@ export default function App() {
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <BookingButton />
-              <DirectBookingButton />
+              <AvailabilityButton />
               <WhatsAppButton />
             </div>
 
@@ -360,63 +508,57 @@ export default function App() {
       </section>
 
       <section
-        id="prenotazione-diretta"
+        id="verifica-disponibilita"
         className="mx-auto max-w-7xl px-5 py-16"
       >
-        <div className="rounded-[2rem] border border-[#d7c49f] bg-white p-8 shadow-sm md:p-12">
-          <div className="grid gap-10 md:grid-cols-[0.9fr_1.1fr]">
-            <div>
-              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-                Prenotazione diretta
-              </p>
-              <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-                Richiedi disponibilità dal sito
-              </h2>
-              <p className="mt-5 text-lg leading-8 text-[#555]">
-                Puoi inviare una richiesta diretta tramite il sito. La richiesta
-                viene gestita dalla tua app Google Apps Script e dovrà essere
-                confermata dopo il controllo delle disponibilità, incrociando il
-                calendario interno con Booking.
-              </p>
+        <div className="mb-8 max-w-3xl">
+          <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+            Disponibilità
+          </p>
+          <h2 className="mt-3 font-serif text-4xl md:text-5xl">
+            Controlla se Lunarossa 1 è libera
+          </h2>
+          <p className="mt-5 text-lg leading-8 text-[#555]">
+            Inserisci le date e il sito controllerà la disponibilità tramite il
+            sistema interno, senza mostrare pubblicamente il link privato della
+            tua app.
+          </p>
+        </div>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <DirectBookingButton />
-                <BookingButton />
-              </div>
+        <div className="grid gap-8 md:grid-cols-[1fr_0.8fr]">
+          <AvailabilityForm />
+
+          <div className="grid gap-4">
+            <div className="rounded-2xl bg-white p-5 shadow-sm">
+              <CalendarCheck className="text-[#9b6b25]" size={30} />
+              <h3 className="mt-3 text-xl font-semibold">
+                1. Controllo date
+              </h3>
+              <p className="mt-2 leading-7 text-[#555]">
+                Il sito invia le date al controllo interno per Lunarossa 1.
+              </p>
             </div>
 
-            <div className="grid gap-4">
-              <div className="rounded-2xl bg-[#faf6ee] p-5">
-                <CalendarCheck className="text-[#9b6b25]" size={30} />
-                <h3 className="mt-3 text-xl font-semibold">
-                  1. Richiesta disponibilità
-                </h3>
-                <p className="mt-2 leading-7 text-[#555]">
-                  L'ospite invia le date desiderate dal sito.
-                </p>
-              </div>
+            <div className="rounded-2xl bg-white p-5 shadow-sm">
+              <ClipboardList className="text-[#9b6b25]" size={30} />
+              <h3 className="mt-3 text-xl font-semibold">
+                2. Incrocio calendario
+              </h3>
+              <p className="mt-2 leading-7 text-[#555]">
+                La disponibilità deve essere incrociata con Booking e con il
+                calendario della tua app.
+              </p>
+            </div>
 
-              <div className="rounded-2xl bg-[#faf6ee] p-5">
-                <ClipboardList className="text-[#9b6b25]" size={30} />
-                <h3 className="mt-3 text-xl font-semibold">
-                  2. Controllo con Booking
-                </h3>
-                <p className="mt-2 leading-7 text-[#555]">
-                  Prima di confermare, si controlla che le date non siano già
-                  occupate su Booking o altri canali.
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-[#faf6ee] p-5">
-                <Euro className="text-[#9b6b25]" size={30} />
-                <h3 className="mt-3 text-xl font-semibold">
-                  3. Conferma manuale
-                </h3>
-                <p className="mt-2 leading-7 text-[#555]">
-                  All'inizio è meglio confermare manualmente. Il pagamento
-                  diretto si aggiunge dopo, quando il calendario sarà sicuro.
-                </p>
-              </div>
+            <div className="rounded-2xl bg-white p-5 shadow-sm">
+              <Euro className="text-[#9b6b25]" size={30} />
+              <h3 className="mt-3 text-xl font-semibold">
+                3. Conferma finale
+              </h3>
+              <p className="mt-2 leading-7 text-[#555]">
+                La prenotazione non viene confermata automaticamente: prima deve
+                arrivare la conferma della struttura.
+              </p>
             </div>
           </div>
         </div>
@@ -447,8 +589,8 @@ export default function App() {
             <Info className="text-[#9b6b25]" size={34} />
             <h3 className="mt-4 font-serif text-2xl">Prenotazioni</h3>
             <p className="mt-4 leading-7 text-[#555]">
-              Puoi prenotare su Booking oppure inviare una richiesta diretta dal
-              sito tramite la tua app collegata.
+              Puoi prenotare su Booking oppure controllare la disponibilità dal
+              sito prima di contattarci.
             </p>
           </div>
         </div>
@@ -465,12 +607,12 @@ export default function App() {
                 Richiedi informazioni o prenota online
               </h2>
               <p className="mt-5 text-lg leading-8 text-[#555]">
-                Puoi prenotare tramite Booking, inviare una richiesta diretta dal
+                Puoi prenotare tramite Booking, controllare la disponibilità dal
                 sito oppure contattarci su WhatsApp.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <DirectBookingButton />
+                <AvailabilityButton />
                 <BookingButton />
                 <WhatsAppButton />
               </div>
@@ -525,18 +667,23 @@ export default function App() {
             <p>
               Il sito www.gelone.it presenta la struttura e permette all'utente
               di contattarla tramite telefono, email, WhatsApp, collegamenti
-              esterni verso Booking e collegamento alla richiesta diretta tramite
-              app Google Apps Script.
+              esterni verso Booking e funzione di verifica disponibilità.
             </p>
 
             <p>
-              Il sito non raccoglie dati personali tramite moduli interni
-              ospitati direttamente su www.gelone.it, newsletter o pagamenti
+              La funzione di verifica disponibilità invia le date selezionate a
+              un servizio interno del sito per controllare se Lunarossa 1 risulta
+              libera. Il link privato del sistema interno non viene mostrato al
+              pubblico.
+            </p>
+
+            <p>
+              Il sito non raccoglie dati personali tramite newsletter o pagamenti
               diretti. I dati eventualmente comunicati volontariamente tramite
-              email, telefono, WhatsApp, Booking o app di richiesta diretta
-              vengono utilizzati per rispondere alle richieste di informazioni,
-              verificare disponibilità, fornire assistenza e gestire eventuali
-              comunicazioni collegate al soggiorno.
+              email, telefono, WhatsApp o Booking vengono utilizzati per
+              rispondere alle richieste di informazioni, verificare
+              disponibilità, fornire assistenza e gestire eventuali comunicazioni
+              collegate al soggiorno.
             </p>
 
             <p>
@@ -554,34 +701,23 @@ export default function App() {
             </p>
 
             <p>
-              I dati vengono conservati per il tempo necessario a rispondere alle
-              richieste o, in caso di prenotazione e soggiorno, per i tempi
-              previsti dalla normativa amministrativa, fiscale o di pubblica
-              sicurezza applicabile.
-            </p>
-
-            <p>
               Il sito contiene collegamenti verso servizi esterni come Booking,
-              WhatsApp, Google Maps e Google Apps Script. Cliccando su questi
-              collegamenti l'utente lascia il sito www.gelone.it e accede a
-              piattaforme gestite da soggetti terzi, soggette alle rispettive
-              informative privacy e cookie.
+              WhatsApp e Google Maps. Cliccando su questi collegamenti l'utente
+              lascia il sito www.gelone.it e accede a piattaforme gestite da
+              soggetti terzi, soggette alle rispettive informative privacy e
+              cookie.
             </p>
 
             <p>
               Nella versione attuale il sito non utilizza cookie di profilazione,
               strumenti pubblicitari, newsletter, sistemi di pagamento diretto o
-              strumenti di tracciamento marketing. Il sito può utilizzare solo
-              eventuali cookie tecnici necessari al corretto funzionamento della
-              navigazione.
+              strumenti di tracciamento marketing.
             </p>
 
             <p>
               L'utente può esercitare i diritti previsti dalla normativa privacy,
               tra cui accesso, rettifica, cancellazione, limitazione e
-              opposizione al trattamento, scrivendo a info@gelone.it. L'utente ha
-              inoltre diritto di proporre reclamo al Garante per la Protezione
-              dei Dati Personali.
+              opposizione al trattamento, scrivendo a info@gelone.it.
             </p>
 
             <div className="rounded-2xl bg-white p-5 text-sm leading-7">
@@ -617,10 +753,10 @@ export default function App() {
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-5">
           <a
-            href="#prenotazione-diretta"
+            href="#verifica-disponibilita"
             className="underline underline-offset-4 hover:text-[#9b6b25]"
           >
-            Prenotazione diretta
+            Disponibilità
           </a>
           <a
             href="#privacy"
@@ -639,7 +775,7 @@ export default function App() {
 
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#d7c49f] bg-[#faf6ee]/95 p-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
         <div className="grid grid-cols-3 gap-2">
-          <DirectBookingButton compact />
+          <AvailabilityButton compact />
           <BookingButton compact />
           <WhatsAppButton compact />
         </div>
