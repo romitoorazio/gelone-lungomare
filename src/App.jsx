@@ -14,21 +14,20 @@ import {
   BedDouble,
   Bath,
   Landmark,
-  Wifi,
-  Clock,
-  KeyRound,
-  Trash2,
-  AlertTriangle,
+  CalendarCheck,
+  ClipboardList,
+  Euro,
 } from "lucide-react";
 
 const bookingUrl = "https://www.booking.com/Share-OQe9T5";
+
+const directBookingUrl =
+  "https://script.google.com/macros/s/AKfycbwB4GtU2uI3F8HXfXF_Iujkb5_U2w4cM48usTpzjWEsjsgnlsTt_IqMa0-_fdsqyFTAyQ/exec";
 
 const whatsappUrl =
   "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informazioni%20su%20Gelone%20Lungomare";
 
 const mapsUrl = "https://maps.app.goo.gl/JwYWW3RqFz5VdtCu6";
-
-const guestInfoUrl = "https://www.gelone.it/#ospiti";
 
 const gallery = [
   {
@@ -102,6 +101,22 @@ function BookingButton({ compact = false }) {
   );
 }
 
+function DirectBookingButton({ compact = false }) {
+  return (
+    <a
+      href={directBookingUrl}
+      target="_blank"
+      rel="noreferrer"
+      className={`inline-flex items-center justify-center gap-2 rounded-full border border-[#0a1d35] bg-[#0a1d35] text-center font-bold text-white shadow-md transition hover:bg-[#132f52] ${
+        compact ? "px-5 py-3 text-sm" : "px-7 py-4"
+      }`}
+    >
+      {compact ? "Dal sito" : "Richiedi disponibilità dal sito"}
+      {!compact && <CalendarCheck size={18} />}
+    </a>
+  );
+}
+
 function WhatsAppButton({ compact = false }) {
   return (
     <a
@@ -118,31 +133,16 @@ function WhatsAppButton({ compact = false }) {
   );
 }
 
-function MapsButton({ compact = false }) {
+function MapsButton() {
   return (
     <a
       href={mapsUrl}
       target="_blank"
       rel="noreferrer"
-      className={`inline-flex items-center justify-center gap-2 rounded-full border border-[#b88416] bg-[#f5c84b] text-center font-bold text-[#0a1d35] shadow-md transition hover:bg-[#ffd96a] ${
-        compact ? "px-5 py-3 text-sm" : "px-7 py-4"
-      }`}
+      className="inline-flex items-center justify-center gap-2 rounded-full border border-[#b88416] bg-[#f5c84b] px-7 py-4 text-center font-bold text-[#0a1d35] shadow-md transition hover:bg-[#ffd96a]"
     >
-      Apri Google Maps
-      <ExternalLink size={18} />
+      Apri Google Maps <ExternalLink size={18} />
     </a>
-  );
-}
-
-function GuestCard({ icon: Icon, title, children }) {
-  return (
-    <div className="rounded-2xl border border-[#e4d8c2] bg-white p-6 shadow-sm">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f4ead7] text-[#9b6b25]">
-        <Icon size={24} />
-      </div>
-      <h3 className="mt-4 font-serif text-2xl text-[#0a1d35]">{title}</h3>
-      <div className="mt-4 space-y-3 leading-7 text-[#555]">{children}</div>
-    </div>
   );
 }
 
@@ -169,8 +169,8 @@ export default function App() {
             <a href="#posizione" className="hover:text-[#9b6b25]">
               Dove siamo
             </a>
-            <a href="#ospiti" className="hover:text-[#9b6b25]">
-              Info ospiti
+            <a href="#prenotazione-diretta" className="hover:text-[#9b6b25]">
+              Prenota
             </a>
             <a href="#privacy" className="hover:text-[#9b6b25]">
               Privacy
@@ -203,6 +203,7 @@ export default function App() {
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <BookingButton />
+              <DirectBookingButton />
               <WhatsAppButton />
             </div>
 
@@ -358,6 +359,69 @@ export default function App() {
         </div>
       </section>
 
+      <section
+        id="prenotazione-diretta"
+        className="mx-auto max-w-7xl px-5 py-16"
+      >
+        <div className="rounded-[2rem] border border-[#d7c49f] bg-white p-8 shadow-sm md:p-12">
+          <div className="grid gap-10 md:grid-cols-[0.9fr_1.1fr]">
+            <div>
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Prenotazione diretta
+              </p>
+              <h2 className="mt-3 font-serif text-4xl md:text-5xl">
+                Richiedi disponibilità dal sito
+              </h2>
+              <p className="mt-5 text-lg leading-8 text-[#555]">
+                Puoi inviare una richiesta diretta tramite il sito. La richiesta
+                viene gestita dalla tua app Google Apps Script e dovrà essere
+                confermata dopo il controllo delle disponibilità, incrociando il
+                calendario interno con Booking.
+              </p>
+
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <DirectBookingButton />
+                <BookingButton />
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              <div className="rounded-2xl bg-[#faf6ee] p-5">
+                <CalendarCheck className="text-[#9b6b25]" size={30} />
+                <h3 className="mt-3 text-xl font-semibold">
+                  1. Richiesta disponibilità
+                </h3>
+                <p className="mt-2 leading-7 text-[#555]">
+                  L'ospite invia le date desiderate dal sito.
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-[#faf6ee] p-5">
+                <ClipboardList className="text-[#9b6b25]" size={30} />
+                <h3 className="mt-3 text-xl font-semibold">
+                  2. Controllo con Booking
+                </h3>
+                <p className="mt-2 leading-7 text-[#555]">
+                  Prima di confermare, si controlla che le date non siano già
+                  occupate su Booking o altri canali.
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-[#faf6ee] p-5">
+                <Euro className="text-[#9b6b25]" size={30} />
+                <h3 className="mt-3 text-xl font-semibold">
+                  3. Conferma manuale
+                </h3>
+                <p className="mt-2 leading-7 text-[#555]">
+                  All'inizio è meglio confermare manualmente. Il pagamento
+                  diretto si aggiunge dopo, quando il calendario sarà sicuro.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="info" className="mx-auto max-w-7xl px-5 py-16">
         <div className="grid gap-6 md:grid-cols-3">
           <div className="rounded-2xl border border-[#e4d8c2] bg-white p-6 shadow-sm">
@@ -383,118 +447,9 @@ export default function App() {
             <Info className="text-[#9b6b25]" size={34} />
             <h3 className="mt-4 font-serif text-2xl">Prenotazioni</h3>
             <p className="mt-4 leading-7 text-[#555]">
-              Puoi prenotare su Booking oppure contattarci direttamente su
-              WhatsApp per informazioni e disponibilità.
+              Puoi prenotare su Booking oppure inviare una richiesta diretta dal
+              sito tramite la tua app collegata.
             </p>
-          </div>
-        </div>
-      </section>
-
-      <section id="ospiti" className="bg-[#faf6ee] px-5 py-16">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-10">
-            <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-              Info ospiti
-            </p>
-            <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-              Benvenuto a Gelone Lungomare
-            </h2>
-            <p className="mt-5 max-w-3xl text-lg leading-8 text-[#555]">
-              Questa sezione è pensata per il QR code da mettere in
-              appartamento. Qui l'ospite trova contatti, posizione, regole
-              principali e collegamenti rapidi.
-            </p>
-          </div>
-
-          <div className="mb-8 rounded-[2rem] border border-[#d7c49f] bg-white p-6 shadow-sm">
-            <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-              Link QR ospiti
-            </p>
-            <p className="mt-3 break-all text-lg font-semibold text-[#0a1d35]">
-              {guestInfoUrl}
-            </p>
-            <p className="mt-3 text-[#555]">
-              Il QR code dovrà puntare a questo indirizzo, così l'ospite arriva
-              direttamente alle informazioni utili.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            <GuestCard icon={Phone} title="Contatti rapidi">
-              <p>Telefono / WhatsApp: 3476308456</p>
-              <p>Secondo numero: 3479461999</p>
-              <p>Email: info@gelone.it</p>
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-flex rounded-full bg-[#f5c84b] px-6 py-3 font-bold text-[#0a1d35]"
-              >
-                Scrivi su WhatsApp
-              </a>
-            </GuestCard>
-
-            <GuestCard icon={MapPin} title="Posizione">
-              <p>Gelone Lungomare</p>
-              <p>Via Pascoli 1, Gela</p>
-              <p>Provincia di Caltanissetta, Sicilia</p>
-              <div className="mt-4">
-                <MapsButton compact />
-              </div>
-            </GuestCard>
-
-            <GuestCard icon={Home} title="Soggiorno">
-              <p>Ospiti: massimo 2 persone</p>
-              <p>Camera: 1 camera da letto</p>
-              <p>Bagno: 1 bagno</p>
-              <p>Cucina: presente</p>
-            </GuestCard>
-
-            <GuestCard icon={Clock} title="Check-in / Check-out">
-              <p>Check-in: da confermare prima dell'arrivo</p>
-              <p>Check-out: da confermare prima della partenza</p>
-              <p>Per esigenze particolari contattaci su WhatsApp.</p>
-            </GuestCard>
-
-            <GuestCard icon={Wifi} title="Wi-Fi">
-              <p>Nome rete Wi-Fi: da inserire</p>
-              <p>Password Wi-Fi: da inserire</p>
-              <p>
-                Se la rete non dovesse funzionare, contattaci tramite WhatsApp.
-              </p>
-            </GuestCard>
-
-            <GuestCard icon={KeyRound} title="Chiavi e accesso">
-              <p>Le istruzioni di accesso vengono comunicate prima dell'arrivo.</p>
-              <p>Conserva le chiavi con attenzione durante il soggiorno.</p>
-              <p>In caso di problemi, contattaci subito.</p>
-            </GuestCard>
-
-            <GuestCard icon={Trash2} title="Regole principali">
-              <p>Rispetta gli orari di silenzio.</p>
-              <p>Non arrecare disturbo ai vicini.</p>
-              <p>Lascia l'appartamento in ordine alla partenza.</p>
-              <p>Segui le indicazioni per la raccolta dei rifiuti.</p>
-            </GuestCard>
-
-            <GuestCard icon={AlertTriangle} title="Emergenze">
-              <p>Per emergenze gravi chiama il 112.</p>
-              <p>Per problemi legati all'appartamento contattaci su WhatsApp.</p>
-              <p>Telefono: 3476308456</p>
-            </GuestCard>
-
-            <GuestCard icon={ExternalLink} title="Prenotazione">
-              <p>Puoi gestire la prenotazione tramite Booking.</p>
-              <p>Per informazioni dirette puoi scriverci su WhatsApp.</p>
-              <a
-                href={bookingUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-flex rounded-full bg-[#f5c84b] px-6 py-3 font-bold text-[#0a1d35]"
-              >
-                Apri Booking
-              </a>
-            </GuestCard>
           </div>
         </div>
       </section>
@@ -504,17 +459,18 @@ export default function App() {
           <div className="grid gap-10 md:grid-cols-[1fr_1fr]">
             <div>
               <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-                Prenota
+                Contatti
               </p>
               <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-                Richiedi disponibilità o prenota online
+                Richiedi informazioni o prenota online
               </h2>
               <p className="mt-5 text-lg leading-8 text-[#555]">
-                Puoi prenotare tramite Booking oppure contattarci direttamente
-                su WhatsApp per informazioni, disponibilità e assistenza.
+                Puoi prenotare tramite Booking, inviare una richiesta diretta dal
+                sito oppure contattarci su WhatsApp.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <DirectBookingButton />
                 <BookingButton />
                 <WhatsAppButton />
               </div>
@@ -568,17 +524,19 @@ export default function App() {
 
             <p>
               Il sito www.gelone.it presenta la struttura e permette all'utente
-              di contattarla tramite telefono, email, WhatsApp e collegamenti
-              esterni verso piattaforme di prenotazione.
+              di contattarla tramite telefono, email, WhatsApp, collegamenti
+              esterni verso Booking e collegamento alla richiesta diretta tramite
+              app Google Apps Script.
             </p>
 
             <p>
-              Il sito non raccoglie dati personali tramite moduli interni,
-              registrazioni, newsletter o pagamenti diretti. I dati
-              eventualmente comunicati volontariamente tramite email, telefono o
-              WhatsApp vengono utilizzati per rispondere alle richieste di
-              informazioni, verificare disponibilità, fornire assistenza e
-              gestire eventuali comunicazioni collegate al soggiorno.
+              Il sito non raccoglie dati personali tramite moduli interni
+              ospitati direttamente su www.gelone.it, newsletter o pagamenti
+              diretti. I dati eventualmente comunicati volontariamente tramite
+              email, telefono, WhatsApp, Booking o app di richiesta diretta
+              vengono utilizzati per rispondere alle richieste di informazioni,
+              verificare disponibilità, fornire assistenza e gestire eventuali
+              comunicazioni collegate al soggiorno.
             </p>
 
             <p>
@@ -604,25 +562,25 @@ export default function App() {
 
             <p>
               Il sito contiene collegamenti verso servizi esterni come Booking,
-              WhatsApp e Google Maps. Cliccando su questi collegamenti l'utente
-              lascia il sito www.gelone.it e accede a piattaforme gestite da
-              soggetti terzi, soggette alle rispettive informative privacy e
-              cookie.
+              WhatsApp, Google Maps e Google Apps Script. Cliccando su questi
+              collegamenti l'utente lascia il sito www.gelone.it e accede a
+              piattaforme gestite da soggetti terzi, soggette alle rispettive
+              informative privacy e cookie.
             </p>
 
             <p>
               Nella versione attuale il sito non utilizza cookie di profilazione,
-              strumenti pubblicitari, newsletter, moduli di contatto interni,
-              sistemi di pagamento diretto o strumenti di tracciamento marketing.
-              Il sito può utilizzare solo eventuali cookie tecnici necessari al
-              corretto funzionamento della navigazione.
+              strumenti pubblicitari, newsletter, sistemi di pagamento diretto o
+              strumenti di tracciamento marketing. Il sito può utilizzare solo
+              eventuali cookie tecnici necessari al corretto funzionamento della
+              navigazione.
             </p>
 
             <p>
               L'utente può esercitare i diritti previsti dalla normativa privacy,
               tra cui accesso, rettifica, cancellazione, limitazione e
-              opposizione al trattamento, scrivendo a info@gelone.it. L'utente
-              ha inoltre diritto di proporre reclamo al Garante per la Protezione
+              opposizione al trattamento, scrivendo a info@gelone.it. L'utente ha
+              inoltre diritto di proporre reclamo al Garante per la Protezione
               dei Dati Personali.
             </p>
 
@@ -659,10 +617,10 @@ export default function App() {
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-5">
           <a
-            href="#ospiti"
+            href="#prenotazione-diretta"
             className="underline underline-offset-4 hover:text-[#9b6b25]"
           >
-            Info ospiti
+            Prenotazione diretta
           </a>
           <a
             href="#privacy"
@@ -680,7 +638,8 @@ export default function App() {
       </footer>
 
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#d7c49f] bg-[#faf6ee]/95 p-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-2">
+          <DirectBookingButton compact />
           <BookingButton compact />
           <WhatsAppButton compact />
         </div>

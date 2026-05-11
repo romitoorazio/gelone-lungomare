@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Info ospiti | Gelone Lungomare</title>
+
+    <style>
+      :root {
+        --blue: #0a1d35;
+        --gold: #d8b66c;
+        --gold-button: #f5c84b;
+        --paper: #faf6ee;
+        --white: #ffffff;
+        --border: #e4d8c2;
+        --text: #4c4c4c;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: var(--paper);
+        color: var(--blue);
+      }
+
+      header {
+        padding: 28px 20px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(250, 246, 238, 0.96);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        backdrop-filter: blur(12px);
+      }
+
+      .wrap {
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+
+      .brand-small {
+        color: #9b6b25;
+        text-transform: uppercase;
+        letter-spacing: 0.35em;
+        font-size: 11px;
+        margin: 0;
+      }
+
+      .brand {
+        font-family: Georgia, "Times New Roman", serif;
+        letter-spacing: 0.18em;
+        font-size: 30px;
+        margin: 4px 0 0;
+      }
+
+      .brand-sub {
+        letter-spacing: 0.45em;
+        font-size: 13px;
+        margin: 0;
+      }
+
+      .hero {
+        padding: 54px 20px 28px;
+      }
+
+      .hero-box {
+        border: 1px solid var(--border);
+        border-radius: 32px;
+        background: var(--white);
+        padding: 34px;
+        box-shadow: 0 12px 36px rgba(10, 29, 53, 0.08);
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: Georgia, "Times New Roman", serif;
+      }
+
+      h1 {
+        font-size: clamp(42px, 8vw, 76px);
+        line-height: 0.95;
+        margin: 16px 0;
+      }
+
+      h2 {
+        font-size: clamp(30px, 5vw, 46px);
+        margin: 0 0 16px;
+      }
+
+      h3 {
+        font-size: 26px;
+        margin: 16px 0 10px;
+      }
+
+      p {
+        color: var(--text);
+        line-height: 1.7;
+        font-size: 17px;
+      }
+
+      .badge {
+        display: inline-flex;
+        border: 1px solid #d7c49f;
+        color: #6d552d;
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: #fffaf0;
+        font-size: 14px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 22px;
+        padding: 28px 20px 70px;
+      }
+
+      .card {
+        background: var(--white);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 24px;
+        box-shadow: 0 8px 26px rgba(10, 29, 53, 0.06);
+      }
+
+      .icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #f4ead7;
+        color: #9b6b25;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 20px;
+      }
+
+      .wifi-box {
+        background: #0a1d35;
+        color: white;
+        border-radius: 22px;
+        padding: 22px;
+        margin-top: 14px;
+      }
+
+      .wifi-box p,
+      .wifi-box strong {
+        color: white;
+      }
+
+      .btns {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 22px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 14px 20px;
+        text-decoration: none;
+        font-weight: 800;
+        border: 1px solid transparent;
+      }
+
+      .btn-gold {
+        background: var(--gold-button);
+        color: var(--blue);
+        border-color: #b88416;
+      }
+
+      .btn-blue {
+        background: var(--blue);
+        color: white;
+        border-color: var(--blue);
+      }
+
+      .btn-white {
+        background: white;
+        color: var(--blue);
+        border-color: var(--blue);
+      }
+
+      .notice {
+        border-left: 5px solid var(--gold);
+        background: #fffaf0;
+        padding: 18px;
+        border-radius: 18px;
+      }
+
+      footer {
+        text-align: center;
+        border-top: 1px solid var(--border);
+        padding: 30px 20px 90px;
+        color: var(--text);
+      }
+
+      .bottom-bar {
+        display: none;
+      }
+
+      @media (max-width: 850px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-box {
+          padding: 24px;
+        }
+
+        .bottom-bar {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(250, 246, 238, 0.96);
+          border-top: 1px solid var(--border);
+          padding: 12px;
+          z-index: 20;
+          backdrop-filter: blur(12px);
+        }
+
+        .bottom-bar .btn {
+          padding: 13px 10px;
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="wrap">
+        <p class="brand-small">Info ospiti</p>
+        <p class="brand">GELONE</p>
+        <p class="brand-sub">LUNGOMARE</p>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap hero-box">
+          <span class="badge">Benvenuto a Gelone Lungomare</span>
+          <h1>Info utili per il tuo soggiorno</h1>
+          <p>
+            In questa pagina trovi contatti rapidi, Wi-Fi, posizione, regole
+            principali, emergenze e collegamenti utili durante il soggiorno.
+          </p>
+
+          <div class="btns">
+            <a class="btn btn-gold" href="https://maps.app.goo.gl/JwYWW3RqFz5VdtCu6" target="_blank" rel="noreferrer">
+              Apri Google Maps
+            </a>
+            <a class="btn btn-blue" href="https://wa.me/393476308456?text=Ciao%2C%20sono%20ospite%20di%20Gelone%20Lungomare" target="_blank" rel="noreferrer">
+              WhatsApp
+            </a>
+            <a class="btn btn-white" href="https://www.booking.com/Share-OQe9T5" target="_blank" rel="noreferrer">
+              Booking
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap grid">
+        <article class="card">
+          <div class="icon">☎</div>
+          <h3>Contatti rapidi</h3>
+          <p><strong>Telefono / WhatsApp:</strong> 3476308456</p>
+          <p><strong>Secondo numero:</strong> 3479461999</p>
+          <p><strong>Email:</strong> info@gelone.it</p>
+        </article>
+
+        <article class="card">
+          <div class="icon">⌁</div>
+          <h3>Wi-Fi</h3>
+          <div class="wifi-box">
+            <p><strong>Nome rete:</strong> lunarossa</p>
+            <p><strong>Password:</strong> gelone123</p>
+          </div>
+          <p>Se la rete non dovesse funzionare, contattaci su WhatsApp.</p>
+        </article>
+
+        <article class="card">
+          <div class="icon">⌖</div>
+          <h3>Posizione</h3>
+          <p><strong>Gelone Lungomare</strong></p>
+          <p>Via Pascoli 1, Gela</p>
+          <p>Provincia di Caltanissetta, Sicilia</p>
+          <a class="btn btn-gold" href="https://maps.app.goo.gl/JwYWW3RqFz5VdtCu6" target="_blank" rel="noreferrer">
+            Apri Maps
+          </a>
+        </article>
+
+        <article class="card">
+          <div class="icon">⌂</div>
+          <h3>Soggiorno</h3>
+          <p>Ospiti: massimo 2 persone</p>
+          <p>Camera: 1 camera da letto</p>
+          <p>Bagno: 1 bagno</p>
+          <p>Cucina: presente</p>
+        </article>
+
+        <article class="card">
+          <div class="icon">⏱</div>
+          <h3>Check-in / Check-out</h3>
+          <p>Check-in: da confermare prima dell’arrivo.</p>
+          <p>Check-out: da confermare prima della partenza.</p>
+          <p>Per esigenze particolari contattaci su WhatsApp.</p>
+        </article>
+
+        <article class="card">
+          <div class="icon">⚿</div>
+          <h3>Chiavi e accesso</h3>
+          <p>Le istruzioni di accesso vengono comunicate prima dell’arrivo.</p>
+          <p>Conserva le chiavi con attenzione durante il soggiorno.</p>
+          <p>In caso di problemi, contattaci subito.</p>
+        </article>
+
+        <article class="card">
+          <div class="icon">!</div>
+          <h3>Regole principali</h3>
+          <p>Rispetta gli orari di silenzio.</p>
+          <p>Non arrecare disturbo ai vicini.</p>
+          <p>Lascia l’appartamento in ordine alla partenza.</p>
+          <p>Segui le indicazioni per la raccolta dei rifiuti.</p>
+        </article>
+
+        <article class="card">
+          <div class="icon">⚠</div>
+          <h3>Emergenze</h3>
+          <p>Per emergenze gravi chiama il <strong>112</strong>.</p>
+          <p>Per problemi legati all’appartamento contattaci su WhatsApp.</p>
+          <p>Telefono: 3476308456</p>
+        </article>
+
+        <article class="card">
+          <div class="icon">ℹ</div>
+          <h3>Prenotazione</h3>
+          <p>Puoi gestire la prenotazione tramite Booking.</p>
+          <p>Per informazioni dirette puoi scriverci su WhatsApp.</p>
+          <a class="btn btn-gold" href="https://www.booking.com/Share-OQe9T5" target="_blank" rel="noreferrer">
+            Apri Booking
+          </a>
+        </article>
+      </section>
+
+      <section class="wrap" style="padding: 0 20px 60px">
+        <div class="notice">
+          <strong>Nota:</strong>
+          questa pagina è pensata per gli ospiti che scansionano il QR code
+          all’interno dell’appartamento. Non è pensata come pagina pubblicitaria
+          principale del sito.
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <strong>Gelone Lungomare</strong><br />
+      Locazione turistica a Gela<br />
+      CIN IT084001B4D36830 · CIR 190840010022<br />
+      www.gelone.it · info@gelone.it
+    </footer>
+
+    <div class="bottom-bar">
+      <a class="btn btn-gold" href="https://maps.app.goo.gl/JwYWW3RqFz5VdtCu6" target="_blank" rel="noreferrer">Maps</a>
+      <a class="btn btn-blue" href="https://wa.me/393476308456?text=Ciao%2C%20sono%20ospite%20di%20Gelone%20Lungomare" target="_blank" rel="noreferrer">WhatsApp</a>
+    </div>
+  </body>
+</html>
