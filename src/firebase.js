@@ -20,4 +20,4 @@ export const db = getFirestore(app);
 export const ADMIN_EMAILS = ["romitoorazio@gmail.com"];
 
 export const UNIT_ID = "lunarossa1";
-export const UNIT_NAME = "Lunarossa 1";
+export const UNIT_NAME = "Gelone Lungomare";

@@ -1,9 +1,10 @@
-import { adminDb } from "./_firebaseAdmin.js";
+import { getFirebaseAdminDb } from "./_firebaseAdmin.js";
 
 const UNIT_ID = "lunarossa1";
+const PUBLIC_UNIT_NAME = "Gelone Lungomare";
 
 function isValidDate(value) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 function toDateInputValue(date) {
@@ -29,7 +30,23 @@ function getNightDates(checkIn, checkOut) {
   return nights;
 }
 
+function getBody(req) {
+  if (!req.body) return {};
+
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+
+  return req.body;
+}
+
 export default async function handler(req, res) {
+  res.setHeader("Content-Type", "application/json");
+
   if (req.method !== "POST") {
     return res.status(405).json({
       ok: false,
@@ -38,7 +55,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { checkIn, checkOut } = req.body || {};
+    const adminDb = getFirebaseAdminDb();
+    const body = getBody(req);
+
+    const { checkIn, checkOut } = body;
 
     if (!isValidDate(checkIn) || !isValidDate(checkOut)) {
       return res.status(400).json({
@@ -90,18 +110,23 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       unitId: UNIT_ID,
+      unitName: PUBLIC_UNIT_NAME,
       checkIn,
       checkOut,
       nights,
       available,
+      occupiedNights,
       message: available
-        ? "Le date risultano disponibili."
-        : "Le date selezionate non risultano disponibili.",
+        ? "Gelone Lungomare risulta disponibile per le date selezionate."
+        : "Gelone Lungomare non risulta disponibile per le date selezionate.",
     });
   } catch (error) {
+    console.error("Errore check-availability:", error);
+
     return res.status(500).json({
       ok: false,
       message:
+        error?.message ||
         "Errore tecnico durante il controllo disponibilità. Riprova più tardi o contatta la struttura.",
     });
   }
