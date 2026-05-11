@@ -4,40 +4,74 @@ import {
   Phone,
   Mail,
   CalendarDays,
-  Wifi,
   Waves,
   Home,
   Camera,
   ExternalLink,
+  Utensils,
+  ShieldCheck,
+  Info,
+  MessageCircle,
+  BedDouble,
+  Bath,
+  Landmark,
 } from "lucide-react";
 
 const bookingUrl = "https://www.booking.com/Share-OQe9T5";
+
 const whatsappUrl =
   "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informazioni%20su%20Gelone%20Lungomare";
+
 const mapsUrl =
   "https://www.google.com/maps/search/?api=1&query=Via%20Pascoli%201%20Gela";
 
 const gallery = [
   {
     title: "Terrazza esterna",
-    description: "Spazio all'aperto per rilassarsi e godersi il soggiorno.",
+    description:
+      "Uno spazio all'aperto dove rilassarsi, fare colazione o godersi l'atmosfera del lungomare.",
     image: "/images/terrazza-gelone.jpg",
   },
   {
     title: "Vista mare",
-    description: "A pochi passi dal lungomare di Gela.",
+    description:
+      "Una posizione comoda, vicina al mare e ai principali servizi della città.",
     image: "/images/vista-mare-gelone.jpg",
   },
   {
     title: "Camera, bagno e cucina",
-    description: "Soluzione comoda per 2 persone con cucina e bagno privato.",
+    description:
+      "Soluzione riservata per 2 persone, con camera da letto, bagno e cucina.",
     image: "/images/interni-gelone.jpg",
+  },
+];
+
+const features = [
+  {
+    icon: Home,
+    title: "Per 2 persone",
+    text: "Ideale per coppie, viaggiatori singoli o soggiorni brevi a Gela.",
+  },
+  {
+    icon: BedDouble,
+    title: "1 camera da letto",
+    text: "Ambiente riservato e confortevole per il riposo.",
+  },
+  {
+    icon: Bath,
+    title: "1 bagno",
+    text: "Bagno privato con i servizi essenziali per il soggiorno.",
+  },
+  {
+    icon: Utensils,
+    title: "Cucina",
+    text: "Cucina disponibile per vivere il soggiorno con maggiore autonomia.",
   },
 ];
 
 function Feature({ icon: Icon, title, text }) {
   return (
-    <div className="rounded-2xl border border-[#e4d8c2] bg-white/90 p-5 shadow-sm">
+    <div className="rounded-2xl border border-[#e4d8c2] bg-white/90 p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
       <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-[#f4ead7] text-[#9b6b25]">
         <Icon size={22} />
       </div>
@@ -47,18 +81,34 @@ function Feature({ icon: Icon, title, text }) {
   );
 }
 
+function ButtonLink({ href, children, variant = "primary" }) {
+  const base =
+    "inline-flex items-center justify-center gap-2 rounded-full px-7 py-4 text-center font-semibold transition";
+
+  const styles =
+    variant === "primary"
+      ? "bg-[#0a1d35] text-white shadow-md hover:bg-[#132f52]"
+      : "border border-[#0a1d35] bg-white/75 text-[#0a1d35] hover:bg-white";
+
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className={`${base} ${styles}`}>
+      {children}
+    </a>
+  );
+}
+
 export default function App() {
   return (
     <main className="min-h-screen bg-[#faf6ee] text-[#0a1d35]">
-      <header className="sticky top-0 z-30 border-b border-[#e4d8c2] bg-[#faf6ee]/90 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-[#e4d8c2] bg-[#faf6ee]/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.35em] text-[#9b6b25]">
+          <a href="#home" className="block">
+            <p className="text-[10px] uppercase tracking-[0.35em] text-[#9b6b25]">
               Locazione turistica
             </p>
             <h1 className="font-serif text-2xl tracking-[0.18em]">GELONE</h1>
-            <p className="text-sm tracking-[0.45em]">LUNGOMARE</p>
-          </div>
+            <p className="text-xs tracking-[0.45em]">LUNGOMARE</p>
+          </a>
 
           <nav className="hidden items-center gap-7 text-sm font-medium md:flex">
             <a href="#appartamento" className="hover:text-[#9b6b25]">
@@ -70,8 +120,11 @@ export default function App() {
             <a href="#posizione" className="hover:text-[#9b6b25]">
               Dove siamo
             </a>
-            <a href="#contatti" className="hover:text-[#9b6b25]">
-              Contatti
+            <a href="#info" className="hover:text-[#9b6b25]">
+              Info
+            </a>
+            <a href="#privacy" className="hover:text-[#9b6b25]">
+              Privacy
             </a>
           </nav>
 
@@ -86,7 +139,7 @@ export default function App() {
         </div>
       </header>
 
-      <section className="relative overflow-hidden">
+      <section id="home" className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,#e6cf9a,transparent_35%),radial-gradient(circle_at_bottom_right,#d8e9ef,transparent_30%)]" />
 
         <div className="relative mx-auto grid max-w-7xl gap-10 px-5 py-16 md:grid-cols-[1.05fr_0.95fr] md:py-24">
@@ -101,40 +154,49 @@ export default function App() {
             </h2>
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-[#4c4c4c]">
-              Locazione turistica a Gela con terrazza e vista mare. Una
-              soluzione comoda e riservata per 2 persone, ideale per coppie o
-              viaggiatori che cercano tranquillità, posizione e praticità.
+              Locazione turistica a Gela con terrazza e vista mare. Una soluzione
+              comoda e riservata per 2 persone, ideale per coppie o viaggiatori
+              che cercano tranquillità, posizione e praticità.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a
-                href={bookingUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-7 py-4 font-semibold text-white shadow-md transition hover:bg-[#132f52]"
-              >
+              <ButtonLink href={bookingUrl}>
                 Prenota su Booking <ExternalLink size={18} />
-              </a>
+              </ButtonLink>
 
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-[#0a1d35] bg-white/70 px-7 py-4 font-semibold text-[#0a1d35] transition hover:bg-white"
-              >
-                Scrivici su WhatsApp
-              </a>
+              <ButtonLink href={whatsappUrl} variant="secondary">
+                Scrivici su WhatsApp <MessageCircle size={18} />
+              </ButtonLink>
+            </div>
+
+            <div className="mt-8 grid max-w-xl grid-cols-2 gap-3 text-sm text-[#4c4c4c] sm:grid-cols-4">
+              <div className="rounded-2xl border border-[#e4d8c2] bg-white/70 p-4">
+                <strong className="block text-[#0a1d35]">2</strong>
+                persone
+              </div>
+              <div className="rounded-2xl border border-[#e4d8c2] bg-white/70 p-4">
+                <strong className="block text-[#0a1d35]">1</strong>
+                camera
+              </div>
+              <div className="rounded-2xl border border-[#e4d8c2] bg-white/70 p-4">
+                <strong className="block text-[#0a1d35]">1</strong>
+                bagno
+              </div>
+              <div className="rounded-2xl border border-[#e4d8c2] bg-white/70 p-4">
+                <strong className="block text-[#0a1d35]">1</strong>
+                cucina
+              </div>
             </div>
           </div>
 
           <div className="rounded-[2rem] border border-[#d7c49f] bg-white p-3 shadow-xl">
             <div className="relative flex min-h-[480px] items-end overflow-hidden rounded-[1.5rem] p-6">
               <img
-                src="/images/vista-mare-gelone.jpg"
-                alt="Vista mare da Gelone Lungomare"
+                src="/images/terrazza-gelone.jpg"
+                alt="Terrazza esterna Gelone Lungomare"
                 className="absolute inset-0 h-full w-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
 
               <div className="relative rounded-2xl bg-white/90 p-6 shadow-lg backdrop-blur">
                 <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
@@ -144,8 +206,8 @@ export default function App() {
                   Terrazza, mare e comfort
                 </h3>
                 <p className="mt-3 max-w-md leading-7 text-[#555]">
-                  Vista mare, terrazza esterna e una posizione comoda per vivere
-                  Gela in modo semplice e rilassato.
+                  Uno spazio esterno da vivere, vicino al lungomare di Gela e ai
+                  principali servizi della città.
                 </p>
               </div>
             </div>
@@ -155,26 +217,14 @@ export default function App() {
 
       <section id="appartamento" className="mx-auto max-w-7xl px-5 py-16">
         <div className="grid gap-6 md:grid-cols-4">
-          <Feature
-            icon={Home}
-            title="Per 2 persone"
-            text="Soluzione ideale per coppie o soggiorni brevi a Gela."
-          />
-          <Feature
-            icon={CalendarDays}
-            title="1 camera da letto"
-            text="Ambiente riservato e confortevole per il riposo."
-          />
-          <Feature
-            icon={Wifi}
-            title="Cucina e servizi"
-            text="Cucina disponibile, bagno privato e comfort essenziali."
-          />
-          <Feature
-            icon={Waves}
-            title="Vicino al mare"
-            text="Posizione comoda per raggiungere il lungomare e i servizi."
-          />
+          {features.map((item) => (
+            <Feature
+              key={item.title}
+              icon={item.icon}
+              title={item.title}
+              text={item.text}
+            />
+          ))}
         </div>
       </section>
 
@@ -193,8 +243,7 @@ export default function App() {
             <p>
               Gelone Lungomare è una locazione turistica pensata per ospitare
               fino a 2 persone. Dispone di una camera da letto, un bagno, una
-              cucina e una terrazza esterna che rende il soggiorno più
-              piacevole.
+              cucina e una terrazza esterna che rende il soggiorno più piacevole.
             </p>
             <p className="mt-5">
               È una scelta adatta per chi vuole vivere Gela con una posizione
@@ -221,12 +270,12 @@ export default function App() {
           {gallery.map((item) => (
             <article
               key={item.title}
-              className="overflow-hidden rounded-2xl border border-[#e4d8c2] bg-white shadow-sm"
+              className="overflow-hidden rounded-2xl border border-[#e4d8c2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
             >
               <img
                 src={item.image}
                 alt={item.title}
-                className="h-64 w-full object-cover"
+                className="h-72 w-full object-cover"
               />
               <div className="p-5">
                 <h3 className="text-xl font-semibold">{item.title}</h3>
@@ -249,8 +298,8 @@ export default function App() {
               A Gela, vicino al lungomare
             </h2>
             <p className="mt-6 text-lg leading-8 text-white/75">
-              Una posizione comoda per raggiungere il mare, il centro
-              cittadino, bar, ristoranti e servizi principali.
+              Una posizione comoda per raggiungere il mare, il centro cittadino,
+              bar, ristoranti e servizi principali.
             </p>
           </div>
 
@@ -276,6 +325,38 @@ export default function App() {
         </div>
       </section>
 
+      <section id="info" className="mx-auto max-w-7xl px-5 py-16">
+        <div className="grid gap-6 md:grid-cols-3">
+          <div className="rounded-2xl border border-[#e4d8c2] bg-white p-6 shadow-sm">
+            <ShieldCheck className="text-[#9b6b25]" size={34} />
+            <h3 className="mt-4 font-serif text-2xl">Dati struttura</h3>
+            <div className="mt-4 space-y-2 text-[#555]">
+              <p>CIN: IT084001B4D36830</p>
+              <p>CIR: 190840010022</p>
+              <p>Locazione turistica a Gela</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#e4d8c2] bg-white p-6 shadow-sm">
+            <Landmark className="text-[#9b6b25]" size={34} />
+            <h3 className="mt-4 font-serif text-2xl">Per chi è ideale</h3>
+            <p className="mt-4 leading-7 text-[#555]">
+              Ideale per coppie, viaggiatori singoli, soggiorni brevi, lavoro o
+              vacanza vicino al mare.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[#e4d8c2] bg-white p-6 shadow-sm">
+            <Info className="text-[#9b6b25]" size={34} />
+            <h3 className="mt-4 font-serif text-2xl">Prenotazioni</h3>
+            <p className="mt-4 leading-7 text-[#555]">
+              Puoi prenotare su Booking oppure contattarci direttamente su
+              WhatsApp per informazioni e disponibilità.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <section id="contatti" className="mx-auto max-w-7xl px-5 py-16">
         <div className="rounded-[2rem] border border-[#d7c49f] bg-white p-8 shadow-sm md:p-12">
           <div className="grid gap-10 md:grid-cols-[1fr_1fr]">
@@ -292,23 +373,13 @@ export default function App() {
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a
-                  href={bookingUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full bg-[#0a1d35] px-7 py-4 text-center font-semibold text-white"
-                >
-                  Prenota su Booking
-                </a>
+                <ButtonLink href={bookingUrl}>
+                  Prenota su Booking <ExternalLink size={18} />
+                </ButtonLink>
 
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full border border-[#0a1d35] px-7 py-4 text-center font-semibold text-[#0a1d35]"
-                >
-                  WhatsApp
-                </a>
+                <ButtonLink href={whatsappUrl} variant="secondary">
+                  WhatsApp <MessageCircle size={18} />
+                </ButtonLink>
               </div>
             </div>
 
@@ -339,14 +410,108 @@ export default function App() {
         </div>
       </section>
 
-      <footer className="border-t border-[#e4d8c2] px-5 py-8 text-center text-sm text-[#555]">
+      <section id="privacy" className="bg-white px-5 py-16">
+        <div className="mx-auto max-w-4xl rounded-[2rem] border border-[#e4d8c2] bg-[#faf6ee] p-8 text-[#0a1d35] shadow-sm md:p-12">
+          <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+            Privacy e Cookie
+          </p>
+          <h2 className="mt-3 font-serif text-4xl">Informativa privacy</h2>
+
+          <div className="mt-6 space-y-5 leading-7 text-[#555]">
+            <p>
+              Questo sito presenta la locazione turistica Gelone Lungomare e
+              permette di contattare la struttura tramite telefono, email,
+              WhatsApp e link esterni di prenotazione.
+            </p>
+
+            <p>
+              I dati forniti volontariamente tramite email, telefono o WhatsApp
+              vengono utilizzati esclusivamente per rispondere alle richieste di
+              informazioni, disponibilità e assistenza relative al soggiorno.
+            </p>
+
+            <p>
+              Il sito contiene collegamenti verso servizi esterni come Booking,
+              WhatsApp e Google Maps. Cliccando su questi collegamenti l'utente
+              accede a piattaforme esterne, soggette alle rispettive informative
+              privacy e cookie.
+            </p>
+
+            <p>
+              Al momento questo sito non utilizza moduli di contatto interni,
+              newsletter, pagamenti diretti o strumenti pubblicitari di
+              profilazione. Se in futuro saranno aggiunti strumenti di analisi,
+              marketing o prenotazione diretta, questa informativa verrà
+              aggiornata.
+            </p>
+
+            <div className="rounded-2xl bg-white p-5 text-sm leading-7">
+              <p>
+                <strong>Titolare del sito:</strong> Gelone Lungomare
+              </p>
+              <p>
+                <strong>Email:</strong> info@gelone.it
+              </p>
+              <p>
+                <strong>Telefono:</strong> 3476308456 · 3479461999
+              </p>
+              <p>
+                <strong>Sito:</strong> www.gelone.it
+              </p>
+              <p>
+                <strong>CIN:</strong> IT084001B4D36830
+              </p>
+              <p>
+                <strong>CIR:</strong> 190840010022
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-[#e4d8c2] px-5 pb-28 pt-8 text-center text-sm text-[#555] md:pb-8">
         <p className="font-serif text-xl tracking-[0.2em] text-[#0a1d35]">
           GELONE LUNGOMARE
         </p>
         <p className="mt-2">
           Locazione turistica a Gela · CIN IT084001B4D36830 · CIR 190840010022
         </p>
+        <div className="mt-4 flex flex-wrap justify-center gap-5">
+          <a
+            href="#privacy"
+            className="underline underline-offset-4 hover:text-[#9b6b25]"
+          >
+            Privacy e Cookie
+          </a>
+          <a
+            href="mailto:info@gelone.it"
+            className="underline underline-offset-4 hover:text-[#9b6b25]"
+          >
+            info@gelone.it
+          </a>
+        </div>
       </footer>
+
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#d7c49f] bg-[#faf6ee]/95 p-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
+        <div className="grid grid-cols-2 gap-3">
+          <a
+            href={bookingUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-full bg-[#0a1d35] px-4 py-3 text-center text-sm font-semibold text-white"
+          >
+            Booking
+          </a>
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-full border border-[#0a1d35] bg-white px-4 py-3 text-center text-sm font-semibold text-[#0a1d35]"
+          >
+            WhatsApp
+          </a>
+        </div>
+      </div>
     </main>
   );
 }
