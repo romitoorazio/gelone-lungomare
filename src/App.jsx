@@ -118,6 +118,22 @@ function WhatsAppButton({ compact = false }) {
   );
 }
 
+function MapsButton({ compact = false }) {
+  return (
+    <a
+      href={mapsUrl}
+      target="_blank"
+      rel="noreferrer"
+      className={`inline-flex items-center justify-center gap-2 rounded-full border border-[#b88416] bg-[#f5c84b] text-center font-bold text-[#0a1d35] shadow-md transition hover:bg-[#ffd96a] ${
+        compact ? "px-5 py-3 text-sm" : "px-7 py-4"
+      }`}
+    >
+      Apri Google Maps
+      <ExternalLink size={18} />
+    </a>
+  );
+}
+
 function GuestCard({ icon: Icon, title, children }) {
   return (
     <div className="rounded-2xl border border-[#e4d8c2] bg-white p-6 shadow-sm">
@@ -333,14 +349,9 @@ export default function App() {
                 <p className="mt-2 text-white/75">
                   Provincia di Caltanissetta, Sicilia
                 </p>
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-6 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-semibold text-[#0a1d35]"
-                >
-                  Apri su Google Maps <ExternalLink size={18} />
-                </a>
+                <div className="mt-6">
+                  <MapsButton />
+                </div>
               </div>
             </div>
           </div>
@@ -389,9 +400,9 @@ export default function App() {
               Benvenuto a Gelone Lungomare
             </h2>
             <p className="mt-5 max-w-3xl text-lg leading-8 text-[#555]">
-              Questa sezione è pensata per il QR code da mettere in appartamento.
-              Qui l'ospite trova contatti, posizione, regole principali e
-              collegamenti rapidi.
+              Questa sezione è pensata per il QR code da mettere in
+              appartamento. Qui l'ospite trova contatti, posizione, regole
+              principali e collegamenti rapidi.
             </p>
           </div>
 
@@ -427,14 +438,9 @@ export default function App() {
               <p>Gelone Lungomare</p>
               <p>Via Pascoli 1, Gela</p>
               <p>Provincia di Caltanissetta, Sicilia</p>
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-flex rounded-full bg-[#0a1d35] px-6 py-3 font-semibold text-white"
-              >
-                Apri Google Maps
-              </a>
+              <div className="mt-4">
+                <MapsButton compact />
+              </div>
             </GuestCard>
 
             <GuestCard icon={Home} title="Soggiorno">
@@ -568,11 +574,11 @@ export default function App() {
 
             <p>
               Il sito non raccoglie dati personali tramite moduli interni,
-              registrazioni, newsletter o pagamenti diretti. I dati eventualmente
-              comunicati volontariamente tramite email, telefono o WhatsApp
-              vengono utilizzati per rispondere alle richieste di informazioni,
-              verificare disponibilità, fornire assistenza e gestire eventuali
-              comunicazioni collegate al soggiorno.
+              registrazioni, newsletter o pagamenti diretti. I dati
+              eventualmente comunicati volontariamente tramite email, telefono o
+              WhatsApp vengono utilizzati per rispondere alle richieste di
+              informazioni, verificare disponibilità, fornire assistenza e
+              gestire eventuali comunicazioni collegate al soggiorno.
             </p>
 
             <p>
@@ -614,10 +620,10 @@ export default function App() {
 
             <p>
               L'utente può esercitare i diritti previsti dalla normativa privacy,
-              tra cui accesso, rettifica, cancellazione, limitazione e opposizione
-              al trattamento, scrivendo a info@gelone.it. L'utente ha inoltre
-              diritto di proporre reclamo al Garante per la Protezione dei Dati
-              Personali.
+              tra cui accesso, rettifica, cancellazione, limitazione e
+              opposizione al trattamento, scrivendo a info@gelone.it. L'utente
+              ha inoltre diritto di proporre reclamo al Garante per la Protezione
+              dei Dati Personali.
             </p>
 
             <div className="rounded-2xl bg-white p-5 text-sm leading-7">
