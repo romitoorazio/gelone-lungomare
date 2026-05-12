@@ -19,5 +19,10 @@ export const db = getFirestore(app);
 
 export const ADMIN_EMAILS = ["romitoorazio@gmail.com"];
 
+/*
+  IMPORTANTE:
+  UNIT_ID resta lunarossa1 perché è l'identificativo interno Firebase.
+  Il nome pubblico mostrato nel sito/admin è Gelone Lungomare.
+*/
 export const UNIT_ID = "lunarossa1";
 export const UNIT_NAME = "Gelone Lungomare";

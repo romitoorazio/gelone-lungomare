@@ -89,8 +89,8 @@ function BookingButton({ compact = false }) {
       href={bookingUrl}
       target="_blank"
       rel="noreferrer"
-      className={`inline-flex items-center justify-center gap-2 rounded-full border border-[#b88416] bg-[#f5c84b] text-center font-bold text-[#0a1d35] shadow-md transition hover:bg-[#ffd96a] ${
-        compact ? "px-5 py-3 text-sm" : "px-7 py-4"
+      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border border-[#b88416] bg-[#f5c84b] text-center font-extrabold text-[#0a1d35] shadow-md transition hover:bg-[#ffd96a] ${
+        compact ? "px-4 py-3 text-sm" : "px-7 py-4"
       }`}
     >
       {compact ? "Booking" : "Prenota su Booking"}
@@ -103,11 +103,11 @@ function AvailabilityButton({ compact = false }) {
   return (
     <a
       href="#verifica-disponibilita"
-      className={`inline-flex items-center justify-center gap-2 rounded-full border border-[#0a1d35] bg-[#0a1d35] text-center font-bold text-white shadow-md transition hover:bg-[#132f52] ${
-        compact ? "px-5 py-3 text-sm" : "px-7 py-4"
+      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border-2 border-[#0a1d35] bg-[#f5c84b] text-center font-extrabold text-[#0a1d35] shadow-lg transition hover:bg-[#ffd96a] ${
+        compact ? "px-4 py-3 text-sm" : "px-7 py-4"
       }`}
     >
-      {compact ? "Disponibilità" : "Verifica disponibilità"}
+      {compact ? "Verifica" : "Verifica disponibilità"}
       {!compact && <CalendarCheck size={18} />}
     </a>
   );
@@ -119,8 +119,8 @@ function WhatsAppButton({ compact = false }) {
       href={whatsappUrl}
       target="_blank"
       rel="noreferrer"
-      className={`inline-flex items-center justify-center gap-2 rounded-full border border-[#0a1d35] bg-white text-center font-semibold text-[#0a1d35] transition hover:bg-[#faf6ee] ${
-        compact ? "px-5 py-3 text-sm" : "px-7 py-4"
+      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border border-[#0a1d35] bg-white text-center font-bold text-[#0a1d35] transition hover:bg-[#faf6ee] ${
+        compact ? "px-4 py-3 text-sm" : "px-7 py-4"
       }`}
     >
       {compact ? "WhatsApp" : "Scrivici su WhatsApp"}
@@ -135,7 +135,7 @@ function MapsButton() {
       href={mapsUrl}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center justify-center gap-2 rounded-full border border-[#b88416] bg-[#f5c84b] px-7 py-4 text-center font-bold text-[#0a1d35] shadow-md transition hover:bg-[#ffd96a]"
+      className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border border-[#b88416] bg-[#f5c84b] px-7 py-4 text-center font-extrabold text-[#0a1d35] shadow-md transition hover:bg-[#ffd96a]"
     >
       Apri Google Maps <ExternalLink size={18} />
     </a>
@@ -173,13 +173,21 @@ function AvailabilityForm() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          unit: "lunarossa1",
           checkIn,
           checkOut,
         }),
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+
+      let data = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        throw new Error(
+          "Errore tecnico del server. Riprova più tardi oppure contattaci su WhatsApp."
+        );
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -199,9 +207,9 @@ function AvailabilityForm() {
   }
 
   const whatsappWithDates = `https://wa.me/393476308456?text=${encodeURIComponent(
-    `Ciao, vorrei informazioni su Gelone Lungomare. Date richieste: ${checkIn || "arrivo"} - ${
-      checkOut || "partenza"
-    }`
+    `Ciao, vorrei informazioni su Gelone Lungomare. Date richieste: ${
+      checkIn || "arrivo"
+    } - ${checkOut || "partenza"}`
   )}`;
 
   return (
@@ -238,10 +246,12 @@ function AvailabilityForm() {
       <button
         type="submit"
         disabled={loading}
-        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-7 py-4 font-bold text-white shadow-md transition hover:bg-[#132f52] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto"
+        className="mt-5 inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full border-2 border-[#0a1d35] bg-[#f5c84b] px-7 py-4 text-base font-extrabold text-[#0a1d35] shadow-lg transition hover:bg-[#ffd96a] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:text-lg"
       >
-        {loading ? "Controllo in corso..." : "Controlla disponibilità Lunarossa 1"}
-        <SearchCheck size={18} />
+        {loading
+          ? "Controllo in corso..."
+          : "Controlla disponibilità Gelone Lungomare"}
+        <SearchCheck size={20} />
       </button>
 
       {error && (
@@ -262,9 +272,9 @@ function AvailabilityForm() {
         >
           <p className="font-bold">
             {result.available === true
-              ? "Le date risultano disponibili."
+              ? "Gelone Lungomare risulta disponibile."
               : result.available === false
-              ? "Le date non risultano disponibili."
+              ? "Gelone Lungomare non risulta disponibile."
               : "Risultato disponibilità"}
           </p>
 
@@ -287,8 +297,8 @@ function AvailabilityForm() {
       )}
 
       <p className="mt-5 text-sm leading-6 text-[#555]">
-        La verifica serve solo a controllare se Lunarossa 1 risulta libera. La
-        prenotazione è confermata solo dopo risposta della struttura.
+        La verifica serve solo a controllare se Gelone Lungomare risulta libera.
+        La prenotazione è confermata solo dopo risposta della struttura.
       </p>
     </form>
   );
@@ -516,12 +526,12 @@ export default function App() {
             Disponibilità
           </p>
           <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-            Controlla se Lunarossa 1 è libera
+            Controlla disponibilità Gelone Lungomare
           </h2>
           <p className="mt-5 text-lg leading-8 text-[#555]">
             Inserisci le date e il sito controllerà la disponibilità tramite il
-            sistema interno, senza mostrare pubblicamente il link privato della
-            tua app.
+            sistema interno Gelone, senza mostrare dati tecnici o collegamenti
+            privati.
           </p>
         </div>
 
@@ -535,7 +545,7 @@ export default function App() {
                 1. Controllo date
               </h3>
               <p className="mt-2 leading-7 text-[#555]">
-                Il sito invia le date al controllo interno per Lunarossa 1.
+                Il sito invia le date al sistema interno di Gelone Lungomare.
               </p>
             </div>
 
@@ -545,8 +555,8 @@ export default function App() {
                 2. Incrocio calendario
               </h3>
               <p className="mt-2 leading-7 text-[#555]">
-                La disponibilità deve essere incrociata con Booking e con il
-                calendario della tua app.
+                La disponibilità viene verificata con le date già presenti nel
+                sistema interno della struttura.
               </p>
             </div>
 
@@ -556,8 +566,7 @@ export default function App() {
                 3. Conferma finale
               </h3>
               <p className="mt-2 leading-7 text-[#555]">
-                La prenotazione non viene confermata automaticamente: prima deve
-                arrivare la conferma della struttura.
+                La prenotazione è confermata solo dopo risposta della struttura.
               </p>
             </div>
           </div>
@@ -672,9 +681,9 @@ export default function App() {
 
             <p>
               La funzione di verifica disponibilità invia le date selezionate a
-              un servizio interno del sito per controllare se Lunarossa 1 risulta
-              libera. Il link privato del sistema interno non viene mostrato al
-              pubblico.
+              un servizio interno del sito per controllare se Gelone Lungomare
+              risulta libera. I dettagli tecnici del sistema interno non vengono
+              mostrati al pubblico.
             </p>
 
             <p>
