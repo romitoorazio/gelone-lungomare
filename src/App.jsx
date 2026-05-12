@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import {
   MapPin,
   Phone,
@@ -21,7 +21,7 @@ import {
   Send,
 } from "lucide-react";
 
-const bookingUrl = "https://www.booking.com/hotel/it/gelone-lungomare.it.html";";
+const bookingUrl = "https://www.booking.com/hotel/it/gelone-lungomare.it.html";
 
 const whatsappUrl =
   "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informazioni%20su%20Gelone%20Lungomare";
