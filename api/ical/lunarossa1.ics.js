@@ -1,4 +1,4 @@
-import { getFirebaseAdminDb } from "../_firebaseAdmin.js";
+﻿import { getFirebaseAdminDb } from "../_firebaseAdmin.js";
 
 const UNIT_ID = "lunarossa1";
 const UNIT_NAME = "Gelone Lungomare";
@@ -170,7 +170,7 @@ export default async function handler(req, res) {
       "CALSCALE:GREGORIAN",
       "METHOD:PUBLISH",
       `X-WR-CALNAME:${escapeIcsText(UNIT_NAME)}`,
-      `X-WR-CALDESC:${escapeIcsText(`Disponibilità ${UNIT_NAME}`)}`,
+      `X-WR-CALDESC:${escapeIcsText(`DisponibilitÃ  ${UNIT_NAME}`)}`,
       ...events,
       "END:VCALENDAR",
     ].join("\r\n");

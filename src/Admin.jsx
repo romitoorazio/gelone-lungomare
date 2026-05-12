@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import {
   getIdToken,
   onAuthStateChanged,
@@ -393,7 +393,7 @@ export default function Admin() {
         .filter((item) => item.status !== "cancelled");
 
       if (occupied.length > 0) {
-        setError("Almeno una notte risulta già occupata. Controlla il calendario.");
+        setError("Almeno una notte risulta giÃ  occupata. Controlla il calendario.");
         return;
       }
 
@@ -574,7 +574,7 @@ export default function Admin() {
         <div className="mx-auto max-w-xl rounded-[2rem] border border-red-200 bg-red-50 p-8 text-red-900">
           <h1 className="font-serif text-3xl">Accesso non autorizzato</h1>
           <p className="mt-3">
-            L'email collegata non è autorizzata come amministratore.
+            L'email collegata non Ã¨ autorizzata come amministratore.
           </p>
           <button
             onClick={() => signOut(auth)}
@@ -597,7 +597,7 @@ export default function Admin() {
             </p>
             <h1 className="font-serif text-3xl">Gelone Lungomare</h1>
             <p className="text-sm text-[#555]">
-              Admin: {user.email} · Unità: {UNIT_NAME}
+              Admin: {user.email} Â· UnitÃ : {UNIT_NAME}
             </p>
           </div>
 
@@ -725,7 +725,7 @@ export default function Admin() {
                         </span>
                       </td>
                       <td className="py-4">
-                        {booking.totalPrice ? `€ ${booking.totalPrice}` : "-"}
+                        {booking.totalPrice ? `â‚¬ ${booking.totalPrice}` : "-"}
                       </td>
                       <td className="py-4">
                         <div className="flex gap-2">
@@ -1082,7 +1082,7 @@ export default function Admin() {
 
             <div className="mt-6 rounded-2xl border border-[#e4d8c2] bg-[#faf6ee] p-5">
               <RefreshCcw className="text-[#9b6b25]" size={28} />
-              <p className="mt-3 font-semibold">Import automatico Booking/Airbnb → PMS</p>
+              <p className="mt-3 font-semibold">Import automatico Booking/Airbnb â†’ PMS</p>
               <p className="mt-2 leading-7 text-[#555]">
                 I link iCal esterni vengono salvati in un documento privato admin,
                 poi l'API importa solo le notti occupate esterne senza cancellare
@@ -1119,15 +1119,15 @@ export default function Admin() {
                     <div key={item.source} className="rounded-2xl bg-[#faf6ee] p-4">
                       <p className="font-bold">{item.label}</p>
                       <p className="mt-2 text-sm leading-6 text-[#555]">
-                        Configurato: {item.configured ? "sì" : "no"} · Importati: {item.imported} ·
-                        Creati: {item.created} · Aggiornati: {item.updated} · Duplicati evitati: {item.skippedDuplicate} ·
-                        Conflitti protetti: {item.skippedConflict} · Vecchi rimossi: {item.staleCancelled}
+                        Configurato: {item.configured ? "sÃ¬" : "no"} Â· Importati: {item.imported} Â·
+                        Creati: {item.created} Â· Aggiornati: {item.updated} Â· Duplicati evitati: {item.skippedDuplicate} Â·
+                        Conflitti protetti: {item.skippedConflict} Â· Vecchi rimossi: {item.staleCancelled}
                       </p>
                       {item.errors.length > 0 && (
                         <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">
                           {item.errors.map((syncError, index) => (
                             <p key={`${item.source}_${index}`}>
-                              {syncError.checkIn} → {syncError.checkOut}: {syncError.message}
+                              {syncError.checkIn} â†’ {syncError.checkOut}: {syncError.message}
                             </p>
                           ))}
                         </div>
@@ -1143,7 +1143,7 @@ export default function Admin() {
               <p className="mt-3 font-semibold">Pagina QR ospiti</p>
               <p className="mt-2 leading-7 text-[#555]">
                 Nel prossimo step colleghiamo queste impostazioni alla pagina QR
-                ospiti, così Wi-Fi e regole saranno modificabili da admin.
+                ospiti, cosÃ¬ Wi-Fi e regole saranno modificabili da admin.
               </p>
             </div>
           </section>

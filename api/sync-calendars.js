@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+﻿import crypto from "node:crypto";
 import {
   FieldValue,
   getFirebaseAdminAuth,
@@ -266,3 +266,4 @@ async function verifyRequest(req) {
         ok: false,
         status: 403,
         message: "Email non autorizzata alla sincronizzazione cale
+

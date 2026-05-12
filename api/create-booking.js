@@ -1,4 +1,4 @@
-import { getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
+﻿import { getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
 
 const UNIT_ID = "lunarossa1";
 const UNIT_NAME = "Gelone Lungomare";
@@ -162,7 +162,7 @@ export default async function handler(req, res) {
     if (!Number.isFinite(guests) || guests < 1 || guests > 2) {
       return res.status(400).json({
         ok: false,
-        message: "Gelone Lungomare può ospitare massimo 2 persone.",
+        message: "Gelone Lungomare puÃ² ospitare massimo 2 persone.",
       });
     }
 
@@ -266,7 +266,7 @@ export default async function handler(req, res) {
       return res.status(409).json({
         ok: false,
         message:
-          "Le date selezionate non sono più disponibili. Prova altre date o contattaci su WhatsApp.",
+          "Le date selezionate non sono piÃ¹ disponibili. Prova altre date o contattaci su WhatsApp.",
       });
     }
 
@@ -274,7 +274,7 @@ export default async function handler(req, res) {
       ok: false,
       message:
         error?.message ||
-        "Errore tecnico durante la richiesta. Riprova più tardi o contattaci su WhatsApp.",
+        "Errore tecnico durante la richiesta. Riprova piÃ¹ tardi o contattaci su WhatsApp.",
     });
   }
 }

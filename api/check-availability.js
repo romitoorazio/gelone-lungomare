@@ -1,4 +1,4 @@
-import { getFirebaseAdminDb } from "./_firebaseAdmin.js";
+﻿import { getFirebaseAdminDb } from "./_firebaseAdmin.js";
 
 const UNIT_ID = "lunarossa1";
 const PUBLIC_UNIT_NAME = "Gelone Lungomare";
@@ -127,7 +127,7 @@ export default async function handler(req, res) {
       ok: false,
       message:
         error?.message ||
-        "Errore tecnico durante il controllo disponibilità. Riprova più tardi o contatta la struttura.",
+        "Errore tecnico durante il controllo disponibilitÃ . Riprova piÃ¹ tardi o contatta la struttura.",
     });
   }
 }

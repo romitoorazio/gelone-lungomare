@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
+﻿import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -21,8 +21,8 @@ export const ADMIN_EMAILS = ["romitoorazio@gmail.com"];
 
 /*
   IMPORTANTE:
-  UNIT_ID resta lunarossa1 perché è l'identificativo interno Firebase.
-  Il nome pubblico mostrato nel sito/admin è Gelone Lungomare.
+  UNIT_ID resta lunarossa1 perchÃ© Ã¨ l'identificativo interno Firebase.
+  Il nome pubblico mostrato nel sito/admin Ã¨ Gelone Lungomare.
 */
 export const UNIT_ID = "lunarossa1";
 export const UNIT_NAME = "Gelone Lungomare";
