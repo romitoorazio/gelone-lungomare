@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   MapPin,
   Phone,
@@ -21,7 +21,7 @@ import {
   Send,
 } from "lucide-react";
 
-const bookingUrl = "const bookingUrl = "https://www.booking.com/hotel/it/gelone-lungomare.it.html";";
+const bookingUrl = "https://www.booking.com/hotel/it/gelone-lungomare.it.html";";
 
 const whatsappUrl =
   "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informazioni%20su%20Gelone%20Lungomare";
@@ -38,7 +38,7 @@ const gallery = [
   {
     title: "Vista mare",
     description:
-      "Una posizione comoda, vicina al mare e ai principali servizi della città.",
+      "Una posizione comoda, vicina al mare e ai principali servizi della cittÃ .",
     image: "/images/vista-mare-gelone.jpg",
   },
   {
@@ -108,7 +108,7 @@ function AvailabilityButton({ compact = false }) {
         compact ? "px-4 py-3 text-sm" : "px-7 py-4"
       }`}
     >
-      {compact ? "Verifica" : "Verifica disponibilità"}
+      {compact ? "Verifica" : "Verifica disponibilitÃ "}
       {!compact && <CalendarCheck size={18} />}
     </a>
   );
@@ -150,7 +150,7 @@ async function readJsonResponse(response) {
     return responseText ? JSON.parse(responseText) : {};
   } catch {
     throw new Error(
-      "Errore tecnico del server. Riprova più tardi oppure contattaci su WhatsApp."
+      "Errore tecnico del server. Riprova piÃ¹ tardi oppure contattaci su WhatsApp."
     );
   }
 }
@@ -213,7 +213,7 @@ function AvailabilityForm() {
 
       if (!response.ok) {
         throw new Error(
-          data?.message || "Non è stato possibile verificare la disponibilità."
+          data?.message || "Non Ã¨ stato possibile verificare la disponibilitÃ ."
         );
       }
 
@@ -221,7 +221,7 @@ function AvailabilityForm() {
     } catch (err) {
       setError(
         err?.message ||
-          "Errore durante il controllo disponibilità. Puoi contattarci su WhatsApp."
+          "Errore durante il controllo disponibilitÃ . Puoi contattarci su WhatsApp."
       );
     } finally {
       setChecking(false);
@@ -271,7 +271,7 @@ function AvailabilityForm() {
 
       if (!response.ok) {
         throw new Error(
-          data?.message || "Non è stato possibile bloccare le date."
+          data?.message || "Non Ã¨ stato possibile bloccare le date."
         );
       }
 
@@ -338,7 +338,7 @@ function AvailabilityForm() {
       >
         {checking
           ? "Controllo in corso..."
-          : "Controlla disponibilità Gelone Lungomare"}
+          : "Controlla disponibilitÃ  Gelone Lungomare"}
         <SearchCheck size={20} />
       </button>
 
@@ -363,12 +363,12 @@ function AvailabilityForm() {
               ? "Gelone Lungomare risulta disponibile."
               : result.available === false
               ? "Gelone Lungomare non risulta disponibile."
-              : "Risultato disponibilità"}
+              : "Risultato disponibilitÃ "}
           </p>
 
           <p className="mt-2 leading-7">
             {result.message ||
-              "La verifica è stata completata. Per conferma definitiva contattaci prima di prenotare."}
+              "La verifica Ã¨ stata completata. Per conferma definitiva contattaci prima di prenotare."}
           </p>
         </div>
       )}
@@ -522,7 +522,7 @@ export default function App() {
               Dove siamo
             </a>
             <a href="#verifica-disponibilita" className="hover:text-[#9b6b25]">
-              Disponibilità
+              DisponibilitÃ 
             </a>
             <a href="#privacy" className="hover:text-[#9b6b25]">
               Privacy
@@ -550,7 +550,7 @@ export default function App() {
             <p className="mt-6 max-w-2xl text-lg leading-8 text-[#4c4c4c]">
               Locazione turistica a Gela con terrazza e vista mare. Una
               soluzione comoda e riservata per 2 persone, ideale per coppie o
-              viaggiatori che cercano tranquillità, posizione e praticità.
+              viaggiatori che cercano tranquillitÃ , posizione e praticitÃ .
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -597,7 +597,7 @@ export default function App() {
                 </h3>
                 <p className="mt-3 max-w-md leading-7 text-[#555]">
                   Uno spazio esterno da vivere, vicino al lungomare di Gela e ai
-                  principali servizi della città.
+                  principali servizi della cittÃ .
                 </p>
               </div>
             </div>
@@ -631,14 +631,14 @@ export default function App() {
 
           <div className="text-lg leading-8 text-[#555]">
             <p>
-              Gelone Lungomare è una locazione turistica pensata per ospitare
+              Gelone Lungomare Ã¨ una locazione turistica pensata per ospitare
               fino a 2 persone. Dispone di una camera da letto, un bagno, una
-              cucina e una terrazza esterna che rende il soggiorno più
+              cucina e una terrazza esterna che rende il soggiorno piÃ¹
               piacevole.
             </p>
             <p className="mt-5">
-              È una scelta adatta per chi vuole vivere Gela con una posizione
-              pratica, vicina al mare e ai principali servizi della città.
+              Ãˆ una scelta adatta per chi vuole vivere Gela con una posizione
+              pratica, vicina al mare e ai principali servizi della cittÃ .
             </p>
           </div>
         </div>
@@ -717,13 +717,13 @@ export default function App() {
       >
         <div className="mb-8 max-w-3xl">
           <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-            Disponibilità
+            DisponibilitÃ 
           </p>
           <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-            Controlla disponibilità Gelone Lungomare
+            Controlla disponibilitÃ  Gelone Lungomare
           </h2>
           <p className="mt-5 text-lg leading-8 text-[#555]">
-            Inserisci le date e il sito controllerà la disponibilità tramite il
+            Inserisci le date e il sito controllerÃ  la disponibilitÃ  tramite il
             sistema interno Gelone. Se le date sono libere, puoi inviare la
             richiesta e bloccarle in attesa della conferma finale.
           </p>
@@ -760,7 +760,7 @@ export default function App() {
                 3. Conferma finale
               </h3>
               <p className="mt-2 leading-7 text-[#555]">
-                La prenotazione è definitiva solo dopo risposta della struttura.
+                La prenotazione Ã¨ definitiva solo dopo risposta della struttura.
               </p>
             </div>
           </div>
@@ -781,7 +781,7 @@ export default function App() {
 
           <div className="rounded-2xl border border-[#e4d8c2] bg-white p-6 shadow-sm">
             <Landmark className="text-[#9b6b25]" size={34} />
-            <h3 className="mt-4 font-serif text-2xl">Per chi è ideale</h3>
+            <h3 className="mt-4 font-serif text-2xl">Per chi Ã¨ ideale</h3>
             <p className="mt-4 leading-7 text-[#555]">
               Ideale per coppie, viaggiatori singoli, soggiorni brevi, lavoro o
               vacanza vicino al mare.
@@ -792,7 +792,7 @@ export default function App() {
             <Info className="text-[#9b6b25]" size={34} />
             <h3 className="mt-4 font-serif text-2xl">Prenotazioni</h3>
             <p className="mt-4 leading-7 text-[#555]">
-              Puoi prenotare su Booking oppure controllare la disponibilità dal
+              Puoi prenotare su Booking oppure controllare la disponibilitÃ  dal
               sito prima di contattarci.
             </p>
           </div>
@@ -810,7 +810,7 @@ export default function App() {
                 Richiedi informazioni o prenota online
               </h2>
               <p className="mt-5 text-lg leading-8 text-[#555]">
-                Puoi prenotare tramite Booking, controllare la disponibilità dal
+                Puoi prenotare tramite Booking, controllare la disponibilitÃ  dal
                 sito oppure contattarci su WhatsApp.
               </p>
 
@@ -826,7 +826,7 @@ export default function App() {
                 <Phone className="text-[#9b6b25]" />
                 <div>
                   <p className="font-semibold">Telefono / WhatsApp</p>
-                  <p className="text-[#555]">3476308456 · 3479461999</p>
+                  <p className="text-[#555]">3476308456 Â· 3479461999</p>
                 </div>
               </div>
 
@@ -861,8 +861,8 @@ export default function App() {
             <p>Ultimo aggiornamento: 11/05/2026.</p>
 
             <p>
-              Il titolare del trattamento è Gelone Lungomare, locazione
-              turistica a Gela. Per qualsiasi richiesta è possibile contattare la
+              Il titolare del trattamento Ã¨ Gelone Lungomare, locazione
+              turistica a Gela. Per qualsiasi richiesta Ã¨ possibile contattare la
               struttura all'indirizzo email info@gelone.it oppure ai numeri
               3476308456 e 3479461999.
             </p>
@@ -870,23 +870,23 @@ export default function App() {
             <p>
               Il sito www.gelone.it presenta la struttura e permette all'utente
               di contattarla tramite telefono, email, WhatsApp, collegamenti
-              esterni verso Booking e funzione di verifica disponibilità.
+              esterni verso Booking e funzione di verifica disponibilitÃ .
             </p>
 
             <p>
-              La funzione di verifica disponibilità e richiesta prenotazione può
+              La funzione di verifica disponibilitÃ  e richiesta prenotazione puÃ²
               trattare date del soggiorno, nome, telefono, email, numero ospiti e
               note comunicate volontariamente dall'utente. Questi dati vengono
-              utilizzati per verificare la disponibilità, bloccare le date nel
+              utilizzati per verificare la disponibilitÃ , bloccare le date nel
               sistema interno e rispondere alla richiesta.
             </p>
 
             <p>
               Il sito non raccoglie dati personali tramite newsletter o pagamenti
               diretti. I dati eventualmente comunicati volontariamente tramite
-              email, telefono, WhatsApp, Booking o modulo disponibilità vengono
+              email, telefono, WhatsApp, Booking o modulo disponibilitÃ  vengono
               utilizzati per rispondere alle richieste di informazioni, verificare
-              disponibilità, fornire assistenza e gestire eventuali comunicazioni
+              disponibilitÃ , fornire assistenza e gestire eventuali comunicazioni
               collegate al soggiorno.
             </p>
 
@@ -912,7 +912,7 @@ export default function App() {
             </p>
 
             <p>
-              L'utente può esercitare i diritti previsti dalla normativa privacy,
+              L'utente puÃ² esercitare i diritti previsti dalla normativa privacy,
               tra cui accesso, rettifica, cancellazione, limitazione e
               opposizione al trattamento, scrivendo a info@gelone.it.
             </p>
@@ -925,7 +925,7 @@ export default function App() {
                 <strong>Email:</strong> info@gelone.it
               </p>
               <p>
-                <strong>Telefono:</strong> 3476308456 · 3479461999
+                <strong>Telefono:</strong> 3476308456 Â· 3479461999
               </p>
               <p>
                 <strong>Sito:</strong> www.gelone.it
@@ -946,14 +946,14 @@ export default function App() {
           GELONE LUNGOMARE
         </p>
         <p className="mt-2">
-          Locazione turistica a Gela · CIN IT084001B4D36830 · CIR 190840010022
+          Locazione turistica a Gela Â· CIN IT084001B4D36830 Â· CIR 190840010022
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-5">
           <a
             href="#verifica-disponibilita"
             className="underline underline-offset-4 hover:text-[#9b6b25]"
           >
-            Disponibilità
+            DisponibilitÃ 
           </a>
           <a
             href="#privacy"
@@ -980,3 +980,4 @@ export default function App() {
     </main>
   );
 }
+
