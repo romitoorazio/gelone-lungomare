@@ -1,7 +1,9 @@
 import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
 let cachedDb = null;
+let cachedAuth = null;
 
 function getServiceAccountConfig() {
   const serviceAccountBase64 = String(
@@ -31,24 +33,35 @@ function getServiceAccountConfig() {
   };
 }
 
+function getFirebaseAdminApp() {
+  const { projectId, serviceAccount } = getServiceAccountConfig();
+
+  return getApps().length > 0
+    ? getApps()[0]
+    : initializeApp({
+        credential: cert(serviceAccount),
+        projectId,
+      });
+}
+
 export function getFirebaseAdminDb() {
   if (cachedDb) {
     return cachedDb;
   }
 
-  const { projectId, serviceAccount } = getServiceAccountConfig();
-
-  const app =
-    getApps().length > 0
-      ? getApps()[0]
-      : initializeApp({
-          credential: cert(serviceAccount),
-          projectId,
-        });
-
-  cachedDb = getFirestore(app);
+  cachedDb = getFirestore(getFirebaseAdminApp());
 
   return cachedDb;
+}
+
+export function getFirebaseAdminAuth() {
+  if (cachedAuth) {
+    return cachedAuth;
+  }
+
+  cachedAuth = getAuth(getFirebaseAdminApp());
+
+  return cachedAuth;
 }
 
 export { FieldValue };

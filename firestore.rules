@@ -14,6 +14,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Qui salviamo dati riservati admin, come i link iCal Booking/Airbnb.
+    // Non devono essere leggibili pubblicamente dal sito.
+    match /privateSettings/{document=**} {
+      allow read, write: if isAdmin();
+    }
+
     match /bookings/{bookingId} {
       allow read, write: if isAdmin();
     }

@@ -1,0 +1,39 @@
+GELONE LUNGOMARE - STEP SYNC CALENDARI BOOKING/AIRBNB
+
+File completi da sostituire/incollare nel progetto:
+
+1) src/Admin.jsx
+- Aggiunge campo Booking iCal in entrata
+- Aggiunge campo Airbnb iCal in entrata
+- Salva i link iCal in privateSettings/pms, non nel documento settings pubblico
+- Aggiunge pulsante admin "Sincronizza calendari"
+- Mostra riepilogo ultima sincronizzazione
+
+2) api/_firebaseAdmin.js
+- Mantiene Firestore Admin
+- Aggiunge Firebase Admin Auth per verificare il token dell'admin quando premi il pulsante sync
+
+3) api/sync-calendars.js
+- Nuova API /api/sync-calendars
+- Legge i calendari iCal esterni Booking/Airbnb
+- Importa le notti occupate in Firestore
+- Evita duplicati fra Booking e Airbnb
+- Non sovrascrive e non cancella prenotazioni manuali o direct_site
+- Cancella/annulla solo vecchi eventi creati da precedenti sync esterne e non più presenti nei calendari
+
+4) firestore.rules
+- Aggiunge privateSettings admin-only per tenere privati i link iCal esterni
+
+5) package-lock.json
+- Aggiornato dopo npm install perché il package-lock originale nello zip non era perfettamente sincronizzato con package.json.
+
+Controllo fatto:
+- npm run build: OK
+- npm run lint: non OK per regole/eslint già presenti nel progetto originale, soprattutto API Node con process/Buffer e import inutilizzati già esistenti. Non blocca la build Vercel.
+
+Dopo il deploy:
+1. Apri /admin
+2. Vai in Impostazioni
+3. Incolla link iCal Booking e Airbnb in entrata
+4. Premi "Salva impostazioni"
+5. Premi "Sincronizza calendari"

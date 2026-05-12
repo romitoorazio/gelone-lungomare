@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  getIdToken,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
@@ -39,6 +40,7 @@ const defaultSettings = {
   wifiName: "lunarossa",
   wifiPassword: "gelone123",
   bookingIcalUrl: "",
+  airbnbIcalUrl: "",
 };
 
 function toDateInputValue(date) {
@@ -170,6 +172,8 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState("calendar");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
 
   const [newBooking, setNewBooking] = useState({
     guestName: "",
@@ -220,16 +224,31 @@ export default function Admin() {
 
     const unsubscribeSettings = onSnapshot(doc(db, "settings", "pms"), (snap) => {
       if (snap.exists()) {
-        setSettings({
+        setSettings((currentSettings) => ({
           ...defaultSettings,
+          ...currentSettings,
           ...snap.data(),
-        });
+        }));
       }
     });
+
+    const unsubscribePrivateSettings = onSnapshot(
+      doc(db, "privateSettings", "pms"),
+      (snap) => {
+        if (snap.exists()) {
+          setSettings((currentSettings) => ({
+            ...currentSettings,
+            bookingIcalUrl: snap.data().bookingIcalUrl || "",
+            airbnbIcalUrl: snap.data().airbnbIcalUrl || "",
+          }));
+        }
+      }
+    );
 
     return () => {
       unsubscribeBookings();
       unsubscribeSettings();
+      unsubscribePrivateSettings();
     };
   }, [isAdmin]);
 
@@ -255,23 +274,92 @@ export default function Admin() {
   function clearMessages() {
     setMessage("");
     setError("");
+    setSyncResult(null);
   }
 
-  async function saveSettings() {
-    clearMessages();
+  async function saveSettings(options = {}) {
+    if (!options.silent) {
+      clearMessages();
+    }
 
     try {
       const batch = writeBatch(db);
+
       batch.set(doc(db, "settings", "pms"), {
-        ...settings,
+        checkInTime: settings.checkInTime || defaultSettings.checkInTime,
+        checkOutTime: settings.checkOutTime || defaultSettings.checkOutTime,
+        maxGuests: Number(settings.maxGuests || defaultSettings.maxGuests),
+        wifiName: settings.wifiName || "",
+        wifiPassword: settings.wifiPassword || "",
         unitId: UNIT_ID,
         unitName: UNIT_NAME,
         updatedAt: serverTimestamp(),
       });
+
+      batch.set(doc(db, "privateSettings", "pms"), {
+        bookingIcalUrl: settings.bookingIcalUrl || "",
+        airbnbIcalUrl: settings.airbnbIcalUrl || "",
+        unitId: UNIT_ID,
+        unitName: UNIT_NAME,
+        updatedAt: serverTimestamp(),
+      });
+
       await batch.commit();
-      setMessage("Impostazioni salvate.");
+
+      if (!options.silent) {
+        setMessage("Impostazioni salvate.");
+      }
+
+      return true;
     } catch (err) {
-      setError("Errore durante il salvataggio delle impostazioni.");
+      if (!options.silent) {
+        setError("Errore durante il salvataggio delle impostazioni.");
+      }
+
+      return false;
+    }
+  }
+
+  async function syncCalendars() {
+    clearMessages();
+    setSyncLoading(true);
+
+    try {
+      const saved = await saveSettings({ silent: true });
+
+      if (!saved) {
+        setError("Non riesco a salvare i link iCal prima della sincronizzazione.");
+        return;
+      }
+
+      const token = await getIdToken(user, true);
+      const response = await fetch("/api/sync-calendars", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ unitId: UNIT_ID }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.ok) {
+        setError(
+          data?.message ||
+            "Errore durante la sincronizzazione dei calendari esterni."
+        );
+        return;
+      }
+
+      setSyncResult(data);
+      setMessage(
+        `Sincronizzazione completata: ${data.totals.imported} eventi importati, ${data.totals.skippedDuplicate} duplicati evitati, ${data.totals.skippedConflict} conflitti protetti.`
+      );
+    } catch (err) {
+      setError("Errore tecnico durante la sincronizzazione calendari.");
+    } finally {
+      setSyncLoading(false);
     }
   }
 
@@ -754,6 +842,7 @@ export default function Admin() {
                   <option value="manual">Manuale</option>
                   <option value="direct_site">Sito</option>
                   <option value="booking">Booking</option>
+                  <option value="airbnb">Airbnb</option>
                 </select>
               </label>
 
@@ -939,7 +1028,7 @@ export default function Admin() {
 
               <label className="md:col-span-2">
                 <span className="mb-2 block text-sm font-semibold">
-                  Link calendario Booking iCal
+                  Link calendario Booking iCal in entrata
                 </span>
                 <input
                   value={settings.bookingIcalUrl}
@@ -949,19 +1038,105 @@ export default function Admin() {
                       bookingIcalUrl: event.target.value,
                     })
                   }
-                  placeholder="Incolleremo qui il link calendario Booking"
+                  placeholder="Incolla qui il link iCal esportato da Booking"
+                  className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                />
+              </label>
+
+              <label className="md:col-span-2">
+                <span className="mb-2 block text-sm font-semibold">
+                  Link calendario Airbnb iCal in entrata
+                </span>
+                <input
+                  value={settings.airbnbIcalUrl}
+                  onChange={(event) =>
+                    setSettings({
+                      ...settings,
+                      airbnbIcalUrl: event.target.value,
+                    })
+                  }
+                  placeholder="Incolla qui il link iCal esportato da Airbnb"
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 />
               </label>
             </div>
 
-            <button
-              onClick={saveSettings}
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#0a1d35] px-7 py-4 font-bold text-white"
-            >
-              <Save size={18} />
-              Salva impostazioni
-            </button>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                onClick={() => saveSettings()}
+                className="inline-flex items-center gap-2 rounded-full bg-[#0a1d35] px-7 py-4 font-bold text-white"
+              >
+                <Save size={18} />
+                Salva impostazioni
+              </button>
+
+              <button
+                onClick={syncCalendars}
+                disabled={syncLoading}
+                className="inline-flex items-center gap-2 rounded-full bg-[#9b6b25] px-7 py-4 font-bold text-white disabled:opacity-60"
+              >
+                <RefreshCcw size={18} className={syncLoading ? "animate-spin" : ""} />
+                {syncLoading ? "Sincronizzazione..." : "Sincronizza calendari"}
+              </button>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-[#e4d8c2] bg-[#faf6ee] p-5">
+              <RefreshCcw className="text-[#9b6b25]" size={28} />
+              <p className="mt-3 font-semibold">Import automatico Booking/Airbnb → PMS</p>
+              <p className="mt-2 leading-7 text-[#555]">
+                I link iCal esterni vengono salvati in un documento privato admin,
+                poi l'API importa solo le notti occupate esterne senza cancellare
+                prenotazioni manuali o richieste arrivate dal sito.
+              </p>
+            </div>
+
+            {syncResult && (
+              <div className="mt-6 rounded-2xl border border-[#e4d8c2] bg-white p-5">
+                <h3 className="font-serif text-2xl">Ultima sincronizzazione</h3>
+                <div className="mt-4 grid gap-3 md:grid-cols-4">
+                  <div className="rounded-2xl bg-[#faf6ee] p-4">
+                    <p className="text-sm text-[#555]">Importati</p>
+                    <p className="text-2xl font-bold">{syncResult.totals.imported}</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#faf6ee] p-4">
+                    <p className="text-sm text-[#555]">Creati</p>
+                    <p className="text-2xl font-bold">{syncResult.totals.created}</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#faf6ee] p-4">
+                    <p className="text-sm text-[#555]">Aggiornati</p>
+                    <p className="text-2xl font-bold">{syncResult.totals.updated}</p>
+                  </div>
+                  <div className="rounded-2xl bg-[#faf6ee] p-4">
+                    <p className="text-sm text-[#555]">Duplicati evitati</p>
+                    <p className="text-2xl font-bold">
+                      {syncResult.totals.skippedDuplicate}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {syncResult.results.map((item) => (
+                    <div key={item.source} className="rounded-2xl bg-[#faf6ee] p-4">
+                      <p className="font-bold">{item.label}</p>
+                      <p className="mt-2 text-sm leading-6 text-[#555]">
+                        Configurato: {item.configured ? "sì" : "no"} · Importati: {item.imported} ·
+                        Creati: {item.created} · Aggiornati: {item.updated} · Duplicati evitati: {item.skippedDuplicate} ·
+                        Conflitti protetti: {item.skippedConflict} · Vecchi rimossi: {item.staleCancelled}
+                      </p>
+                      {item.errors.length > 0 && (
+                        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                          {item.errors.map((syncError, index) => (
+                            <p key={`${item.source}_${index}`}>
+                              {syncError.checkIn} → {syncError.checkOut}: {syncError.message}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 rounded-2xl bg-[#faf6ee] p-5">
               <Wifi className="text-[#9b6b25]" size={28} />
