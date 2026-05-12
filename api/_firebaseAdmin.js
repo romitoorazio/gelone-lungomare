@@ -18,32 +18,76 @@ function normalizePrivateKey(value) {
   return key.replace(/\\n/g, "\n");
 }
 
+function getServiceAccountConfig() {
+  const serviceAccountBase64 = String(
+    process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || ""
+  ).trim();
+
+  if (serviceAccountBase64) {
+    const jsonText = Buffer.from(serviceAccountBase64, "base64").toString(
+      "utf8"
+    );
+
+    const serviceAccount = JSON.parse(jsonText);
+
+    if (
+      !serviceAccount.project_id ||
+      !serviceAccount.client_email ||
+      !serviceAccount.private_key
+    ) {
+      throw new Error(
+        "FIREBASE_SERVICE_ACCOUNT_BASE64 non valida. Controlla il file JSON del service account Firebase."
+      );
+    }
+
+    return {
+      projectId: serviceAccount.project_id,
+      serviceAccount,
+    };
+  }
+
+  const projectId = String(process.env.FIREBASE_PROJECT_ID || "").trim();
+  const clientEmail = String(process.env.FIREBASE_CLIENT_EMAIL || "").trim();
+  const privateKey = normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      "Firebase Admin non configurato. Inserisci FIREBASE_SERVICE_ACCOUNT_BASE64 su Vercel."
+    );
+  }
+
+  return {
+    projectId,
+    serviceAccount: {
+      projectId,
+      clientEmail,
+      privateKey,
+    },
+  };
+}
+
 export function getFirebaseAdminDb() {
   if (cachedDb) {
     return cachedDb;
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+  const { projectId, serviceAccount } = getServiceAccountConfig();
 
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error(
-      "Firebase Admin non configurato. Controlla le variabili Vercel FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY."
-    );
-  }
+  const app =
+    getApps().length > 0
+      ? getApps()[0]
+      : initializeApp({
+          credential: cert(serviceAccount),
+          projectId,
+        });
 
-  if (!getApps().length) {
-    initializeApp({
-      credential: cert({
-        projectId,
-        clientEmail,
-        privateKey,
-      }),
-    });
-  }
+  const databaseId = String(process.env.FIRESTORE_DATABASE_ID || "").trim();
 
-  cachedDb = getFirestore();
+  cachedDb =
+    databaseId && databaseId !== "(default)"
+      ? getFirestore(app, databaseId)
+      : getFirestore(app);
+
   return cachedDb;
 }
 
