@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Euro,
   SearchCheck,
+  Send,
 } from "lucide-react";
 
 const bookingUrl = "https://www.booking.com/Share-OQe9T5";
@@ -142,30 +143,60 @@ function MapsButton() {
   );
 }
 
+async function readJsonResponse(response) {
+  const responseText = await response.text();
+
+  try {
+    return responseText ? JSON.parse(responseText) : {};
+  } catch {
+    throw new Error(
+      "Errore tecnico del server. Riprova più tardi oppure contattaci su WhatsApp."
+    );
+  }
+}
+
 function AvailabilityForm() {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guests, setGuests] = useState("2");
+  const [notes, setNotes] = useState("");
+
+  const [checking, setChecking] = useState(false);
+  const [booking, setBooking] = useState(false);
   const [result, setResult] = useState(null);
+  const [bookingResult, setBookingResult] = useState(null);
   const [error, setError] = useState("");
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setError("");
-    setResult(null);
-
+  function validateDates() {
     if (!checkIn || !checkOut) {
-      setError("Inserisci data di arrivo e data di partenza.");
-      return;
+      return "Inserisci data di arrivo e data di partenza.";
     }
 
     if (checkOut <= checkIn) {
-      setError("La data di partenza deve essere successiva alla data di arrivo.");
+      return "La data di partenza deve essere successiva alla data di arrivo.";
+    }
+
+    return "";
+  }
+
+  async function handleCheckAvailability(event) {
+    event.preventDefault();
+
+    setError("");
+    setResult(null);
+    setBookingResult(null);
+
+    const dateError = validateDates();
+    if (dateError) {
+      setError(dateError);
       return;
     }
 
     try {
-      setLoading(true);
+      setChecking(true);
 
       const response = await fetch("/api/check-availability", {
         method: "POST",
@@ -178,16 +209,7 @@ function AvailabilityForm() {
         }),
       });
 
-      const responseText = await response.text();
-
-      let data = {};
-      try {
-        data = responseText ? JSON.parse(responseText) : {};
-      } catch {
-        throw new Error(
-          "Errore tecnico del server. Riprova più tardi oppure contattaci su WhatsApp."
-        );
-      }
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
         throw new Error(
@@ -202,7 +224,71 @@ function AvailabilityForm() {
           "Errore durante il controllo disponibilità. Puoi contattarci su WhatsApp."
       );
     } finally {
-      setLoading(false);
+      setChecking(false);
+    }
+  }
+
+  async function handleCreateBooking() {
+    setError("");
+    setBookingResult(null);
+
+    const dateError = validateDates();
+    if (dateError) {
+      setError(dateError);
+      return;
+    }
+
+    if (!guestName.trim()) {
+      setError("Inserisci nome e cognome.");
+      return;
+    }
+
+    if (!guestPhone.trim() && !guestEmail.trim()) {
+      setError("Inserisci almeno telefono o email.");
+      return;
+    }
+
+    try {
+      setBooking(true);
+
+      const response = await fetch("/api/create-booking", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          guestName,
+          guestPhone,
+          guestEmail,
+          guests: Number(guests),
+          checkIn,
+          checkOut,
+          notes,
+        }),
+      });
+
+      const data = await readJsonResponse(response);
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message || "Non è stato possibile bloccare le date."
+        );
+      }
+
+      setBookingResult(data);
+      setResult({
+        ok: true,
+        available: false,
+        message:
+          "Le date sono state bloccate nel sistema Gelone Lungomare in attesa di conferma.",
+      });
+    } catch (err) {
+      setError(
+        err?.message ||
+          "Errore durante il blocco date. Puoi contattarci su WhatsApp."
+      );
+    } finally {
+      setBooking(false);
     }
   }
 
@@ -212,9 +298,11 @@ function AvailabilityForm() {
     } - ${checkOut || "partenza"}`
   )}`;
 
+  const canShowBookingForm = result?.available === true && !bookingResult;
+
   return (
     <form
-      onSubmit={handleSubmit}
+      onSubmit={handleCheckAvailability}
       className="rounded-[2rem] border border-[#d7c49f] bg-white p-6 shadow-sm md:p-8"
     >
       <div className="grid gap-4 md:grid-cols-2">
@@ -245,10 +333,10 @@ function AvailabilityForm() {
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={checking || booking}
         className="mt-5 inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full border-2 border-[#0a1d35] bg-[#f5c84b] px-7 py-4 text-base font-extrabold text-[#0a1d35] shadow-lg transition hover:bg-[#ffd96a] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:text-lg"
       >
-        {loading
+        {checking
           ? "Controllo in corso..."
           : "Controlla disponibilità Gelone Lungomare"}
         <SearchCheck size={20} />
@@ -282,23 +370,129 @@ function AvailabilityForm() {
             {result.message ||
               "La verifica è stata completata. Per conferma definitiva contattaci prima di prenotare."}
           </p>
+        </div>
+      )}
 
-          {result.available === true && (
+      {canShowBookingForm && (
+        <div className="mt-6 rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
+          <h3 className="text-xl font-bold text-[#0a1d35]">
+            Blocca le date e invia richiesta
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[#555]">
+            Compila i dati. Le date verranno bloccate nel sistema interno in
+            attesa della conferma finale della struttura.
+          </p>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <label className="block md:col-span-2">
+              <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
+                Nome e cognome
+              </span>
+              <input
+                type="text"
+                value={guestName}
+                onChange={(event) => setGuestName(event.target.value)}
+                placeholder="Es. Mario Rossi"
+                className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
+                Telefono / WhatsApp
+              </span>
+              <input
+                type="tel"
+                value={guestPhone}
+                onChange={(event) => setGuestPhone(event.target.value)}
+                placeholder="Es. 347..."
+                className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
+                Email
+              </span>
+              <input
+                type="email"
+                value={guestEmail}
+                onChange={(event) => setGuestEmail(event.target.value)}
+                placeholder="email@example.com"
+                className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
+                Numero ospiti
+              </span>
+              <select
+                value={guests}
+                onChange={(event) => setGuests(event.target.value)}
+                className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
+              >
+                <option value="1">1 ospite</option>
+                <option value="2">2 ospiti</option>
+              </select>
+            </label>
+
+            <label className="block md:col-span-2">
+              <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
+                Note
+              </span>
+              <textarea
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                rows={4}
+                placeholder="Scrivi eventuali richieste o orario indicativo di arrivo."
+                className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
+              />
+            </label>
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              disabled={booking}
+              onClick={handleCreateBooking}
+              className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-full border-2 border-[#0a1d35] bg-[#0a1d35] px-7 py-4 text-base font-extrabold text-white shadow-lg transition hover:bg-[#132f52] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {booking
+                ? "Blocco date in corso..."
+                : "Blocca date e invia richiesta"}
+              <Send size={20} />
+            </button>
+
             <a
               href={whatsappWithDates}
               target="_blank"
               rel="noreferrer"
-              className="mt-4 inline-flex rounded-full bg-[#f5c84b] px-6 py-3 font-bold text-[#0a1d35]"
+              className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-full border border-[#0a1d35] bg-white px-7 py-4 text-base font-bold text-[#0a1d35] transition hover:bg-[#fff7e6]"
             >
-              Richiedi conferma su WhatsApp
+              Scrivi su WhatsApp <MessageCircle size={20} />
             </a>
-          )}
+          </div>
+        </div>
+      )}
+
+      {bookingResult && (
+        <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 text-green-900">
+          <p className="text-lg font-bold">Richiesta inviata correttamente.</p>
+          <p className="mt-2 leading-7">
+            Le date sono state bloccate nel sistema Gelone Lungomare in attesa
+            della conferma finale della struttura.
+          </p>
+          <p className="mt-2 text-sm">
+            Codice richiesta: <strong>{bookingResult.bookingId}</strong>
+          </p>
         </div>
       )}
 
       <p className="mt-5 text-sm leading-6 text-[#555]">
-        La verifica serve solo a controllare se Gelone Lungomare risulta libera.
-        La prenotazione è confermata solo dopo risposta della struttura.
+        La verifica serve a controllare se Gelone Lungomare risulta libera. Dopo
+        l'invio della richiesta, le date vengono bloccate nel sistema interno in
+        attesa della conferma finale della struttura.
       </p>
     </form>
   );
@@ -530,8 +724,8 @@ export default function App() {
           </h2>
           <p className="mt-5 text-lg leading-8 text-[#555]">
             Inserisci le date e il sito controllerà la disponibilità tramite il
-            sistema interno Gelone, senza mostrare dati tecnici o collegamenti
-            privati.
+            sistema interno Gelone. Se le date sono libere, puoi inviare la
+            richiesta e bloccarle in attesa della conferma finale.
           </p>
         </div>
 
@@ -552,11 +746,11 @@ export default function App() {
             <div className="rounded-2xl bg-white p-5 shadow-sm">
               <ClipboardList className="text-[#9b6b25]" size={30} />
               <h3 className="mt-3 text-xl font-semibold">
-                2. Incrocio calendario
+                2. Blocco temporaneo
               </h3>
               <p className="mt-2 leading-7 text-[#555]">
-                La disponibilità viene verificata con le date già presenti nel
-                sistema interno della struttura.
+                Se invii la richiesta, le notti vengono bloccate nel PMS interno
+                in attesa della conferma finale.
               </p>
             </div>
 
@@ -566,7 +760,7 @@ export default function App() {
                 3. Conferma finale
               </h3>
               <p className="mt-2 leading-7 text-[#555]">
-                La prenotazione è confermata solo dopo risposta della struttura.
+                La prenotazione è definitiva solo dopo risposta della struttura.
               </p>
             </div>
           </div>
@@ -680,26 +874,20 @@ export default function App() {
             </p>
 
             <p>
-              La funzione di verifica disponibilità invia le date selezionate a
-              un servizio interno del sito per controllare se Gelone Lungomare
-              risulta libera. I dettagli tecnici del sistema interno non vengono
-              mostrati al pubblico.
+              La funzione di verifica disponibilità e richiesta prenotazione può
+              trattare date del soggiorno, nome, telefono, email, numero ospiti e
+              note comunicate volontariamente dall'utente. Questi dati vengono
+              utilizzati per verificare la disponibilità, bloccare le date nel
+              sistema interno e rispondere alla richiesta.
             </p>
 
             <p>
               Il sito non raccoglie dati personali tramite newsletter o pagamenti
               diretti. I dati eventualmente comunicati volontariamente tramite
-              email, telefono, WhatsApp o Booking vengono utilizzati per
-              rispondere alle richieste di informazioni, verificare
+              email, telefono, WhatsApp, Booking o modulo disponibilità vengono
+              utilizzati per rispondere alle richieste di informazioni, verificare
               disponibilità, fornire assistenza e gestire eventuali comunicazioni
               collegate al soggiorno.
-            </p>
-
-            <p>
-              I dati eventualmente trattati possono includere nome, cognome,
-              numero di telefono, indirizzo email, date richieste per il
-              soggiorno e altre informazioni comunicate volontariamente
-              dall'utente.
             </p>
 
             <p>
