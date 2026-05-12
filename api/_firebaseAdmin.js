@@ -3,66 +3,31 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
 let cachedDb = null;
 
-function normalizePrivateKey(value) {
-  if (!value) return "";
-
-  let key = String(value).trim();
-
-  if (
-    (key.startsWith('"') && key.endsWith('"')) ||
-    (key.startsWith("'") && key.endsWith("'"))
-  ) {
-    key = key.slice(1, -1);
-  }
-
-  return key.replace(/\\n/g, "\n");
-}
-
 function getServiceAccountConfig() {
   const serviceAccountBase64 = String(
     process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || ""
   ).trim();
 
-  if (serviceAccountBase64) {
-    const jsonText = Buffer.from(serviceAccountBase64, "base64").toString(
-      "utf8"
-    );
-
-    const serviceAccount = JSON.parse(jsonText);
-
-    if (
-      !serviceAccount.project_id ||
-      !serviceAccount.client_email ||
-      !serviceAccount.private_key
-    ) {
-      throw new Error(
-        "FIREBASE_SERVICE_ACCOUNT_BASE64 non valida. Controlla il file JSON del service account Firebase."
-      );
-    }
-
-    return {
-      projectId: serviceAccount.project_id,
-      serviceAccount,
-    };
+  if (!serviceAccountBase64) {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT_BASE64 non configurata su Vercel.");
   }
 
-  const projectId = String(process.env.FIREBASE_PROJECT_ID || "").trim();
-  const clientEmail = String(process.env.FIREBASE_CLIENT_EMAIL || "").trim();
-  const privateKey = normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+  const jsonText = Buffer.from(serviceAccountBase64, "base64").toString("utf8");
+  const serviceAccount = JSON.parse(jsonText);
 
-  if (!projectId || !clientEmail || !privateKey) {
+  if (
+    !serviceAccount.project_id ||
+    !serviceAccount.client_email ||
+    !serviceAccount.private_key
+  ) {
     throw new Error(
-      "Firebase Admin non configurato. Inserisci FIREBASE_SERVICE_ACCOUNT_BASE64 su Vercel."
+      "FIREBASE_SERVICE_ACCOUNT_BASE64 non valida. Ricontrolla il file JSON Firebase."
     );
   }
 
   return {
-    projectId,
-    serviceAccount: {
-      projectId,
-      clientEmail,
-      privateKey,
-    },
+    projectId: serviceAccount.project_id,
+    serviceAccount,
   };
 }
 
@@ -81,12 +46,7 @@ export function getFirebaseAdminDb() {
           projectId,
         });
 
-  const databaseId = String(process.env.FIRESTORE_DATABASE_ID || "").trim();
-
-  cachedDb =
-    databaseId && databaseId !== "(default)"
-      ? getFirestore(app, databaseId)
-      : getFirestore(app);
+  cachedDb = getFirestore(app);
 
   return cachedDb;
 }
