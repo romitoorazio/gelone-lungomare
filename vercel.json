@@ -8,5 +8,10 @@
       "source": "/((?!api/.*).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/sync-calendars.js": {
+      "maxDuration": 60
+    }
+  }
 }
