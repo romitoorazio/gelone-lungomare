@@ -1,11 +1,11 @@
-import { adminDb, FieldValue } from "./_firebaseAdmin.js";
+import { getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
 
 const UNIT_ID = "lunarossa1";
-const UNIT_NAME = "Lunarossa 1";
+const UNIT_NAME = "Gelone Lungomare";
 const NOTIFY_EMAIL = "info@gelone.it";
 
 function isValidDate(value) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 function toDateInputValue(date) {
@@ -35,6 +35,20 @@ function cleanText(value) {
   return String(value || "").trim();
 }
 
+function getBody(req) {
+  if (!req.body) return {};
+
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+
+  return req.body;
+}
+
 async function sendNotificationEmail(booking) {
   const resendApiKey = process.env.RESEND_API_KEY;
   const emailFrom =
@@ -47,15 +61,15 @@ async function sendNotificationEmail(booking) {
     };
   }
 
-  const subject = "Nuova prenotazione diretta Gelone Lungomare";
+  const subject = "Nuova richiesta prenotazione Gelone Lungomare";
 
   const text = `
-Nuova prenotazione diretta ricevuta dal sito.
+Nuova richiesta prenotazione ricevuta dal sito.
 
-Unità: ${UNIT_NAME}
+Struttura: ${UNIT_NAME}
 Nome ospite: ${booking.guestName}
-Email ospite: ${booking.guestEmail}
-Telefono ospite: ${booking.guestPhone}
+Email ospite: ${booking.guestEmail || "-"}
+Telefono ospite: ${booking.guestPhone || "-"}
 Arrivo: ${booking.checkIn}
 Partenza: ${booking.checkOut}
 Ospiti: ${booking.guests}
@@ -96,6 +110,8 @@ https://www.gelone.it/admin
 }
 
 export default async function handler(req, res) {
+  res.setHeader("Content-Type", "application/json");
+
   if (req.method !== "POST") {
     return res.status(405).json({
       ok: false,
@@ -104,7 +120,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const body = req.body || {};
+    const adminDb = getFirebaseAdminDb();
+    const body = getBody(req);
 
     const guestName = cleanText(body.guestName);
     const guestEmail = cleanText(body.guestEmail);
@@ -177,7 +194,7 @@ export default async function handler(req, res) {
       checkOut,
       guests,
       source: "direct_site",
-      status: "confirmed_direct",
+      status: "pending_direct",
       totalPrice: null,
       notes,
       createdAt: FieldValue.serverTimestamp(),
@@ -215,7 +232,7 @@ export default async function handler(req, res) {
           unitId: UNIT_ID,
           date: night,
           bookingId: bookingRef.id,
-          status: "confirmed_direct",
+          status: "pending_direct",
           source: "direct_site",
           guestName,
           createdAt: FieldValue.serverTimestamp(),
@@ -233,15 +250,18 @@ export default async function handler(req, res) {
       ok: true,
       bookingId: bookingRef.id,
       unitId: UNIT_ID,
+      unitName: UNIT_NAME,
       checkIn,
       checkOut,
       nights,
-      status: "confirmed_direct",
+      status: "pending_direct",
       message:
-        "Prenotazione ricevuta. Le date sono state bloccate nel sistema Gelone Lungomare.",
+        "Richiesta ricevuta. Le date sono state bloccate nel sistema Gelone Lungomare in attesa di conferma della struttura.",
       emailNotification: emailResult,
     });
   } catch (error) {
+    console.error("Errore create-booking:", error);
+
     if (error?.message === "DATES_NOT_AVAILABLE") {
       return res.status(409).json({
         ok: false,
@@ -253,7 +273,8 @@ export default async function handler(req, res) {
     return res.status(500).json({
       ok: false,
       message:
-        "Errore tecnico durante la prenotazione. Riprova più tardi o contattaci su WhatsApp.",
+        error?.message ||
+        "Errore tecnico durante la richiesta. Riprova più tardi o contattaci su WhatsApp.",
     });
   }
 }
