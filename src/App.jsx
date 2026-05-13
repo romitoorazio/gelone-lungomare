@@ -22,11 +22,14 @@ import {
 } from "lucide-react";
 
 const bookingUrl = "https://www.booking.com/hotel/it/gelone-lungomare.it.html";
+const airbnbUrl = "https://www.airbnb.it/rooms/1267419022190887817";
+const mapsUrl = "https://maps.app.goo.gl/JwYWW3RqFz5VdtCu6";
 
 const whatsappUrl =
   "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informazioni%20su%20Gelone%20Lungomare";
 
-const mapsUrl = "https://maps.app.goo.gl/JwYWW3RqFz5VdtCu6";
+const directWhatsappUrl =
+  "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20prenotare%20direttamente%20Gelone%20Lungomare%20dal%20sito%20ufficiale";
 
 const gallery = [
   {
@@ -38,7 +41,7 @@ const gallery = [
   {
     title: "Vista mare",
     description:
-      "Una posizione comoda, vicina al mare e ai principali servizi della cittÃ .",
+      "Una posizione comoda, vicina al mare e ai principali servizi della città.",
     image: "/images/vista-mare-gelone.jpg",
   },
   {
@@ -72,6 +75,24 @@ const features = [
   },
 ];
 
+const directBenefits = [
+  {
+    icon: Euro,
+    title: "Miglior prezzo diretto",
+    text: "Prenotando dal sito ufficiale puoi ricevere condizioni dedicate rispetto ai portali.",
+  },
+  {
+    icon: MessageCircle,
+    title: "Contatto diretto",
+    text: "Parli direttamente con la struttura, senza passaggi inutili e senza attese.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Date bloccate subito",
+    text: "Se le date sono libere, la richiesta blocca il periodo in attesa della conferma finale.",
+  },
+];
+
 function Feature({ icon: Icon, title, text }) {
   return (
     <div className="rounded-2xl border border-[#e4d8c2] bg-white/90 p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
@@ -84,23 +105,19 @@ function Feature({ icon: Icon, title, text }) {
   );
 }
 
-function BookingButton({ compact = false }) {
+function BenefitCard({ icon: Icon, title, text }) {
   return (
-    <a
-      href={bookingUrl}
-      target="_blank"
-      rel="noreferrer"
-      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border border-[#b88416] bg-[#f5c84b] text-center font-extrabold text-[#0a1d35] shadow-md transition hover:bg-[#ffd96a] ${
-        compact ? "px-4 py-3 text-sm" : "px-7 py-4"
-      }`}
-    >
-      {compact ? "Booking" : "Prenota su Booking"}
-      {!compact && <ExternalLink size={18} />}
-    </a>
+    <div className="rounded-[1.5rem] border border-[#e4d8c2] bg-white p-5 shadow-sm">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#0a1d35] text-white">
+        <Icon size={22} />
+      </div>
+      <h3 className="text-xl font-bold text-[#0a1d35]">{title}</h3>
+      <p className="mt-2 leading-7 text-[#555]">{text}</p>
+    </div>
   );
 }
 
-function AvailabilityButton({ compact = false }) {
+function DirectBookingButton({ compact = false }) {
   return (
     <a
       href="#verifica-disponibilita"
@@ -108,16 +125,48 @@ function AvailabilityButton({ compact = false }) {
         compact ? "px-4 py-3 text-sm" : "px-7 py-4"
       }`}
     >
-      {compact ? "Verifica" : "Verifica disponibilitÃ "}
+      {compact ? "Prenota diretto" : "Prenota diretto e risparmia"}
       {!compact && <CalendarCheck size={18} />}
     </a>
   );
 }
 
-function WhatsAppButton({ compact = false }) {
+function BookingButton({ compact = false }) {
   return (
     <a
-      href={whatsappUrl}
+      href={bookingUrl}
+      target="_blank"
+      rel="noreferrer"
+      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border border-[#174ea6] bg-white text-center font-extrabold text-[#174ea6] shadow-sm transition hover:bg-[#eef5ff] ${
+        compact ? "px-4 py-3 text-sm" : "px-6 py-4"
+      }`}
+    >
+      {compact ? "Booking" : "Booking.com"}
+      {!compact && <ExternalLink size={18} />}
+    </a>
+  );
+}
+
+function AirbnbButton({ compact = false }) {
+  return (
+    <a
+      href={airbnbUrl}
+      target="_blank"
+      rel="noreferrer"
+      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border border-[#ff385c] bg-white text-center font-extrabold text-[#c51f46] shadow-sm transition hover:bg-[#fff1f4] ${
+        compact ? "px-4 py-3 text-sm" : "px-6 py-4"
+      }`}
+    >
+      {compact ? "Airbnb" : "Airbnb"}
+      {!compact && <ExternalLink size={18} />}
+    </a>
+  );
+}
+
+function WhatsAppButton({ compact = false, direct = false }) {
+  return (
+    <a
+      href={direct ? directWhatsappUrl : whatsappUrl}
       target="_blank"
       rel="noreferrer"
       className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border border-[#0a1d35] bg-white text-center font-bold text-[#0a1d35] transition hover:bg-[#faf6ee] ${
@@ -150,7 +199,7 @@ async function readJsonResponse(response) {
     return responseText ? JSON.parse(responseText) : {};
   } catch {
     throw new Error(
-      "Errore tecnico del server. Riprova piÃ¹ tardi oppure contattaci su WhatsApp."
+      "Errore tecnico del server. Riprova più tardi oppure contattaci su WhatsApp."
     );
   }
 }
@@ -169,6 +218,8 @@ function AvailabilityForm() {
   const [result, setResult] = useState(null);
   const [bookingResult, setBookingResult] = useState(null);
   const [error, setError] = useState("");
+
+  const today = new Date().toISOString().slice(0, 10);
 
   function validateDates() {
     if (!checkIn || !checkOut) {
@@ -213,7 +264,7 @@ function AvailabilityForm() {
 
       if (!response.ok) {
         throw new Error(
-          data?.message || "Non Ã¨ stato possibile verificare la disponibilitÃ ."
+          data?.message || "Non è stato possibile verificare la disponibilità."
         );
       }
 
@@ -221,7 +272,7 @@ function AvailabilityForm() {
     } catch (err) {
       setError(
         err?.message ||
-          "Errore durante il controllo disponibilitÃ . Puoi contattarci su WhatsApp."
+          "Errore durante il controllo disponibilità. Puoi contattarci su WhatsApp."
       );
     } finally {
       setChecking(false);
@@ -271,7 +322,7 @@ function AvailabilityForm() {
 
       if (!response.ok) {
         throw new Error(
-          data?.message || "Non Ã¨ stato possibile bloccare le date."
+          data?.message || "Non è stato possibile bloccare le date."
         );
       }
 
@@ -293,7 +344,7 @@ function AvailabilityForm() {
   }
 
   const whatsappWithDates = `https://wa.me/393476308456?text=${encodeURIComponent(
-    `Ciao, vorrei informazioni su Gelone Lungomare. Date richieste: ${
+    `Ciao, vorrei prenotare direttamente Gelone Lungomare. Date richieste: ${
       checkIn || "arrivo"
     } - ${checkOut || "partenza"}`
   )}`;
@@ -305,6 +356,22 @@ function AvailabilityForm() {
       onSubmit={handleCheckAvailability}
       className="rounded-[2rem] border border-[#d7c49f] bg-white p-6 shadow-sm md:p-8"
     >
+      <div className="mb-6 rounded-[1.5rem] border border-[#f5c84b] bg-[#fff7d6] p-5">
+        <div className="flex items-start gap-3">
+          <Euro className="mt-1 text-[#9b6b25]" size={24} />
+          <div>
+            <p className="font-extrabold text-[#0a1d35]">
+              Prenota dal sito ufficiale
+            </p>
+            <p className="mt-1 text-sm leading-6 text-[#555]">
+              Controlli la disponibilità, blocchi le date e ricevi conferma
+              diretta dalla struttura. Così puoi avere condizioni dedicate senza
+              passare subito dai portali.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         <label className="block">
           <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
@@ -312,6 +379,7 @@ function AvailabilityForm() {
           </span>
           <input
             type="date"
+            min={today}
             value={checkIn}
             onChange={(event) => setCheckIn(event.target.value)}
             className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
@@ -324,6 +392,7 @@ function AvailabilityForm() {
           </span>
           <input
             type="date"
+            min={checkIn || today}
             value={checkOut}
             onChange={(event) => setCheckOut(event.target.value)}
             className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
@@ -338,7 +407,7 @@ function AvailabilityForm() {
       >
         {checking
           ? "Controllo in corso..."
-          : "Controlla disponibilitÃ  Gelone Lungomare"}
+          : "Verifica disponibilità e prezzo diretto"}
         <SearchCheck size={20} />
       </button>
 
@@ -363,12 +432,12 @@ function AvailabilityForm() {
               ? "Gelone Lungomare risulta disponibile."
               : result.available === false
               ? "Gelone Lungomare non risulta disponibile."
-              : "Risultato disponibilitÃ "}
+              : "Risultato disponibilità"}
           </p>
 
           <p className="mt-2 leading-7">
             {result.message ||
-              "La verifica Ã¨ stata completata. Per conferma definitiva contattaci prima di prenotare."}
+              "La verifica è stata completata. Per conferma definitiva contattaci prima di prenotare."}
           </p>
         </div>
       )}
@@ -376,11 +445,12 @@ function AvailabilityForm() {
       {canShowBookingForm && (
         <div className="mt-6 rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
           <h3 className="text-xl font-bold text-[#0a1d35]">
-            Blocca le date e invia richiesta
+            Blocca le date dal sito ufficiale
           </h3>
           <p className="mt-2 text-sm leading-6 text-[#555]">
             Compila i dati. Le date verranno bloccate nel sistema interno in
-            attesa della conferma finale della struttura.
+            attesa della conferma finale della struttura. Riceverai risposta su
+            telefono, WhatsApp o email.
           </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -481,7 +551,7 @@ function AvailabilityForm() {
           <p className="text-lg font-bold">Richiesta inviata correttamente.</p>
           <p className="mt-2 leading-7">
             Le date sono state bloccate nel sistema Gelone Lungomare in attesa
-            della conferma finale della struttura.
+            della conferma finale della struttura. Ti contatteremo a breve.
           </p>
           <p className="mt-2 text-sm">
             Codice richiesta: <strong>{bookingResult.bookingId}</strong>
@@ -522,14 +592,14 @@ export default function App() {
               Dove siamo
             </a>
             <a href="#verifica-disponibilita" className="hover:text-[#9b6b25]">
-              DisponibilitÃ 
+              Disponibilità
             </a>
-            <a href="#privacy" className="hover:text-[#9b6b25]">
-              Privacy
+            <a href="#contatti" className="hover:text-[#9b6b25]">
+              Contatti
             </a>
           </nav>
 
-          <BookingButton compact />
+          <DirectBookingButton compact />
         </div>
       </header>
 
@@ -550,13 +620,31 @@ export default function App() {
             <p className="mt-6 max-w-2xl text-lg leading-8 text-[#4c4c4c]">
               Locazione turistica a Gela con terrazza e vista mare. Una
               soluzione comoda e riservata per 2 persone, ideale per coppie o
-              viaggiatori che cercano tranquillitÃ , posizione e praticitÃ .
+              viaggiatori che cercano tranquillità, posizione e praticità.
             </p>
 
+            <div className="mt-6 max-w-xl rounded-[1.5rem] border border-[#f5c84b] bg-white/80 p-5 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                Sito ufficiale
+              </p>
+              <h3 className="mt-2 text-2xl font-extrabold text-[#0a1d35]">
+                Prenota diretto e risparmia
+              </h3>
+              <p className="mt-2 leading-7 text-[#555]">
+                Prima controlla la disponibilità dal sito Gelone. Booking e
+                Airbnb restano disponibili, ma la prenotazione diretta è la
+                scelta consigliata.
+              </p>
+            </div>
+
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <DirectBookingButton />
+              <WhatsAppButton direct />
+            </div>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
               <BookingButton />
-              <AvailabilityButton />
-              <WhatsAppButton />
+              <AirbnbButton />
             </div>
 
             <div className="mt-8 grid max-w-xl grid-cols-2 gap-3 text-sm text-[#4c4c4c] sm:grid-cols-4">
@@ -597,7 +685,7 @@ export default function App() {
                 </h3>
                 <p className="mt-3 max-w-md leading-7 text-[#555]">
                   Uno spazio esterno da vivere, vicino al lungomare di Gela e ai
-                  principali servizi della cittÃ .
+                  principali servizi della città.
                 </p>
               </div>
             </div>
@@ -631,16 +719,43 @@ export default function App() {
 
           <div className="text-lg leading-8 text-[#555]">
             <p>
-              Gelone Lungomare Ã¨ una locazione turistica pensata per ospitare
+              Gelone Lungomare è una locazione turistica pensata per ospitare
               fino a 2 persone. Dispone di una camera da letto, un bagno, una
-              cucina e una terrazza esterna che rende il soggiorno piÃ¹
+              cucina e una terrazza esterna che rende il soggiorno più
               piacevole.
             </p>
             <p className="mt-5">
-              Ãˆ una scelta adatta per chi vuole vivere Gela con una posizione
-              pratica, vicina al mare e ai principali servizi della cittÃ .
+              È una scelta adatta per chi vuole vivere Gela con una posizione
+              pratica, vicina al mare e ai principali servizi della città.
             </p>
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-16">
+        <div className="mb-8 max-w-3xl">
+          <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+            Prenotazione diretta
+          </p>
+          <h2 className="mt-3 font-serif text-4xl md:text-5xl">
+            Il modo più semplice per prenotare
+          </h2>
+          <p className="mt-5 text-lg leading-8 text-[#555]">
+            Dal sito ufficiale controlli subito le date e invii la richiesta
+            direttamente alla struttura. Dopo la conferma riceverai le istruzioni
+            per il check-in online.
+          </p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-3">
+          {directBenefits.map((item) => (
+            <BenefitCard
+              key={item.title}
+              icon={item.icon}
+              title={item.title}
+              text={item.text}
+            />
+          ))}
         </div>
       </section>
 
@@ -717,13 +832,13 @@ export default function App() {
       >
         <div className="mb-8 max-w-3xl">
           <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-            DisponibilitÃ 
+            Disponibilità
           </p>
           <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-            Controlla disponibilitÃ  Gelone Lungomare
+            Prenota diretto dal sito ufficiale
           </h2>
           <p className="mt-5 text-lg leading-8 text-[#555]">
-            Inserisci le date e il sito controllerÃ  la disponibilitÃ  tramite il
+            Inserisci le date e il sito controllerà la disponibilità tramite il
             sistema interno Gelone. Se le date sono libere, puoi inviare la
             richiesta e bloccarle in attesa della conferma finale.
           </p>
@@ -746,239 +861,156 @@ export default function App() {
             <div className="rounded-2xl bg-white p-5 shadow-sm">
               <ClipboardList className="text-[#9b6b25]" size={30} />
               <h3 className="mt-3 text-xl font-semibold">
-                2. Blocco temporaneo
+                2. Blocco richiesta
               </h3>
               <p className="mt-2 leading-7 text-[#555]">
-                Se invii la richiesta, le notti vengono bloccate nel PMS interno
-                in attesa della conferma finale.
+                Se le date sono libere, puoi inviare la richiesta e bloccarle
+                temporaneamente.
               </p>
             </div>
 
             <div className="rounded-2xl bg-white p-5 shadow-sm">
-              <Euro className="text-[#9b6b25]" size={30} />
+              <ShieldCheck className="text-[#9b6b25]" size={30} />
               <h3 className="mt-3 text-xl font-semibold">
-                3. Conferma finale
+                3. Conferma diretta
               </h3>
               <p className="mt-2 leading-7 text-[#555]">
-                La prenotazione Ã¨ definitiva solo dopo risposta della struttura.
+                Riceverai conferma dalla struttura e il link per completare il
+                check-in online.
               </p>
             </div>
-          </div>
-        </div>
-      </section>
 
-      <section id="info" className="mx-auto max-w-7xl px-5 py-16">
-        <div className="grid gap-6 md:grid-cols-3">
-          <div className="rounded-2xl border border-[#e4d8c2] bg-white p-6 shadow-sm">
-            <ShieldCheck className="text-[#9b6b25]" size={34} />
-            <h3 className="mt-4 font-serif text-2xl">Dati struttura</h3>
-            <div className="mt-4 space-y-2 text-[#555]">
-              <p>CIN: IT084001B4D36830</p>
-              <p>CIR: 190840010022</p>
-              <p>Locazione turistica a Gela</p>
+            <div className="rounded-2xl border border-[#e4d8c2] bg-[#fff7d6] p-5 shadow-sm">
+              <Info className="text-[#9b6b25]" size={30} />
+              <h3 className="mt-3 text-xl font-semibold">
+                Preferisci i portali?
+              </h3>
+              <p className="mt-2 leading-7 text-[#555]">
+                Puoi prenotare anche da Booking o Airbnb. Per il miglior contatto
+                con la struttura, consigliamo comunque il sito ufficiale.
+              </p>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                <BookingButton compact />
+                <AirbnbButton compact />
+              </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="rounded-2xl border border-[#e4d8c2] bg-white p-6 shadow-sm">
-            <Landmark className="text-[#9b6b25]" size={34} />
-            <h3 className="mt-4 font-serif text-2xl">Per chi Ã¨ ideale</h3>
-            <p className="mt-4 leading-7 text-[#555]">
-              Ideale per coppie, viaggiatori singoli, soggiorni brevi, lavoro o
-              vacanza vicino al mare.
+      <section id="contatti" className="bg-white py-16">
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 md:grid-cols-[0.9fr_1.1fr]">
+          <div>
+            <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+              Contatti
+            </p>
+            <h2 className="mt-3 font-serif text-4xl md:text-5xl">
+              Hai dubbi prima di prenotare?
+            </h2>
+            <p className="mt-5 text-lg leading-8 text-[#555]">
+              Scrivici o chiamaci per informazioni su disponibilità, arrivo,
+              servizi e check-in.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[#e4d8c2] bg-white p-6 shadow-sm">
-            <Info className="text-[#9b6b25]" size={34} />
-            <h3 className="mt-4 font-serif text-2xl">Prenotazioni</h3>
-            <p className="mt-4 leading-7 text-[#555]">
-              Puoi prenotare su Booking oppure controllare la disponibilitÃ  dal
-              sito prima di contattarci.
-            </p>
+          <div className="grid gap-4">
+            <a
+              href="tel:+393476308456"
+              className="flex items-center gap-4 rounded-2xl border border-[#e4d8c2] bg-[#faf6ee] p-5 font-semibold"
+            >
+              <Phone className="text-[#9b6b25]" /> 347 630 8456
+            </a>
+
+            <a
+              href="tel:+393479461999"
+              className="flex items-center gap-4 rounded-2xl border border-[#e4d8c2] bg-[#faf6ee] p-5 font-semibold"
+            >
+              <Phone className="text-[#9b6b25]" /> 347 946 1999
+            </a>
+
+            <a
+              href="mailto:info@gelone.it"
+              className="flex items-center gap-4 rounded-2xl border border-[#e4d8c2] bg-[#faf6ee] p-5 font-semibold"
+            >
+              <Mail className="text-[#9b6b25]" /> info@gelone.it
+            </a>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <DirectBookingButton />
+              <WhatsAppButton />
+            </div>
           </div>
         </div>
       </section>
 
-      <section id="contatti" className="mx-auto max-w-7xl px-5 py-16">
-        <div className="rounded-[2rem] border border-[#d7c49f] bg-white p-8 shadow-sm md:p-12">
-          <div className="grid gap-10 md:grid-cols-[1fr_1fr]">
+      <section id="privacy" className="mx-auto max-w-7xl px-5 py-16">
+        <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm md:p-8">
+          <div className="flex items-start gap-4">
+            <Landmark className="mt-1 text-[#9b6b25]" size={30} />
             <div>
               <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-                Contatti
+                Informazioni
               </p>
-              <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-                Richiedi informazioni o prenota online
+              <h2 className="mt-3 font-serif text-3xl md:text-4xl">
+                Locazione turistica Gelone Lungomare
               </h2>
-              <p className="mt-5 text-lg leading-8 text-[#555]">
-                Puoi prenotare tramite Booking, controllare la disponibilitÃ  dal
-                sito oppure contattarci su WhatsApp.
-              </p>
-
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <AvailabilityButton />
-                <BookingButton />
-                <WhatsAppButton />
-              </div>
-            </div>
-
-            <div className="space-y-5 rounded-2xl bg-[#faf6ee] p-6">
-              <div className="flex gap-4">
-                <Phone className="text-[#9b6b25]" />
-                <div>
-                  <p className="font-semibold">Telefono / WhatsApp</p>
-                  <p className="text-[#555]">3476308456 Â· 3479461999</p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <Mail className="text-[#9b6b25]" />
-                <div>
-                  <p className="font-semibold">Email</p>
-                  <p className="text-[#555]">info@gelone.it</p>
-                </div>
-              </div>
-
-              <div className="border-t border-[#e1d2b8] pt-5 text-sm leading-7 text-[#555]">
-                <p>CIN: IT084001B4D36830</p>
-                <p>CIR: 190840010022</p>
-                <p>www.gelone.it</p>
+              <div className="mt-5 space-y-3 leading-7 text-[#555]">
+                <p>
+                  Gelone Lungomare è una locazione turistica a Gela per soggiorni
+                  brevi. I dati inseriti nel modulo vengono usati solo per
+                  gestire la richiesta di disponibilità e prenotazione.
+                </p>
+                <p>
+                  Dopo la conferma della prenotazione, potrà essere richiesto
+                  all'ospite di completare il check-in online per gli adempimenti
+                  previsti dalla normativa.
+                </p>
+                <p>
+                  CIN: <strong>IT084001B4D36830</strong> · CIR:{" "}
+                  <strong>190840010022</strong>
+                </p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="privacy" className="bg-white px-5 py-16">
-        <div className="mx-auto max-w-4xl rounded-[2rem] border border-[#e4d8c2] bg-[#faf6ee] p-8 text-[#0a1d35] shadow-sm md:p-12">
-          <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-            Privacy e Cookie
-          </p>
-          <h2 className="mt-3 font-serif text-4xl">
-            Informativa privacy e cookie policy
-          </h2>
-
-          <div className="mt-6 space-y-5 leading-7 text-[#555]">
-            <p>Ultimo aggiornamento: 11/05/2026.</p>
-
-            <p>
-              Il titolare del trattamento Ã¨ Gelone Lungomare, locazione
-              turistica a Gela. Per qualsiasi richiesta Ã¨ possibile contattare la
-              struttura all'indirizzo email info@gelone.it oppure ai numeri
-              3476308456 e 3479461999.
+      <footer className="border-t border-[#e4d8c2] bg-[#0a1d35] px-5 py-10 text-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="font-serif text-2xl">Gelone Lungomare</p>
+            <p className="mt-2 text-sm text-white/70">
+              Locazione turistica · Gela · Via Pascoli 1
             </p>
-
-            <p>
-              Il sito www.gelone.it presenta la struttura e permette all'utente
-              di contattarla tramite telefono, email, WhatsApp, collegamenti
-              esterni verso Booking e funzione di verifica disponibilitÃ .
+            <p className="mt-2 text-xs text-white/60">
+              CIN IT084001B4D36830 · CIR 190840010022
             </p>
-
-            <p>
-              La funzione di verifica disponibilitÃ  e richiesta prenotazione puÃ²
-              trattare date del soggiorno, nome, telefono, email, numero ospiti e
-              note comunicate volontariamente dall'utente. Questi dati vengono
-              utilizzati per verificare la disponibilitÃ , bloccare le date nel
-              sistema interno e rispondere alla richiesta.
-            </p>
-
-            <p>
-              Il sito non raccoglie dati personali tramite newsletter o pagamenti
-              diretti. I dati eventualmente comunicati volontariamente tramite
-              email, telefono, WhatsApp, Booking o modulo disponibilitÃ  vengono
-              utilizzati per rispondere alle richieste di informazioni, verificare
-              disponibilitÃ , fornire assistenza e gestire eventuali comunicazioni
-              collegate al soggiorno.
-            </p>
-
-            <p>
-              Il trattamento avviene sulla base dell'esecuzione di misure
-              precontrattuali o contrattuali richieste dall'interessato,
-              dell'adempimento di eventuali obblighi di legge e del legittimo
-              interesse a rispondere alle richieste ricevute.
-            </p>
-
-            <p>
-              Il sito contiene collegamenti verso servizi esterni come Booking,
-              WhatsApp e Google Maps. Cliccando su questi collegamenti l'utente
-              lascia il sito www.gelone.it e accede a piattaforme gestite da
-              soggetti terzi, soggette alle rispettive informative privacy e
-              cookie.
-            </p>
-
-            <p>
-              Nella versione attuale il sito non utilizza cookie di profilazione,
-              strumenti pubblicitari, newsletter, sistemi di pagamento diretto o
-              strumenti di tracciamento marketing.
-            </p>
-
-            <p>
-              L'utente puÃ² esercitare i diritti previsti dalla normativa privacy,
-              tra cui accesso, rettifica, cancellazione, limitazione e
-              opposizione al trattamento, scrivendo a info@gelone.it.
-            </p>
-
-            <div className="rounded-2xl bg-white p-5 text-sm leading-7">
-              <p>
-                <strong>Titolare:</strong> Gelone Lungomare
-              </p>
-              <p>
-                <strong>Email:</strong> info@gelone.it
-              </p>
-              <p>
-                <strong>Telefono:</strong> 3476308456 Â· 3479461999
-              </p>
-              <p>
-                <strong>Sito:</strong> www.gelone.it
-              </p>
-              <p>
-                <strong>CIN:</strong> IT084001B4D36830
-              </p>
-              <p>
-                <strong>CIR:</strong> 190840010022
-              </p>
-            </div>
           </div>
-        </div>
-      </section>
 
-      <footer className="border-t border-[#e4d8c2] px-5 pb-28 pt-8 text-center text-sm text-[#555] md:pb-8">
-        <p className="font-serif text-xl tracking-[0.2em] text-[#0a1d35]">
-          GELONE LUNGOMARE
-        </p>
-        <p className="mt-2">
-          Locazione turistica a Gela Â· CIN IT084001B4D36830 Â· CIR 190840010022
-        </p>
-        <div className="mt-4 flex flex-wrap justify-center gap-5">
-          <a
-            href="#verifica-disponibilita"
-            className="underline underline-offset-4 hover:text-[#9b6b25]"
-          >
-            DisponibilitÃ 
-          </a>
-          <a
-            href="#privacy"
-            className="underline underline-offset-4 hover:text-[#9b6b25]"
-          >
-            Privacy e Cookie
-          </a>
-          <a
-            href="mailto:info@gelone.it"
-            className="underline underline-offset-4 hover:text-[#9b6b25]"
-          >
-            info@gelone.it
-          </a>
+          <div className="flex flex-wrap gap-3">
+            <a
+              href="mailto:info@gelone.it"
+              className="rounded-full border border-white/30 px-5 py-3 text-sm font-semibold hover:bg-white/10"
+            >
+              info@gelone.it
+            </a>
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-white/30 px-5 py-3 text-sm font-semibold hover:bg-white/10"
+            >
+              WhatsApp
+            </a>
+            <a
+              href="/ospiti.html"
+              className="rounded-full border border-white/30 px-5 py-3 text-sm font-semibold hover:bg-white/10"
+            >
+              Area ospiti
+            </a>
+          </div>
         </div>
       </footer>
-
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#d7c49f] bg-[#faf6ee]/95 p-3 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
-        <div className="grid grid-cols-3 gap-2">
-          <AvailabilityButton compact />
-          <BookingButton compact />
-          <WhatsAppButton compact />
-        </div>
-      </div>
     </main>
   );
 }
-
-
