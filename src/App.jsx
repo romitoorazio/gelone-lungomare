@@ -117,31 +117,22 @@ function BenefitCard({ icon: Icon, title, text }) {
   );
 }
 
-
-function BrandMark({ type = "gelone" }) {
-  const config = {
-    gelone: {
-      label: "G",
-      className: "bg-[#0a1d35] text-white ring-2 ring-[#f5c84b]/80",
-    },
-    booking: {
-      label: "B",
-      className: "bg-[#174ea6] text-white",
-    },
-    airbnb: {
-      label: "A",
-      className: "bg-[#ff385c] text-white",
-    },
-  };
-
-  const current = config[type] || config.gelone;
-
+function GeloneWordmark({ compact = false }) {
   return (
     <span
-      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold shadow-sm ${current.className}`}
+      className={`inline-flex shrink-0 flex-col items-center justify-center rounded-2xl border border-[#d8b66c] bg-[#0a1d35] text-white shadow-sm ${
+        compact ? "h-10 w-10" : "h-14 w-14"
+      }`}
       aria-hidden="true"
     >
-      {current.label}
+      <span className={compact ? "font-serif text-lg leading-none" : "font-serif text-2xl leading-none"}>
+        G
+      </span>
+      {!compact && (
+        <span className="mt-1 text-[7px] font-bold uppercase tracking-[0.18em] text-[#f5c84b]">
+          Mare
+        </span>
+      )}
     </span>
   );
 }
@@ -150,16 +141,16 @@ function DirectBookingButton({ compact = false }) {
   return (
     <a
       href="#verifica-disponibilita"
-      className={`inline-flex min-h-[48px] items-center justify-center gap-3 rounded-full border-2 border-[#0a1d35] bg-[#f5c84b] text-center font-extrabold text-[#0a1d35] shadow-lg transition hover:bg-[#ffd96a] ${
+      className={`group inline-flex min-h-[52px] items-center justify-center gap-3 rounded-full border-2 border-[#0a1d35] bg-[#f5c84b] text-center font-extrabold text-[#0a1d35] shadow-xl shadow-[#d8b66c]/20 transition hover:-translate-y-0.5 hover:bg-[#ffd96a] hover:shadow-2xl ${
         compact ? "px-4 py-3 text-sm" : "px-6 py-4"
       }`}
     >
-      <BrandMark type="gelone" />
+      <GeloneWordmark compact={compact} />
       <span className="flex flex-col items-start leading-tight">
-        <span>{compact ? "Gelone" : "Prenota diretto e risparmia"}</span>
+        <span>{compact ? "Sito ufficiale" : "Prenota diretto e risparmia"}</span>
         {!compact && (
-          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#5e471a]">
-            Sito ufficiale
+          <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#5e471a]">
+            Canale consigliato Gelone
           </span>
         )}
       </span>
@@ -174,18 +165,12 @@ function BookingButton({ compact = false }) {
       href={bookingUrl}
       target="_blank"
       rel="noreferrer"
-      className={`inline-flex min-h-[48px] items-center justify-center gap-3 rounded-full border border-[#174ea6] bg-white text-center font-extrabold text-[#174ea6] shadow-sm transition hover:bg-[#eef5ff] ${
+      className={`inline-flex min-h-[52px] items-center justify-center gap-3 rounded-full border border-[#d6e3ff] bg-white text-center font-extrabold text-[#174ea6] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#eef5ff] ${
         compact ? "px-4 py-3 text-sm" : "px-6 py-4"
       }`}
     >
-      <BrandMark type="booking" />
-      <span className="flex flex-col items-start leading-tight">
-        <span>{compact ? "Booking" : "Booking.com"}</span>
-        {!compact && (
-          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#4c6fb8]">
-            Portale esterno
-          </span>
-        )}
+      <span className="font-sans text-base font-black tracking-tight">
+        Booking<span className="text-[#003b95]">.com</span>
       </span>
       {!compact && <ExternalLink size={18} />}
     </a>
@@ -198,19 +183,11 @@ function AirbnbButton({ compact = false }) {
       href={airbnbUrl}
       target="_blank"
       rel="noreferrer"
-      className={`inline-flex min-h-[48px] items-center justify-center gap-3 rounded-full border border-[#ff385c] bg-white text-center font-extrabold text-[#c51f46] shadow-sm transition hover:bg-[#fff1f4] ${
+      className={`inline-flex min-h-[52px] items-center justify-center gap-3 rounded-full border border-[#ffd7df] bg-white text-center font-extrabold text-[#ff385c] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff1f4] ${
         compact ? "px-4 py-3 text-sm" : "px-6 py-4"
       }`}
     >
-      <BrandMark type="airbnb" />
-      <span className="flex flex-col items-start leading-tight">
-        <span>{compact ? "Airbnb" : "Airbnb"}</span>
-        {!compact && (
-          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#de5e79]">
-            Portale esterno
-          </span>
-        )}
-      </span>
+      <span className="font-sans text-base font-black tracking-tight">Airbnb</span>
       {!compact && <ExternalLink size={18} />}
     </a>
   );
@@ -414,12 +391,12 @@ function AvailabilityForm() {
           <Euro className="mt-1 text-[#9b6b25]" size={24} />
           <div>
             <p className="font-extrabold text-[#0a1d35]">
-              Prenota dal sito ufficiale
+              Canale diretto Gelone
             </p>
             <p className="mt-1 text-sm leading-6 text-[#555]">
-              Controlli la disponibilità, blocchi le date e ricevi conferma
-              diretta dalla struttura. Così puoi avere condizioni dedicate senza
-              passare subito dai portali.
+              È il percorso consigliato: controlli la disponibilità, blocchi le
+              date e ricevi conferma diretta dalla struttura, senza passare
+              subito dai portali.
             </p>
           </div>
         </div>
@@ -676,18 +653,25 @@ export default function App() {
               viaggiatori che cercano tranquillità, posizione e praticità.
             </p>
 
-            <div className="mt-6 max-w-xl rounded-[1.5rem] border border-[#f5c84b] bg-white/80 p-5 shadow-sm">
-              <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
-                Sito ufficiale
-              </p>
-              <h3 className="mt-2 text-2xl font-extrabold text-[#0a1d35]">
-                Prenota diretto e risparmia
-              </h3>
-              <p className="mt-2 leading-7 text-[#555]">
-                Prima controlla la disponibilità dal sito Gelone. Booking e
-                Airbnb restano disponibili, ma la prenotazione diretta è la
-                scelta consigliata.
-              </p>
+            <div className="mt-6 max-w-xl overflow-hidden rounded-[1.75rem] border border-[#d8b66c] bg-white/90 shadow-lg">
+              <div className="border-b border-[#f0e4c8] bg-[#0a1d35] px-5 py-3 text-white">
+                <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#f5c84b]">
+                  Sito ufficiale Gelone Lungomare
+                </p>
+              </div>
+              <div className="flex gap-4 p-5">
+                <GeloneWordmark />
+                <div>
+                  <h3 className="text-2xl font-extrabold text-[#0a1d35]">
+                    Prenota diretto e risparmia
+                  </h3>
+                  <p className="mt-2 leading-7 text-[#555]">
+                    Controlli le date dal sito ufficiale, blocchi la richiesta e
+                    parli direttamente con la struttura. Booking e Airbnb
+                    restano disponibili come canali secondari.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -700,16 +684,31 @@ export default function App() {
               <AirbnbButton />
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#6d552d]">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#f5c84b] bg-white/80 px-3 py-2">
-                <BrandMark type="gelone" /> Canale consigliato
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#d7c49f] bg-white/70 px-3 py-2">
-                <BrandMark type="booking" /> Booking
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#d7c49f] bg-white/70 px-3 py-2">
-                <BrandMark type="airbnb" /> Airbnb
-              </span>
+            <div className="mt-5 grid max-w-xl gap-3 text-sm md:grid-cols-3">
+              <div className="rounded-2xl border-2 border-[#f5c84b] bg-white p-4 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#9b6b25]">
+                  Consigliato
+                </p>
+                <p className="mt-1 font-extrabold text-[#0a1d35]">
+                  Sito ufficiale
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[#d6e3ff] bg-white/80 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#174ea6]">
+                  Portale
+                </p>
+                <p className="mt-1 font-extrabold text-[#174ea6]">
+                  Booking.com
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[#ffd7df] bg-white/80 p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#ff385c]">
+                  Portale
+                </p>
+                <p className="mt-1 font-extrabold text-[#ff385c]">
+                  Airbnb
+                </p>
+              </div>
             </div>
 
             <div className="mt-8 grid max-w-xl grid-cols-2 gap-3 text-sm text-[#4c4c4c] sm:grid-cols-4">
