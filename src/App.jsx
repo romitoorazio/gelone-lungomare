@@ -17,6 +17,7 @@ const whatsappUrl = "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informaz
 
 const CIN = "IT085007C2TUGEP2SD";
 const CIR = "19085007C264694";
+const UNIT_ID = "lunarossa1";
 
 const defaultPricing = {
   nightlyRate: 70,
@@ -28,31 +29,83 @@ const defaultPricing = {
 
 const gallery = [FOTO_TERRAZZA, FOTO_MARE, FOTO_INTERNI, FOTO_TERRAZZA, FOTO_MARE];
 
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
+function formatDateInput(date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function parseDateInput(dateIso) {
+  if (!dateIso) return null;
+  const [year, month, day] = dateIso.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
 function todayIso() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  return formatDateInput(d);
 }
 
 function addDaysIso(dateIso, days) {
-  if (!dateIso) return "";
-  const d = new Date(`${dateIso}T00:00:00`);
+  const d = parseDateInput(dateIso);
+  if (!d) return "";
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return formatDateInput(d);
 }
 
 function getNightDates(checkIn, checkOut) {
   if (!checkIn || !checkOut || checkOut <= checkIn) return [];
   const nights = [];
-  const cursor = new Date(`${checkIn}T00:00:00`);
-  const end = new Date(`${checkOut}T00:00:00`);
+  const cursor = parseDateInput(checkIn);
+  const end = parseDateInput(checkOut);
+
+  if (!cursor || !end) return [];
 
   while (cursor < end) {
-    nights.push(cursor.toISOString().slice(0, 10));
+    nights.push(formatDateInput(cursor));
     cursor.setDate(cursor.getDate() + 1);
   }
 
   return nights;
+}
+
+function getCalendarDays(monthDate) {
+  const firstOfMonth = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const start = new Date(firstOfMonth);
+  const mondayBasedDay = (firstOfMonth.getDay() + 6) % 7;
+  start.setDate(firstOfMonth.getDate() - mondayBasedDay);
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + index);
+
+    return {
+      iso: formatDateInput(d),
+      day: d.getDate(),
+      inCurrentMonth: d.getMonth() === monthDate.getMonth(),
+      isPast: formatDateInput(d) < todayIso(),
+    };
+  });
+}
+
+function getMonthLabel(monthDate) {
+  return new Intl.DateTimeFormat("it-IT", {
+    month: "long",
+    year: "numeric",
+  })
+    .format(monthDate)
+    .toUpperCase();
+}
+
+function getCalendarStatusLabel(status) {
+  if (!status) return "Disponibile";
+  if (status === "blocked") return "Bloccata";
+  if (["pending_direct", "pending"].includes(status)) return "Richiesta";
+  return "Occupata";
 }
 
 function formatEuro(value) {
@@ -81,6 +134,15 @@ export default function App() {
   const [guestPhone, setGuestPhone] = useState("");
   const [requestStatus, setRequestStatus] = useState(null);
   const [pricing, setPricing] = useState(defaultPricing);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const [calendarStatusByDate, setCalendarStatusByDate] = useState({});
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -106,6 +168,55 @@ export default function App() {
     loadPricing();
     return () => { mounted = false; };
   }, []);
+
+  const calendarDays = useMemo(() => getCalendarDays(calendarMonth), [calendarMonth]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadCalendarAvailability() {
+      setCalendarLoading(true);
+
+      try {
+        const start = calendarDays[0]?.iso;
+        const end = calendarDays[calendarDays.length - 1]?.iso;
+
+        if (!start || !end) return;
+
+        const response = await fetch(
+          `/api/public-calendar?unitId=${encodeURIComponent(UNIT_ID)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.message || "Calendario non disponibile");
+        }
+
+        if (!mounted) return;
+
+        const nextStatusByDate = {};
+
+        (data.days || []).forEach((day) => {
+          if (day?.date && day?.status && day.status !== "cancelled") {
+            nextStatusByDate[day.date] = day.status;
+          }
+        });
+
+        setCalendarStatusByDate(nextStatusByDate);
+      } catch (error) {
+        console.warn("Calendario disponibilità non caricato:", error);
+        if (mounted) setCalendarStatusByDate({});
+      } finally {
+        if (mounted) setCalendarLoading(false);
+      }
+    }
+
+    loadCalendarAvailability();
+
+    return () => {
+      mounted = false;
+    };
+  }, [calendarDays, calendarRefreshKey]);
 
   const selectedNights = useMemo(() => getNightDates(checkIn, checkOut), [checkIn, checkOut]);
   const priceEstimate = useMemo(() => {
@@ -198,12 +309,37 @@ export default function App() {
       const data = await response.json();
       if (!response.ok) throw new Error(data?.message || "Errore invio richiesta");
       setRequestStatus({ ok: true, message: "Richiesta inviata. Ti contatteremo per confermare." });
+      setCalendarRefreshKey((value) => value + 1);
     } catch (error) {
       setRequestStatus({ ok: false, message: error.message || "Errore durante l'invio." });
     } finally {
       setLoading(false);
     }
   };
+
+  function changeCalendarMonth(direction) {
+    setCalendarMonth((current) => {
+      const next = new Date(current);
+      next.setMonth(current.getMonth() + direction);
+      next.setDate(1);
+      return next;
+    });
+  }
+
+  function selectCalendarDate(dateIso) {
+    if (!dateIso || dateIso < minCheckIn) return;
+
+    setAvailability(null);
+    setRequestStatus(null);
+
+    if (!checkIn || checkOut || dateIso <= checkIn) {
+      setCheckIn(dateIso);
+      setCheckOut(addDaysIso(dateIso, 1));
+      return;
+    }
+
+    setCheckOut(dateIso);
+  }
 
   return (
     <main className="site-shell">
@@ -329,12 +465,18 @@ export default function App() {
                 <span>Check-in</span>
                 <input min={minCheckIn} value={checkIn} onChange={(e) => {
                   setCheckIn(e.target.value);
+                  setAvailability(null);
+                  setRequestStatus(null);
                   if (!checkOut || checkOut <= e.target.value) setCheckOut(addDaysIso(e.target.value, 1));
                 }} type="date" />
               </label>
               <label>
                 <span>Check-out</span>
-                <input min={checkIn ? addDaysIso(checkIn, 1) : minCheckIn} value={checkOut} onChange={(e) => setCheckOut(e.target.value)} type="date" />
+                <input min={checkIn ? addDaysIso(checkIn, 1) : minCheckIn} value={checkOut} onChange={(e) => {
+                  setCheckOut(e.target.value);
+                  setAvailability(null);
+                  setRequestStatus(null);
+                }} type="date" />
               </label>
               <label>
                 <span>Ospiti</span>
@@ -384,14 +526,61 @@ export default function App() {
             {requestStatus && <div className={requestStatus.ok ? "notice ok" : "notice no"}>{requestStatus.message}</div>}
           </div>
 
-          <div className="calendar-box" aria-hidden="true">
-            <div className="calendar-top"><span>‹</span><strong>GIUGNO 2025</strong><span>›</span></div>
+          <div className="calendar-box">
+            <div className="calendar-top">
+              <button type="button" onClick={() => changeCalendarMonth(-1)} aria-label="Mese precedente">‹</button>
+              <strong>{getMonthLabel(calendarMonth)}</strong>
+              <button type="button" onClick={() => changeCalendarMonth(1)} aria-label="Mese successivo">›</button>
+            </div>
+
             <div className="calendar-grid labels">
-              {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'].map((d) => <b key={d}>{d}</b>)}
+              {["LUN", "MAR", "MER", "GIO", "VEN", "SAB", "DOM"].map((d) => <b key={d}>{d}</b>)}
             </div>
-            <div className="calendar-grid">
-              {[26, 27, 28, 29, 30, 31, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 1, 2, 3, 4, 5, 6].map((d, i) => <span key={`${d}-${i}`} className={i < 6 || i > 35 ? "muted" : ""}>{d}</span>)}
+
+            <div className="calendar-grid calendar-days">
+              {calendarDays.map((day) => {
+                const status = calendarStatusByDate[day.iso];
+                const isSelectedNight = selectedNights.includes(day.iso);
+                const isCheckIn = checkIn === day.iso;
+                const isCheckOut = checkOut === day.iso;
+                const className = [
+                  !day.inCurrentMonth ? "muted" : "",
+                  day.isPast ? "past" : "",
+                  status ? "busy" : "free",
+                  status === "blocked" ? "blocked" : "",
+                  ["pending_direct", "pending"].includes(status) ? "pending" : "",
+                  isSelectedNight ? "selected" : "",
+                  isCheckIn ? "edge" : "",
+                  isCheckOut ? "checkout-edge" : "",
+                ].filter(Boolean).join(" ");
+
+                return (
+                  <button
+                    key={day.iso}
+                    type="button"
+                    disabled={day.isPast || Boolean(status)}
+                    onClick={() => selectCalendarDate(day.iso)}
+                    className={className}
+                    title={`${day.iso} - ${getCalendarStatusLabel(status)}`}
+                  >
+                    <span>{day.day}</span>
+                  </button>
+                );
+              })}
             </div>
+
+            <div className="calendar-legend">
+              <span><i className="free" /> Libero</span>
+              <span><i className="busy" /> Occupato</span>
+              <span><i className="blocked" /> Bloccato</span>
+              <span><i className="selected" /> Selezionato</span>
+            </div>
+
+            <p className="calendar-note">
+              {calendarLoading
+                ? "Aggiornamento disponibilità..."
+                : "Calendario collegato alle notti salvate nel PMS: prenotazioni, blocchi, Booking e Airbnb sincronizzati."}
+            </p>
           </div>
         </div>
       </section>
@@ -535,11 +724,28 @@ button, input, select { font: inherit; }
 .guest-form input { background: rgba(255,255,255,.7); border: 1px solid rgba(180,134,22,.18); border-radius: 6px; padding: 12px; }
 .guest-form button { grid-column: 1 / -1; border: 0; border-radius: 5px; background: var(--navy); color: #fff; padding: 13px; font-weight: 800; letter-spacing: .06em; cursor: pointer; }
 .calendar-box { border-left: 1px solid rgba(180,134,22,.16); padding: 32px 42px; background: rgba(255,255,255,.32); }
-.calendar-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.calendar-top strong { letter-spacing: .06em; }
+.calendar-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
+.calendar-top strong { letter-spacing: .06em; text-align: center; }
+.calendar-top button { width: 34px; height: 34px; border: 1px solid rgba(180,134,22,.25); border-radius: 999px; background: rgba(255,255,255,.72); color: var(--navy); font-size: 22px; cursor: pointer; }
 .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px 14px; text-align: center; font-size: 14px; }
 .calendar-grid.labels { margin-bottom: 9px; font-size: 11px; color: rgba(7,31,61,.82); }
-.calendar-grid .muted { opacity: .38; }
+.calendar-days button { aspect-ratio: 1 / 1; border: 1px solid rgba(7,31,61,.08); border-radius: 999px; background: rgba(255,255,255,.62); color: var(--navy); font-family: Georgia, serif; cursor: pointer; transition: transform .15s ease, border-color .15s ease, background .15s ease; }
+.calendar-days button:not(:disabled):hover { transform: translateY(-1px); border-color: rgba(180,134,22,.48); background: rgba(255,255,255,.92); }
+.calendar-days button.muted { opacity: .32; }
+.calendar-days button.past { opacity: .24; cursor: not-allowed; }
+.calendar-days button.busy { background: rgba(154,72,47,.14); border-color: rgba(154,72,47,.30); color: #7a2c18; cursor: not-allowed; text-decoration: line-through; }
+.calendar-days button.blocked { background: rgba(7,31,61,.12); border-color: rgba(7,31,61,.28); color: var(--navy); }
+.calendar-days button.pending { background: rgba(180,134,22,.16); border-color: rgba(180,134,22,.34); color: #8a640e; }
+.calendar-days button.selected { background: rgba(180,134,22,.22); border-color: rgba(180,134,22,.70); box-shadow: inset 0 0 0 2px rgba(255,255,255,.65); }
+.calendar-days button.edge { background: var(--gold); color: #fff; border-color: var(--gold); text-decoration: none; }
+.calendar-days button.checkout-edge { border-color: var(--navy); box-shadow: inset 0 0 0 2px rgba(7,31,61,.16); }
+.calendar-legend { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 10px 14px; font-size: 12px; color: rgba(7,31,61,.78); }
+.calendar-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.calendar-legend i { width: 11px; height: 11px; border-radius: 999px; border: 1px solid rgba(7,31,61,.12); background: rgba(255,255,255,.8); }
+.calendar-legend i.busy { background: rgba(154,72,47,.20); border-color: rgba(154,72,47,.32); }
+.calendar-legend i.blocked { background: rgba(7,31,61,.16); border-color: rgba(7,31,61,.30); }
+.calendar-legend i.selected { background: rgba(180,134,22,.28); border-color: rgba(180,134,22,.70); }
+.calendar-note { margin: 14px 0 0; font-size: 12px; line-height: 1.45; color: rgba(7,31,61,.70); }
 
 .position-card { width: min(1050px, 100%); margin: 0 auto 28px; display: grid; grid-template-columns: .7fr 1.3fr; gap: 24px; border: 1px solid rgba(180,134,22,.20); border-radius: 8px; padding: 20px 26px; background: rgba(255,255,255,.28); }
 .position-text { font-size: 15px; }
