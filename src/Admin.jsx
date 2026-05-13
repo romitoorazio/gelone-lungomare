@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   getIdToken,
   onAuthStateChanged,
@@ -82,6 +82,14 @@ const paymentOptions = [
   { value: "deposit_paid", label: "Caparra pagata" },
   { value: "paid", label: "Pagato" },
   { value: "refunded", label: "Rimborsato" },
+];
+
+const welcomateOptions = [
+  { value: "to_send", label: "Da inviare" },
+  { value: "sent", label: "Inviato" },
+  { value: "completed", label: "Compilato" },
+  { value: "missing", label: "Mancano dati" },
+  { value: "not_needed", label: "Non necessario" },
 ];
 
 function toDateInputValue(date) {
@@ -168,6 +176,33 @@ function getPaymentLabel(paymentStatus) {
   );
 }
 
+function getWelcomateLabel(welcomateStatus) {
+  return (
+    welcomateOptions.find((item) => item.value === welcomateStatus)?.label ||
+    "Da inviare"
+  );
+}
+
+function getWelcomateClass(welcomateStatus) {
+  if (welcomateStatus === "completed") {
+    return "border-green-200 bg-green-50 text-green-900";
+  }
+
+  if (welcomateStatus === "sent") {
+    return "border-blue-200 bg-blue-50 text-blue-900";
+  }
+
+  if (welcomateStatus === "missing") {
+    return "border-red-200 bg-red-50 text-red-900";
+  }
+
+  if (welcomateStatus === "not_needed") {
+    return "border-slate-200 bg-slate-100 text-slate-900";
+  }
+
+  return "border-amber-200 bg-amber-50 text-amber-900";
+}
+
 function getStatusClass(status) {
   if (status === "confirmed_direct" || status === "booking") {
     return "border-green-200 bg-green-50 text-green-900";
@@ -200,6 +235,38 @@ function cleanMoneyValue(value) {
   if (value === "" || value === null || value === undefined) return null;
   const number = Number(String(value).replace(",", "."));
   return Number.isFinite(number) ? number : null;
+}
+
+async function copyToClipboard(text) {
+  const value = String(text || "");
+
+  if (navigator?.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch (err) {
+      console.warn("Clipboard API non disponibile:", err);
+    }
+  }
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const copied = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return copied;
+  } catch (err) {
+    console.warn("Fallback copia non riuscito:", err);
+    return false;
+  }
 }
 
 function buildWhatsAppMessage(booking, settings) {
@@ -399,6 +466,7 @@ export default function Admin() {
   const [error, setError] = useState("");
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [manualCopy, setManualCopy] = useState({ title: "", text: "" });
 
   const [detailForm, setDetailForm] = useState({
     guestName: "",
@@ -407,6 +475,7 @@ export default function Admin() {
     totalPrice: "",
     depositAmount: "",
     paymentStatus: "unpaid",
+    welcomateStatus: "to_send",
     notes: "",
     internalNotes: "",
   });
@@ -423,6 +492,7 @@ export default function Admin() {
     totalPrice: "",
     depositAmount: "",
     paymentStatus: "unpaid",
+    welcomateStatus: "to_send",
     notes: "",
   });
 
@@ -545,6 +615,7 @@ export default function Admin() {
           ? ""
           : String(selectedBooking.depositAmount),
       paymentStatus: selectedBooking.paymentStatus || "unpaid",
+      welcomateStatus: selectedBooking.welcomateStatus || "to_send",
       notes: selectedBooking.notes || "",
       internalNotes: selectedBooking.internalNotes || "",
     });
@@ -576,6 +647,7 @@ export default function Admin() {
         booking.checkOut,
         booking.source,
         booking.status,
+        booking.welcomateStatus,
         booking.notes,
         booking.internalNotes,
       ]
@@ -598,6 +670,11 @@ export default function Admin() {
       ["pending_direct", "pending"].includes(item.status)
     );
     const paid = active.filter((item) => item.paymentStatus === "paid");
+    const welcomateToCheck = active.filter((item) =>
+      ["to_send", "sent", "missing", undefined, null, ""].includes(
+        item.welcomateStatus
+      )
+    );
 
     return {
       active: active.length,
@@ -605,6 +682,7 @@ export default function Admin() {
       blocked: blocked.length,
       pending: pending.length,
       paid: paid.length,
+      welcomateToCheck: welcomateToCheck.length,
     };
   }, [bookings]);
 
@@ -612,6 +690,7 @@ export default function Admin() {
     setMessage("");
     setError("");
     setSyncResult(null);
+    setManualCopy({ title: "", text: "" });
   }
 
   async function getOccupiedNights(nights) {
@@ -760,6 +839,7 @@ export default function Admin() {
         totalPrice: cleanMoneyValue(newBooking.totalPrice),
         depositAmount: cleanMoneyValue(newBooking.depositAmount),
         paymentStatus: newBooking.paymentStatus || "unpaid",
+        welcomateStatus: newBooking.welcomateStatus || "to_send",
         notes: newBooking.notes || "",
         internalNotes: "",
         createdAt: serverTimestamp(),
@@ -795,6 +875,7 @@ export default function Admin() {
         totalPrice: "",
         depositAmount: "",
         paymentStatus: "unpaid",
+        welcomateStatus: "to_send",
         notes: "",
       });
 
@@ -848,6 +929,7 @@ export default function Admin() {
         totalPrice: null,
         depositAmount: null,
         paymentStatus: "unpaid",
+        welcomateStatus: "not_needed",
         notes: blockForm.notes || "",
         internalNotes: "",
         createdAt: serverTimestamp(),
@@ -989,6 +1071,7 @@ export default function Admin() {
         totalPrice: cleanMoneyValue(detailForm.totalPrice),
         depositAmount: cleanMoneyValue(detailForm.depositAmount),
         paymentStatus: detailForm.paymentStatus || "unpaid",
+        welcomateStatus: detailForm.welcomateStatus || "to_send",
         notes: detailForm.notes || "",
         internalNotes: detailForm.internalNotes || "",
         updatedAt: serverTimestamp(),
@@ -1017,15 +1100,95 @@ export default function Admin() {
     }
   }
 
+  async function setWelcomateStatus(booking, welcomateStatus) {
+    clearMessages();
+
+    try {
+      const updateData = {
+        welcomateStatus,
+        updatedAt: serverTimestamp(),
+      };
+
+      if (welcomateStatus === "sent") {
+        updateData.welcomateSentAt = serverTimestamp();
+      }
+
+      if (welcomateStatus === "completed") {
+        updateData.welcomateCompletedAt = serverTimestamp();
+      }
+
+      await updateDoc(doc(db, "bookings", booking.id), updateData);
+
+      setMessage(`Check-in WelcoMate aggiornato: ${getWelcomateLabel(welcomateStatus)}.`);
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante l'aggiornamento dello stato WelcoMate.");
+    }
+  }
+
+  async function copyWelcomateAndMarkSent(booking) {
+    clearMessages();
+
+    const text = buildWelcomateText(booking, settings);
+
+    try {
+      const copied = await copyToClipboard(text);
+
+      if (!copied) {
+        setManualCopy({
+          title: "Testo WelcoMate pronto da copiare",
+          text,
+        });
+        setError(
+          "Il browser non ha permesso la copia automatica. Ti ho aperto il testo qui sotto: selezionalo e copialo manualmente."
+        );
+        return;
+      }
+
+      await updateDoc(doc(db, "bookings", booking.id), {
+        welcomateStatus: "sent",
+        welcomateSentAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      setMessage("Testo WelcoMate copiato negli appunti e stato segnato come inviato.");
+    } catch (err) {
+      console.error(err);
+      setManualCopy({
+        title: "Testo WelcoMate pronto da copiare",
+        text,
+      });
+      setError(
+        "Non riesco ad aggiornare automaticamente WelcoMate. Copia il testo qui sotto e riprova a segnare lo stato come Inviato."
+      );
+    }
+  }
+
   async function copyText(text, successMessage) {
     clearMessages();
 
     try {
-      await navigator.clipboard.writeText(text);
+      const copied = await copyToClipboard(text);
+
+      if (!copied) {
+        setManualCopy({
+          title: "Testo pronto da copiare",
+          text: String(text || ""),
+        });
+        setError(
+          "Il browser non ha permesso la copia automatica. Ti ho aperto il testo qui sotto: selezionalo e copialo manualmente."
+        );
+        return;
+      }
+
       setMessage(successMessage);
     } catch (err) {
       console.error(err);
-      setError("Non riesco a copiare automaticamente. Copia manualmente il testo.");
+      setManualCopy({
+        title: "Testo pronto da copiare",
+        text: String(text || ""),
+      });
+      setError("Non riesco a copiare automaticamente. Copia manualmente il testo qui sotto.");
     }
   }
 
@@ -1105,12 +1268,18 @@ export default function Admin() {
       </header>
 
       <section className="mx-auto max-w-7xl px-5 py-8">
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-6">
           <StatCard title="Attive" value={stats.active} icon={CalendarDays} />
           <StatCard title="Confermate" value={stats.confirmed} icon={ShieldCheck} />
           <StatCard title="Richieste" value={stats.pending} icon={RefreshCcw} />
           <StatCard title="Blocchi" value={stats.blocked} icon={Lock} />
           <StatCard title="Pagate" value={stats.paid} icon={CreditCard} />
+          <StatCard
+            title="WelcoMate"
+            value={stats.welcomateToCheck}
+            icon={MessageCircle}
+            subtitle="Da controllare"
+          />
         </div>
 
         <div className="mt-8 flex flex-wrap gap-3">
@@ -1137,6 +1306,35 @@ export default function Admin() {
         {error && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900">
             {error}
+          </div>
+        )}
+
+        {manualCopy.text && (
+          <div className="mt-6 rounded-[2rem] border border-[#e4d8c2] bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                  Copia manuale
+                </p>
+                <h3 className="mt-1 font-serif text-2xl">{manualCopy.title}</h3>
+                <p className="mt-2 text-sm text-[#555]">
+                  Se il telefono o il browser bloccano gli appunti, seleziona il testo e copialo manualmente.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setManualCopy({ title: "", text: "" })}
+                className="rounded-full border border-[#0a1d35] px-5 py-3 font-bold"
+              >
+                Chiudi
+              </button>
+            </div>
+            <textarea
+              readOnly
+              value={manualCopy.text}
+              onFocus={(event) => event.target.select()}
+              className="mt-4 min-h-56 w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-sm leading-6"
+            />
           </div>
         )}
 
@@ -1196,7 +1394,7 @@ export default function Admin() {
               </div>
 
               <div className="mt-6 overflow-x-auto">
-                <table className="w-full min-w-[1150px] border-collapse text-left">
+                <table className="w-full min-w-[1250px] border-collapse text-left">
                   <thead>
                     <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
                       <th className="py-3">Arrivo</th>
@@ -1206,6 +1404,7 @@ export default function Admin() {
                       <th className="py-3">Telefono</th>
                       <th className="py-3">Origine</th>
                       <th className="py-3">Stato</th>
+                      <th className="py-3">WelcoMate</th>
                       <th className="py-3">Pagamento</th>
                       <th className="py-3">Prezzo</th>
                       <th className="py-3">Azioni</th>
@@ -1215,7 +1414,7 @@ export default function Admin() {
                   <tbody>
                     {filteredBookings.length === 0 && (
                       <tr>
-                        <td colSpan="10" className="py-8 text-center text-[#555]">
+                        <td colSpan="11" className="py-8 text-center text-[#555]">
                           Nessuna prenotazione trovata.
                         </td>
                       </tr>
@@ -1244,6 +1443,11 @@ export default function Admin() {
                           <td className="py-4">
                             <Pill className={getStatusClass(booking.status)}>
                               {getStatusLabel(booking.status)}
+                            </Pill>
+                          </td>
+                          <td className="py-4">
+                            <Pill className={getWelcomateClass(booking.welcomateStatus)}>
+                              {getWelcomateLabel(booking.welcomateStatus)}
                             </Pill>
                           </td>
                           <td className="py-4">
@@ -1330,6 +1534,9 @@ export default function Admin() {
                       <Pill className="border-[#e4d8c2] bg-[#faf6ee] text-[#0a1d35]">
                         {getPaymentLabel(selectedBooking.paymentStatus)}
                       </Pill>
+                      <Pill className={getWelcomateClass(selectedBooking.welcomateStatus)}>
+                        WelcoMate: {getWelcomateLabel(selectedBooking.welcomateStatus)}
+                      </Pill>
                     </div>
                   </div>
 
@@ -1351,6 +1558,8 @@ export default function Admin() {
                   <DetailRow label="Ospiti" value={selectedBooking.guests ?? "-"} />
                   <DetailRow label="Email" value={selectedBooking.guestEmail || "-"} />
                   <DetailRow label="Telefono" value={selectedBooking.guestPhone || "-"} />
+                  <DetailRow label="WelcoMate" value={getWelcomateLabel(selectedBooking.welcomateStatus)} />
+                  <DetailRow label="Invio WelcoMate" value={formatDateTime(selectedBooking.welcomateSentAt)} />
                   <DetailRow label="Creata" value={formatDateTime(selectedBooking.createdAt)} />
                   <DetailRow label="Aggiornata" value={formatDateTime(selectedBooking.updatedAt)} />
                 </div>
@@ -1402,6 +1611,25 @@ export default function Admin() {
                       className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                     >
                       {paymentOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+
+                  <FormField label="Check-in WelcoMate">
+                    <select
+                      value={detailForm.welcomateStatus}
+                      onChange={(event) =>
+                        setDetailForm({
+                          ...detailForm,
+                          welcomateStatus: event.target.value,
+                        })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    >
+                      {welcomateOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
@@ -1492,15 +1720,24 @@ export default function Admin() {
                     </SmallButton>
 
                     <SmallButton
-                      onClick={() =>
-                        copyText(
-                          buildWelcomateText(selectedBooking, settings),
-                          "Testo WelcoMate copiato. Incollalo su WhatsApp o email."
-                        )
-                      }
+                      onClick={() => copyWelcomateAndMarkSent(selectedBooking)}
                       className="bg-[#9b6b25] px-6 py-4 text-white"
                     >
                       Copia WelcoMate
+                    </SmallButton>
+
+                    <SmallButton
+                      onClick={() => setWelcomateStatus(selectedBooking, "completed")}
+                      className="bg-green-700 px-6 py-4 text-white"
+                    >
+                      WelcoMate compilato
+                    </SmallButton>
+
+                    <SmallButton
+                      onClick={() => setWelcomateStatus(selectedBooking, "missing")}
+                      className="bg-red-800 px-6 py-4 text-white"
+                    >
+                      Mancano dati
                     </SmallButton>
 
                     {selectedBooking.guestPhone && (
@@ -1683,6 +1920,25 @@ export default function Admin() {
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 >
                   {paymentOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+
+              <FormField label="Check-in WelcoMate">
+                <select
+                  value={newBooking.welcomateStatus}
+                  onChange={(event) =>
+                    setNewBooking({
+                      ...newBooking,
+                      welcomateStatus: event.target.value,
+                    })
+                  }
+                  className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                >
+                  {welcomateOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
