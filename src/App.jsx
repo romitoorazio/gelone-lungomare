@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   Bath,
   BedDouble,
@@ -21,9 +21,7 @@ import {
   ShieldCheck,
   Train,
   Umbrella,
-  Users,
-  Walking,
-  Waves,
+  Users, Waves,
 } from "lucide-react";
 
 const bookingUrl = "https://www.booking.com/hotel/it/gelone-lungomare.it.html";
@@ -105,7 +103,7 @@ function BookingCard({ type, title, subtitle, href }) {
     ) : type === "booking" ? (
       <span className="text-5xl font-black text-[#003b95]">B.</span>
     ) : type === "airbnb" ? (
-      <span className="text-5xl font-light text-[#ff385c]">⌂</span>
+      <span className="text-5xl font-light text-[#ff385c]">âŒ‚</span>
     ) : (
       <MessageCircle className="text-[#25d366]" size={42} />
     );
@@ -166,7 +164,7 @@ async function readJsonResponse(response) {
   try {
     return responseText ? JSON.parse(responseText) : {};
   } catch {
-    throw new Error("Errore tecnico del server. Riprova più tardi oppure contattaci su WhatsApp.");
+    throw new Error("Errore tecnico del server. Riprova piÃ¹ tardi oppure contattaci su WhatsApp.");
   }
 }
 
@@ -206,10 +204,10 @@ function AvailabilityForm() {
         body: JSON.stringify({ checkIn, checkOut }),
       });
       const data = await readJsonResponse(response);
-      if (!response.ok) throw new Error(data?.message || "Non è stato possibile verificare la disponibilità.");
+      if (!response.ok) throw new Error(data?.message || "Non Ã¨ stato possibile verificare la disponibilitÃ .");
       setResult(data);
     } catch (err) {
-      setError(err?.message || "Errore durante il controllo disponibilità. Puoi contattarci su WhatsApp.");
+      setError(err?.message || "Errore durante il controllo disponibilitÃ . Puoi contattarci su WhatsApp.");
     } finally {
       setChecking(false);
     }
@@ -230,7 +228,7 @@ function AvailabilityForm() {
         body: JSON.stringify({ guestName, guestPhone, guestEmail, guests: Number(guests), checkIn, checkOut, notes }),
       });
       const data = await readJsonResponse(response);
-      if (!response.ok) throw new Error(data?.message || "Non è stato possibile bloccare le date.");
+      if (!response.ok) throw new Error(data?.message || "Non Ã¨ stato possibile bloccare le date.");
       setBookingResult(data);
       setResult({ ok: true, available: false, message: "Le date sono state bloccate nel sistema Gelone Lungomare in attesa di conferma." });
     } catch (err) {
@@ -263,7 +261,7 @@ function AvailabilityForm() {
       </div>
 
       <button type="submit" disabled={checking || booking} className="mt-4 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-md bg-[#b88a22] px-6 py-3 font-serif text-lg font-bold uppercase tracking-[0.12em] text-white shadow-sm disabled:opacity-60">
-        {checking ? "Controllo in corso..." : "Verifica disponibilità"} <CalendarDays size={18} />
+        {checking ? "Controllo in corso..." : "Verifica disponibilitÃ "} <CalendarDays size={18} />
       </button>
 
       <div className="mt-4 flex items-center justify-center gap-2 text-sm text-[#071b35]"><ShieldCheck size={18} /> Miglior tariffa garantita prenotando dal sito</div>
@@ -322,7 +320,7 @@ export default function App() {
         <header className="flex items-center justify-between border-b border-[#e5d7ba] px-8 py-4">
           <LogoBlock small />
           <nav className="hidden gap-8 text-[15px] font-semibold md:flex">
-            {['Home','Alloggio','Foto','Disponibilità','Contatti'].map((item) => <a key={item} href={`#${item.toLowerCase()}`} className="hover:text-[#b88a22]">{item}</a>)}
+            {['Home','Alloggio','Foto','DisponibilitÃ ','Contatti'].map((item) => <a key={item} href={`#${item.toLowerCase()}`} className="hover:text-[#b88a22]">{item}</a>)}
           </nav>
           <a href="#disponibilita" className="rounded-md bg-[#b88a22] px-5 py-3 text-sm font-extrabold uppercase tracking-[0.08em] text-white shadow-sm">Prenota diretto</a>
         </header>
@@ -356,7 +354,7 @@ export default function App() {
         </section>
 
         <section id="alloggio" className="px-8 py-8">
-          <h2 className="text-center font-serif text-[26px] font-bold uppercase tracking-[0.12em]">Perché scegliere Gelone Lungomare</h2>
+          <h2 className="text-center font-serif text-[26px] font-bold uppercase tracking-[0.12em]">PerchÃ© scegliere Gelone Lungomare</h2>
           <div className="mx-auto mt-2 h-px w-44 bg-[#c4a35b]" />
           <div className="mt-7 grid gap-6 md:grid-cols-4">
             <FeatureCard icon={MapPin} title={'Posizione\nvicino al mare'} text="A pochi passi dal lungomare di Gela, per passeggiate e tramonti indimenticabili." />
@@ -377,7 +375,7 @@ export default function App() {
 
         <section id="disponibilita" className="mx-8 grid gap-6 rounded-lg border border-[#e5d7ba] bg-white/35 p-6 md:grid-cols-[1fr_0.8fr]">
           <div>
-            <h2 className="font-serif text-[28px] font-bold uppercase tracking-[0.12em]">Disponibilità e prenotazione</h2>
+            <h2 className="font-serif text-[28px] font-bold uppercase tracking-[0.12em]">DisponibilitÃ  e prenotazione</h2>
             <Ornament />
             <div className="mt-5"><AvailabilityForm /></div>
           </div>
@@ -390,7 +388,7 @@ export default function App() {
             <Ornament />
             <div className="mt-6 space-y-5 text-[17px]">
               <p className="flex gap-4"><MapPin className="text-[#b88a22]" /> Via Pascoli 1, 93012 Gela (CL)</p>
-              <p className="flex gap-4"><Walking className="text-[#b88a22]" /> A 2 minuti a piedi dal lungomare</p>
+              <p className="flex gap-4"><MapPin className="text-[#b88a22]" /> A 2 minuti a piedi dal lungomare</p>
               <p className="flex gap-4"><Car className="text-[#b88a22]" /> A 5 minuti dal centro di Gela</p>
               <p className="flex gap-4"><Train className="text-[#b88a22]" /> A 10 minuti dalla Stazione di Gela</p>
             </div>
@@ -417,3 +415,7 @@ export default function App() {
     </main>
   );
 }
+
+
+
+
