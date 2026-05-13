@@ -1,1080 +1,498 @@
-import React, { useState } from "react";
-import {
-  MapPin,
-  Phone,
-  Mail,
-  Waves,
-  Home,
-  Camera,
-  ExternalLink,
-  Utensils,
-  ShieldCheck,
-  Info,
-  MessageCircle,
-  BedDouble,
-  Bath,
-  Landmark,
-  CalendarCheck,
-  ClipboardList,
-  Euro,
-  SearchCheck,
-  Send,
-} from "lucide-react";
+import React, { useMemo, useState } from "react";
+
+const LOGO_HEADER = "/images/logo-gelone-header-senza-qrcode.png";
+const LOGO_EMBLEMA = "/images/logo-gelone-emblema-senza-qrcode.png";
+const HERO_FUSA = "/images/hero-gelone-fusa.png";
+const HERO_VIDEO = "/images/hero-gelone-video.mp4";
+const HERO_POSTER = "/images/hero-gelone-poster.jpg";
+const FOTO_MARE = "/images/vista-mare-gelone.jpg";
+const FOTO_TERRAZZA = "/images/terrazza-gelone.jpg";
+const FOTO_INTERNI = "/images/interni-gelone.jpg";
 
 const bookingUrl = "https://www.booking.com/hotel/it/gelone-lungomare.it.html";
 const airbnbUrl = "https://www.airbnb.it/rooms/1267419022190887817";
-const mapsUrl = "https://maps.app.goo.gl/JwYWW3RqFz5VdtCu6";
+const whatsappUrl = "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informazioni%20su%20Gelone%20Lungomare";
 
-const whatsappUrl =
-  "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informazioni%20su%20Gelone%20Lungomare";
+const CIN = "IT084001B4D36830";
+const CIR = "190840010022";
 
-const directWhatsappUrl =
-  "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20prenotare%20direttamente%20Gelone%20Lungomare%20dal%20sito%20ufficiale";
+const gallery = [FOTO_TERRAZZA, FOTO_MARE, FOTO_INTERNI, FOTO_TERRAZZA, FOTO_MARE];
 
-const gallery = [
-  {
-    title: "Terrazza esterna",
-    description:
-      "Uno spazio all'aperto dove rilassarsi, fare colazione o godersi l'atmosfera del lungomare.",
-    image: "/images/terrazza-gelone.jpg",
-  },
-  {
-    title: "Vista mare",
-    description:
-      "Una posizione comoda, vicina al mare e ai principali servizi della città.",
-    image: "/images/vista-mare-gelone.jpg",
-  },
-  {
-    title: "Camera, bagno e cucina",
-    description:
-      "Soluzione riservata per 2 persone, con camera da letto, bagno e cucina.",
-    image: "/images/interni-gelone.jpg",
-  },
-];
+function todayIso() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
 
-const features = [
-  {
-    icon: Home,
-    title: "Per 2 persone",
-    text: "Ideale per coppie, viaggiatori singoli o soggiorni brevi a Gela.",
-  },
-  {
-    icon: BedDouble,
-    title: "1 camera da letto",
-    text: "Ambiente riservato e confortevole per il riposo.",
-  },
-  {
-    icon: Bath,
-    title: "1 bagno",
-    text: "Bagno privato con i servizi essenziali per il soggiorno.",
-  },
-  {
-    icon: Utensils,
-    title: "Cucina",
-    text: "Cucina disponibile per vivere il soggiorno con maggiore autonomia.",
-  },
-];
+function addDaysIso(dateIso, days) {
+  if (!dateIso) return "";
+  const d = new Date(`${dateIso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
-const directBenefits = [
-  {
-    icon: Euro,
-    title: "Miglior prezzo diretto",
-    text: "Prenotando dal sito ufficiale puoi ricevere condizioni dedicate rispetto ai portali.",
-  },
-  {
-    icon: MessageCircle,
-    title: "Contatto diretto",
-    text: "Parli direttamente con la struttura, senza passaggi inutili e senza attese.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Date bloccate subito",
-    text: "Se le date sono libere, la richiesta blocca il periodo in attesa della conferma finale.",
-  },
-];
-
-function Feature({ icon: Icon, title, text }) {
+function SectionTitle({ children }) {
   return (
-    <div className="rounded-2xl border border-[#e4d8c2] bg-white/90 p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
-      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-[#f4ead7] text-[#9b6b25]">
-        <Icon size={22} />
-      </div>
-      <h3 className="text-lg font-semibold text-[#0a1d35]">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-[#5c5c5c]">{text}</p>
+    <div className="section-title">
+      <h2>{children}</h2>
+      <span />
     </div>
-  );
-}
-
-function BenefitCard({ icon: Icon, title, text }) {
-  return (
-    <div className="rounded-[1.5rem] border border-[#e4d8c2] bg-white p-5 shadow-sm">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#0a1d35] text-white">
-        <Icon size={22} />
-      </div>
-      <h3 className="text-xl font-bold text-[#0a1d35]">{title}</h3>
-      <p className="mt-2 leading-7 text-[#555]">{text}</p>
-    </div>
-  );
-}
-
-function GeloneWordmark({ compact = false }) {
-  return (
-    <span
-      className={`inline-flex shrink-0 flex-col items-center justify-center rounded-2xl border border-[#d8b66c] bg-[#0a1d35] text-white shadow-sm ${
-        compact ? "h-10 w-10" : "h-14 w-14"
-      }`}
-      aria-hidden="true"
-    >
-      <span className={compact ? "font-serif text-lg leading-none" : "font-serif text-2xl leading-none"}>
-        G
-      </span>
-      {!compact && (
-        <span className="mt-1 text-[7px] font-bold uppercase tracking-[0.18em] text-[#f5c84b]">
-          Mare
-        </span>
-      )}
-    </span>
-  );
-}
-
-function DirectBookingButton({ compact = false }) {
-  return (
-    <a
-      href="#verifica-disponibilita"
-      className={`group inline-flex min-h-[52px] items-center justify-center gap-3 rounded-full border-2 border-[#0a1d35] bg-[#f5c84b] text-center font-extrabold text-[#0a1d35] shadow-xl shadow-[#d8b66c]/20 transition hover:-translate-y-0.5 hover:bg-[#ffd96a] hover:shadow-2xl ${
-        compact ? "px-4 py-3 text-sm" : "px-6 py-4"
-      }`}
-    >
-      <GeloneWordmark compact={compact} />
-      <span className="flex flex-col items-start leading-tight">
-        <span>{compact ? "Sito ufficiale" : "Prenota diretto e risparmia"}</span>
-        {!compact && (
-          <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#5e471a]">
-            Canale consigliato Gelone
-          </span>
-        )}
-      </span>
-      {!compact && <CalendarCheck size={18} />}
-    </a>
-  );
-}
-
-function BookingButton({ compact = false }) {
-  return (
-    <a
-      href={bookingUrl}
-      target="_blank"
-      rel="noreferrer"
-      className={`inline-flex min-h-[52px] items-center justify-center gap-3 rounded-full border border-[#d6e3ff] bg-white text-center font-extrabold text-[#174ea6] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#eef5ff] ${
-        compact ? "px-4 py-3 text-sm" : "px-6 py-4"
-      }`}
-    >
-      <span className="font-sans text-base font-black tracking-tight">
-        Booking<span className="text-[#003b95]">.com</span>
-      </span>
-      {!compact && <ExternalLink size={18} />}
-    </a>
-  );
-}
-
-function AirbnbButton({ compact = false }) {
-  return (
-    <a
-      href={airbnbUrl}
-      target="_blank"
-      rel="noreferrer"
-      className={`inline-flex min-h-[52px] items-center justify-center gap-3 rounded-full border border-[#ffd7df] bg-white text-center font-extrabold text-[#ff385c] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff1f4] ${
-        compact ? "px-4 py-3 text-sm" : "px-6 py-4"
-      }`}
-    >
-      <span className="font-sans text-base font-black tracking-tight">Airbnb</span>
-      {!compact && <ExternalLink size={18} />}
-    </a>
-  );
-}
-
-function WhatsAppButton({ compact = false, direct = false }) {
-  return (
-    <a
-      href={direct ? directWhatsappUrl : whatsappUrl}
-      target="_blank"
-      rel="noreferrer"
-      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border border-[#0a1d35] bg-white text-center font-bold text-[#0a1d35] transition hover:bg-[#faf6ee] ${
-        compact ? "px-4 py-3 text-sm" : "px-7 py-4"
-      }`}
-    >
-      {compact ? "WhatsApp" : "Scrivici su WhatsApp"}
-      {!compact && <MessageCircle size={18} />}
-    </a>
-  );
-}
-
-function MapsButton() {
-  return (
-    <a
-      href={mapsUrl}
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border border-[#b88416] bg-[#f5c84b] px-7 py-4 text-center font-extrabold text-[#0a1d35] shadow-md transition hover:bg-[#ffd96a]"
-    >
-      Apri Google Maps <ExternalLink size={18} />
-    </a>
-  );
-}
-
-async function readJsonResponse(response) {
-  const responseText = await response.text();
-
-  try {
-    return responseText ? JSON.parse(responseText) : {};
-  } catch {
-    throw new Error(
-      "Errore tecnico del server. Riprova più tardi oppure contattaci su WhatsApp."
-    );
-  }
-}
-
-function AvailabilityForm() {
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
-  const [guestName, setGuestName] = useState("");
-  const [guestPhone, setGuestPhone] = useState("");
-  const [guestEmail, setGuestEmail] = useState("");
-  const [guests, setGuests] = useState("2");
-  const [notes, setNotes] = useState("");
-
-  const [checking, setChecking] = useState(false);
-  const [booking, setBooking] = useState(false);
-  const [result, setResult] = useState(null);
-  const [bookingResult, setBookingResult] = useState(null);
-  const [error, setError] = useState("");
-
-  const today = new Date().toISOString().slice(0, 10);
-
-  function validateDates() {
-    if (!checkIn || !checkOut) {
-      return "Inserisci data di arrivo e data di partenza.";
-    }
-
-    if (checkOut <= checkIn) {
-      return "La data di partenza deve essere successiva alla data di arrivo.";
-    }
-
-    return "";
-  }
-
-  async function handleCheckAvailability(event) {
-    event.preventDefault();
-
-    setError("");
-    setResult(null);
-    setBookingResult(null);
-
-    const dateError = validateDates();
-    if (dateError) {
-      setError(dateError);
-      return;
-    }
-
-    try {
-      setChecking(true);
-
-      const response = await fetch("/api/check-availability", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          checkIn,
-          checkOut,
-        }),
-      });
-
-      const data = await readJsonResponse(response);
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message || "Non è stato possibile verificare la disponibilità."
-        );
-      }
-
-      setResult(data);
-    } catch (err) {
-      setError(
-        err?.message ||
-          "Errore durante il controllo disponibilità. Puoi contattarci su WhatsApp."
-      );
-    } finally {
-      setChecking(false);
-    }
-  }
-
-  async function handleCreateBooking() {
-    setError("");
-    setBookingResult(null);
-
-    const dateError = validateDates();
-    if (dateError) {
-      setError(dateError);
-      return;
-    }
-
-    if (!guestName.trim()) {
-      setError("Inserisci nome e cognome.");
-      return;
-    }
-
-    if (!guestPhone.trim() && !guestEmail.trim()) {
-      setError("Inserisci almeno telefono o email.");
-      return;
-    }
-
-    try {
-      setBooking(true);
-
-      const response = await fetch("/api/create-booking", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          guestName,
-          guestPhone,
-          guestEmail,
-          guests: Number(guests),
-          checkIn,
-          checkOut,
-          notes,
-        }),
-      });
-
-      const data = await readJsonResponse(response);
-
-      if (!response.ok) {
-        throw new Error(
-          data?.message || "Non è stato possibile bloccare le date."
-        );
-      }
-
-      setBookingResult(data);
-      setResult({
-        ok: true,
-        available: false,
-        message:
-          "Le date sono state bloccate nel sistema Gelone Lungomare in attesa di conferma.",
-      });
-    } catch (err) {
-      setError(
-        err?.message ||
-          "Errore durante il blocco date. Puoi contattarci su WhatsApp."
-      );
-    } finally {
-      setBooking(false);
-    }
-  }
-
-  const whatsappWithDates = `https://wa.me/393476308456?text=${encodeURIComponent(
-    `Ciao, vorrei prenotare direttamente Gelone Lungomare. Date richieste: ${
-      checkIn || "arrivo"
-    } - ${checkOut || "partenza"}`
-  )}`;
-
-  const canShowBookingForm = result?.available === true && !bookingResult;
-
-  return (
-    <form
-      onSubmit={handleCheckAvailability}
-      className="rounded-[2rem] border border-[#d7c49f] bg-white p-6 shadow-sm md:p-8"
-    >
-      <div className="mb-6 rounded-[1.5rem] border border-[#f5c84b] bg-[#fff7d6] p-5">
-        <div className="flex items-start gap-3">
-          <Euro className="mt-1 text-[#9b6b25]" size={24} />
-          <div>
-            <p className="font-extrabold text-[#0a1d35]">
-              Canale diretto Gelone
-            </p>
-            <p className="mt-1 text-sm leading-6 text-[#555]">
-              È il percorso consigliato: controlli la disponibilità, blocchi le
-              date e ricevi conferma diretta dalla struttura, senza passare
-              subito dai portali.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <label className="block">
-          <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
-            Data arrivo
-          </span>
-          <input
-            type="date"
-            min={today}
-            value={checkIn}
-            onChange={(event) => setCheckIn(event.target.value)}
-            className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
-          />
-        </label>
-
-        <label className="block">
-          <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
-            Data partenza
-          </span>
-          <input
-            type="date"
-            min={checkIn || today}
-            value={checkOut}
-            onChange={(event) => setCheckOut(event.target.value)}
-            className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
-          />
-        </label>
-      </div>
-
-      <button
-        type="submit"
-        disabled={checking || booking}
-        className="mt-5 inline-flex min-h-[56px] w-full items-center justify-center gap-2 rounded-full border-2 border-[#0a1d35] bg-[#f5c84b] px-7 py-4 text-base font-extrabold text-[#0a1d35] shadow-lg transition hover:bg-[#ffd96a] disabled:cursor-not-allowed disabled:opacity-60 md:w-auto md:text-lg"
-      >
-        {checking
-          ? "Controllo in corso..."
-          : "Verifica disponibilità e prezzo diretto"}
-        <SearchCheck size={20} />
-      </button>
-
-      {error && (
-        <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800">
-          {error}
-        </div>
-      )}
-
-      {result && (
-        <div
-          className={`mt-5 rounded-2xl border p-5 ${
-            result.available === true
-              ? "border-green-200 bg-green-50 text-green-900"
-              : result.available === false
-              ? "border-red-200 bg-red-50 text-red-900"
-              : "border-[#d7c49f] bg-[#faf6ee] text-[#0a1d35]"
-          }`}
-        >
-          <p className="font-bold">
-            {result.available === true
-              ? "Gelone Lungomare risulta disponibile."
-              : result.available === false
-              ? "Gelone Lungomare non risulta disponibile."
-              : "Risultato disponibilità"}
-          </p>
-
-          <p className="mt-2 leading-7">
-            {result.message ||
-              "La verifica è stata completata. Per conferma definitiva contattaci prima di prenotare."}
-          </p>
-        </div>
-      )}
-
-      {canShowBookingForm && (
-        <div className="mt-6 rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
-          <h3 className="text-xl font-bold text-[#0a1d35]">
-            Blocca le date dal sito ufficiale
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-[#555]">
-            Compila i dati. Le date verranno bloccate nel sistema interno in
-            attesa della conferma finale della struttura. Riceverai risposta su
-            telefono, WhatsApp o email.
-          </p>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <label className="block md:col-span-2">
-              <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
-                Nome e cognome
-              </span>
-              <input
-                type="text"
-                value={guestName}
-                onChange={(event) => setGuestName(event.target.value)}
-                placeholder="Es. Mario Rossi"
-                className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
-                Telefono / WhatsApp
-              </span>
-              <input
-                type="tel"
-                value={guestPhone}
-                onChange={(event) => setGuestPhone(event.target.value)}
-                placeholder="Es. 347..."
-                className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
-                Email
-              </span>
-              <input
-                type="email"
-                value={guestEmail}
-                onChange={(event) => setGuestEmail(event.target.value)}
-                placeholder="email@example.com"
-                className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
-                Numero ospiti
-              </span>
-              <select
-                value={guests}
-                onChange={(event) => setGuests(event.target.value)}
-                className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
-              >
-                <option value="1">1 ospite</option>
-                <option value="2">2 ospiti</option>
-              </select>
-            </label>
-
-            <label className="block md:col-span-2">
-              <span className="mb-2 block text-sm font-semibold text-[#0a1d35]">
-                Note
-              </span>
-              <textarea
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                rows={4}
-                placeholder="Scrivi eventuali richieste o orario indicativo di arrivo."
-                className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 text-[#0a1d35] outline-none focus:border-[#9b6b25]"
-              />
-            </label>
-          </div>
-
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              disabled={booking}
-              onClick={handleCreateBooking}
-              className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-full border-2 border-[#0a1d35] bg-[#0a1d35] px-7 py-4 text-base font-extrabold text-white shadow-lg transition hover:bg-[#132f52] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {booking
-                ? "Blocco date in corso..."
-                : "Blocca date e invia richiesta"}
-              <Send size={20} />
-            </button>
-
-            <a
-              href={whatsappWithDates}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex min-h-[56px] items-center justify-center gap-2 rounded-full border border-[#0a1d35] bg-white px-7 py-4 text-base font-bold text-[#0a1d35] transition hover:bg-[#fff7e6]"
-            >
-              Scrivi su WhatsApp <MessageCircle size={20} />
-            </a>
-          </div>
-        </div>
-      )}
-
-      {bookingResult && (
-        <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 text-green-900">
-          <p className="text-lg font-bold">Richiesta inviata correttamente.</p>
-          <p className="mt-2 leading-7">
-            Le date sono state bloccate nel sistema Gelone Lungomare in attesa
-            della conferma finale della struttura. Ti contatteremo a breve.
-          </p>
-          <p className="mt-2 text-sm">
-            Codice richiesta: <strong>{bookingResult.bookingId}</strong>
-          </p>
-        </div>
-      )}
-
-      <p className="mt-5 text-sm leading-6 text-[#555]">
-        La verifica serve a controllare se Gelone Lungomare risulta libera. Dopo
-        l'invio della richiesta, le date vengono bloccate nel sistema interno in
-        attesa della conferma finale della struttura.
-      </p>
-    </form>
   );
 }
 
 export default function App() {
+  const minCheckIn = useMemo(() => todayIso(), []);
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [guests, setGuests] = useState("2");
+  const [availability, setAvailability] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [requestStatus, setRequestStatus] = useState(null);
+
+  const checkAvailability = async (event) => {
+    event?.preventDefault();
+    setAvailability(null);
+    setRequestStatus(null);
+
+    if (!checkIn || !checkOut) {
+      setAvailability({ ok: false, message: "Seleziona check-in e check-out." });
+      return;
+    }
+
+    if (checkOut <= checkIn) {
+      setAvailability({ ok: false, message: "Il check-out deve essere dopo il check-in." });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch("/api/check-availability", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkIn, checkOut, guests: Number(guests) }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.message || "Errore verifica disponibilità");
+
+      const available = data.available !== false;
+      setAvailability({
+        ok: available,
+        message: available
+          ? "Periodo disponibile. Puoi inviare la richiesta diretta."
+          : "Periodo non disponibile. Prova altre date oppure contattaci su WhatsApp.",
+      });
+    } catch (error) {
+      setAvailability({ ok: false, message: error.message || "Errore durante la verifica." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createBookingRequest = async (event) => {
+    event.preventDefault();
+    setRequestStatus(null);
+
+    if (!guestName.trim() || !guestEmail.trim() || !guestPhone.trim()) {
+      setRequestStatus({ ok: false, message: "Compila nome, email e telefono." });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch("/api/create-booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          checkIn,
+          checkOut,
+          guests: Number(guests),
+          guestName,
+          guestEmail,
+          guestPhone,
+          notes: "Richiesta inviata dal sito Gelone Lungomare",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.message || "Errore invio richiesta");
+      setRequestStatus({ ok: true, message: "Richiesta inviata. Ti contatteremo per confermare." });
+    } catch (error) {
+      setRequestStatus({ ok: false, message: error.message || "Errore durante l'invio." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <main className="min-h-screen bg-[#faf6ee] text-[#0a1d35]">
-      <header className="sticky top-0 z-40 border-b border-[#e4d8c2] bg-[#faf6ee]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4">
-          <a href="#home" className="block shrink-0">
-            <p className="text-[10px] uppercase tracking-[0.35em] text-[#9b6b25]">
-              Locazione turistica
-            </p>
-            <h1 className="font-serif text-2xl tracking-[0.18em]">GELONE</h1>
-            <p className="text-xs tracking-[0.45em]">LUNGOMARE</p>
-          </a>
+    <main className="site-shell">
+      <style>{css}</style>
 
-          <nav className="hidden items-center gap-7 text-sm font-medium md:flex">
-            <a href="#appartamento" className="hover:text-[#9b6b25]">
-              Appartamento
-            </a>
-            <a href="#foto" className="hover:text-[#9b6b25]">
-              Foto
-            </a>
-            <a href="#posizione" className="hover:text-[#9b6b25]">
-              Dove siamo
-            </a>
-            <a href="#verifica-disponibilita" className="hover:text-[#9b6b25]">
-              Disponibilità
-            </a>
-            <a href="#contatti" className="hover:text-[#9b6b25]">
-              Contatti
-            </a>
-          </nav>
+      <header className="topbar">
+        <a href="#home" className="brand" aria-label="Gelone Lungomare home">
+          <img src={LOGO_HEADER} alt="Gelone Lungomare" />
+        </a>
 
-          <DirectBookingButton compact />
-        </div>
+        <nav className="navlinks" aria-label="Navigazione principale">
+          <a className="active" href="#home">Home</a>
+          <a href="#alloggio">Alloggio</a>
+          <a href="#foto">Foto</a>
+          <a href="#disponibilita">Disponibilità</a>
+          <a href="#contatti">Contatti</a>
+        </nav>
+
+        <a className="top-cta" href="#disponibilita">Prenota diretto <span>▣</span></a>
       </header>
 
-      <section id="home" className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,#e6cf9a,transparent_35%),radial-gradient(circle_at_bottom_right,#d8e9ef,transparent_30%)]" />
+      <section id="home" className="hero">
+        <video
+          className="hero-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster={HERO_POSTER}
+          aria-hidden="true"
+        >
+          <source src={HERO_VIDEO} type="video/mp4" />
+        </video>
+        <div className="hero-readable" />
+        <div className="hero-bottom-fade" />
 
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-5 py-16 md:grid-cols-[1.05fr_0.95fr] md:py-24">
-          <div className="flex flex-col justify-center">
-            <div className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-[#d7c49f] bg-white/70 px-4 py-2 text-sm text-[#6d552d]">
-              <Waves size={18} />
-              A Gela, vicino al lungomare
-            </div>
-
-            <h2 className="font-serif text-5xl leading-tight tracking-tight md:text-7xl">
-              Gelone <span className="block text-[#9b6b25]">Lungomare</span>
-            </h2>
-
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-[#4c4c4c]">
-              Locazione turistica a Gela con terrazza e vista mare. Una
-              soluzione comoda e riservata per 2 persone, ideale per coppie o
-              viaggiatori che cercano tranquillità, posizione e praticità.
-            </p>
-
-            <div className="mt-6 max-w-xl overflow-hidden rounded-[1.75rem] border border-[#d8b66c] bg-white/90 shadow-lg">
-              <div className="border-b border-[#f0e4c8] bg-[#0a1d35] px-5 py-3 text-white">
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#f5c84b]">
-                  Sito ufficiale Gelone Lungomare
-                </p>
-              </div>
-              <div className="flex gap-4 p-5">
-                <GeloneWordmark />
-                <div>
-                  <h3 className="text-2xl font-extrabold text-[#0a1d35]">
-                    Prenota diretto e risparmia
-                  </h3>
-                  <p className="mt-2 leading-7 text-[#555]">
-                    Controlli le date dal sito ufficiale, blocchi la richiesta e
-                    parli direttamente con la struttura. Booking e Airbnb
-                    restano disponibili come canali secondari.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <DirectBookingButton />
-              <WhatsAppButton direct />
-            </div>
-
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-              <BookingButton />
-              <AirbnbButton />
-            </div>
-
-            <div className="mt-5 grid max-w-xl gap-3 text-sm md:grid-cols-3">
-              <div className="rounded-2xl border-2 border-[#f5c84b] bg-white p-4 shadow-sm">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#9b6b25]">
-                  Consigliato
-                </p>
-                <p className="mt-1 font-extrabold text-[#0a1d35]">
-                  Sito ufficiale
-                </p>
-              </div>
-              <div className="rounded-2xl border border-[#d6e3ff] bg-white/80 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#174ea6]">
-                  Portale
-                </p>
-                <p className="mt-1 font-extrabold text-[#174ea6]">
-                  Booking.com
-                </p>
-              </div>
-              <div className="rounded-2xl border border-[#ffd7df] bg-white/80 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#ff385c]">
-                  Portale
-                </p>
-                <p className="mt-1 font-extrabold text-[#ff385c]">
-                  Airbnb
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 grid max-w-xl grid-cols-2 gap-3 text-sm text-[#4c4c4c] sm:grid-cols-4">
-              <div className="rounded-2xl border border-[#e4d8c2] bg-white/70 p-4">
-                <strong className="block text-[#0a1d35]">2</strong>
-                persone
-              </div>
-              <div className="rounded-2xl border border-[#e4d8c2] bg-white/70 p-4">
-                <strong className="block text-[#0a1d35]">1</strong>
-                camera
-              </div>
-              <div className="rounded-2xl border border-[#e4d8c2] bg-white/70 p-4">
-                <strong className="block text-[#0a1d35]">1</strong>
-                bagno
-              </div>
-              <div className="rounded-2xl border border-[#e4d8c2] bg-white/70 p-4">
-                <strong className="block text-[#0a1d35]">1</strong>
-                cucina
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-[#d7c49f] bg-white p-3 shadow-xl">
-            <div className="relative flex min-h-[480px] items-end overflow-hidden rounded-[1.5rem] p-6">
-              <img
-                src="/images/terrazza-gelone.jpg"
-                alt="Terrazza esterna Gelone Lungomare"
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
-
-              <div className="relative rounded-2xl bg-white/90 p-6 shadow-lg backdrop-blur">
-                <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
-                  Soggiorno per 2 persone
-                </p>
-                <h3 className="mt-2 font-serif text-3xl">
-                  Terrazza, mare e comfort
-                </h3>
-                <p className="mt-3 max-w-md leading-7 text-[#555]">
-                  Uno spazio esterno da vivere, vicino al lungomare di Gela e ai
-                  principali servizi della città.
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="hero-content">
+          <p className="legal-line">CIN: {CIN} <span>|</span> CIR: {CIR}</p>
+          <h1>Vista mare, terrazza e comfort a due passi dal lungomare di Gela</h1>
+          <div className="gold-rule" />
+          <p className="hero-copy">
+            Appartamento accogliente e riservato con ampia terrazza vista mare, ideale per coppie e soggiorni di relax in Sicilia.
+          </p>
         </div>
       </section>
 
-      <section id="appartamento" className="mx-auto max-w-7xl px-5 py-16">
-        <div className="grid gap-6 md:grid-cols-4">
-          {features.map((item) => (
-            <Feature
-              key={item.title}
-              icon={item.icon}
-              title={item.title}
-              text={item.text}
-            />
+      <section className="booking-cards" aria-label="Opzioni di prenotazione">
+        <a className="booking-card direct" href="#disponibilita">
+          <img src={LOGO_EMBLEMA} alt="" />
+          <span>
+            <strong>PRENOTA DAL SITO</strong>
+            <b>MIGLIOR TARIFFA</b>
+            <em>Risparmia prenotando diretto</em>
+          </span>
+        </a>
+        <a className="booking-card portal" href={bookingUrl} target="_blank" rel="noreferrer">
+          <strong className="booking-b">B.</strong>
+          <span>Booking.com</span>
+        </a>
+        <a className="booking-card portal" href={airbnbUrl} target="_blank" rel="noreferrer">
+          <strong className="airbnb-mark">⌂</strong>
+          <span>Airbnb</span>
+        </a>
+        <a className="booking-card portal" href={whatsappUrl} target="_blank" rel="noreferrer">
+          <strong className="whatsapp-mark">●</strong>
+          <span>WhatsApp</span>
+        </a>
+      </section>
+
+      <section id="alloggio" className="amenities">
+        <div><span>♙</span><strong>2 OSPITI</strong></div>
+        <div><span>▭</span><strong>1 CAMERA</strong></div>
+        <div><span>♨</span><strong>1 BAGNO</strong></div>
+        <div><span>◴</span><strong>CUCINA</strong></div>
+        <div><span>≋</span><strong>TERRAZZA VISTA MARE</strong></div>
+      </section>
+
+      <section className="why">
+        <SectionTitle>PERCHÉ SCEGLIERE GELONE LUNGOMARE</SectionTitle>
+        <div className="why-grid">
+          <article>
+            <i>●</i>
+            <h3>POSIZIONE VICINO AL MARE</h3>
+            <p>A pochi passi dal lungomare di Gela, per passeggiate e momenti indimenticabili.</p>
+          </article>
+          <article>
+            <i>☂</i>
+            <h3>TERRAZZA PRIVATA</h3>
+            <p>Ampia terrazza attrezzata con vista mare, perfetta per colazioni e momenti di relax.</p>
+          </article>
+          <article>
+            <i>◆</i>
+            <h3>CHECK-IN SEMPLICE</h3>
+            <p>Accesso comodo e supporto dedicato per un soggiorno senza pensieri.</p>
+          </article>
+          <article>
+            <i>♥</i>
+            <h3>PER COPPIE E VIAGGIATORI</h3>
+            <p>Ambiente intimo, tranquillo e confortevole, pensato per il tuo benessere.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="foto" className="gallery-section">
+        <SectionTitle>GALLERIA</SectionTitle>
+        <div className="gallery-row">
+          {gallery.map((src, index) => (
+            <button key={`${src}-${index}`} type="button" className="gallery-thumb">
+              <img src={src} alt={`Foto Gelone Lungomare ${index + 1}`} />
+            </button>
           ))}
         </div>
+        <a className="photo-button" href="#foto">VEDI TUTTE LE FOTO <span>▧</span></a>
       </section>
 
-      <section className="bg-white py-16">
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 md:grid-cols-[0.9fr_1.1fr]">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-              L'appartamento
-            </p>
-            <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-              Comodo, riservato, vicino al lungomare
-            </h2>
+      <section id="disponibilita" className="availability">
+        <div className="availability-card">
+          <div className="availability-form-wrap">
+            <SectionTitle>DISPONIBILITÀ E PRENOTAZIONE</SectionTitle>
+            <form className="date-form" onSubmit={checkAvailability}>
+              <label>
+                <span>Check-in</span>
+                <input min={minCheckIn} value={checkIn} onChange={(e) => {
+                  setCheckIn(e.target.value);
+                  if (!checkOut || checkOut <= e.target.value) setCheckOut(addDaysIso(e.target.value, 1));
+                }} type="date" />
+              </label>
+              <label>
+                <span>Check-out</span>
+                <input min={checkIn ? addDaysIso(checkIn, 1) : minCheckIn} value={checkOut} onChange={(e) => setCheckOut(e.target.value)} type="date" />
+              </label>
+              <label>
+                <span>Ospiti</span>
+                <select value={guests} onChange={(e) => setGuests(e.target.value)}>
+                  <option value="1">1 ospite</option>
+                  <option value="2">2 ospiti</option>
+                </select>
+              </label>
+              <button disabled={loading} type="submit">{loading ? "VERIFICA..." : "VERIFICA DISPONIBILITÀ"} <span>▣</span></button>
+            </form>
+            <p className="best-rate">♡ Miglior tariffa garantita prenotando dal sito</p>
+
+            {availability && (
+              <div className={availability.ok ? "notice ok" : "notice no"}>{availability.message}</div>
+            )}
+
+            {availability?.ok && (
+              <form className="guest-form" onSubmit={createBookingRequest}>
+                <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Nome e cognome" />
+                <input value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email" type="email" />
+                <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="Telefono" />
+                <button disabled={loading} type="submit">INVIA RICHIESTA DIRETTA</button>
+              </form>
+            )}
+
+            {requestStatus && <div className={requestStatus.ok ? "notice ok" : "notice no"}>{requestStatus.message}</div>}
           </div>
 
-          <div className="text-lg leading-8 text-[#555]">
-            <p>
-              Gelone Lungomare è una locazione turistica pensata per ospitare
-              fino a 2 persone. Dispone di una camera da letto, un bagno, una
-              cucina e una terrazza esterna che rende il soggiorno più
-              piacevole.
-            </p>
-            <p className="mt-5">
-              È una scelta adatta per chi vuole vivere Gela con una posizione
-              pratica, vicina al mare e ai principali servizi della città.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-5 py-16">
-        <div className="mb-8 max-w-3xl">
-          <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-            Prenotazione diretta
-          </p>
-          <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-            Il modo più semplice per prenotare
-          </h2>
-          <p className="mt-5 text-lg leading-8 text-[#555]">
-            Dal sito ufficiale controlli subito le date e invii la richiesta
-            direttamente alla struttura. Dopo la conferma riceverai le istruzioni
-            per il check-in online.
-          </p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-3">
-          {directBenefits.map((item) => (
-            <BenefitCard
-              key={item.title}
-              icon={item.icon}
-              title={item.title}
-              text={item.text}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section id="foto" className="mx-auto max-w-7xl px-5 py-16">
-        <div className="mb-10 flex items-end justify-between gap-6">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-              Foto
-            </p>
-            <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-              Gli spazi di Gelone Lungomare
-            </h2>
-          </div>
-          <Camera className="hidden text-[#9b6b25] md:block" size={44} />
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-3">
-          {gallery.map((item) => (
-            <article
-              key={item.title}
-              className="overflow-hidden rounded-2xl border border-[#e4d8c2] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-            >
-              <img
-                src={item.image}
-                alt={item.title}
-                className="h-72 w-full object-cover"
-              />
-              <div className="p-5">
-                <h3 className="text-xl font-semibold">{item.title}</h3>
-                <p className="mt-2 leading-6 text-[#5c5c5c]">
-                  {item.description}
-                </p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section id="posizione" className="bg-[#0a1d35] py-16 text-white">
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 md:grid-cols-[1fr_1fr]">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-[#d8b66c]">
-              Dove siamo
-            </p>
-            <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-              A Gela, vicino al lungomare
-            </h2>
-            <p className="mt-6 text-lg leading-8 text-white/75">
-              Una posizione comoda per raggiungere il mare, il centro cittadino,
-              bar, ristoranti e servizi principali.
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-white/10 p-6">
-            <div className="flex items-start gap-4">
-              <MapPin className="mt-1 text-[#d8b66c]" />
-              <div>
-                <h3 className="text-2xl font-semibold">Via Pascoli 1, Gela</h3>
-                <p className="mt-2 text-white/75">
-                  Provincia di Caltanissetta, Sicilia
-                </p>
-                <div className="mt-6">
-                  <MapsButton />
-                </div>
-              </div>
+          <div className="calendar-box" aria-hidden="true">
+            <div className="calendar-top"><span>‹</span><strong>GIUGNO 2025</strong><span>›</span></div>
+            <div className="calendar-grid labels">
+              {['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB', 'DOM'].map((d) => <b key={d}>{d}</b>)}
+            </div>
+            <div className="calendar-grid">
+              {[26, 27, 28, 29, 30, 31, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 1, 2, 3, 4, 5, 6].map((d, i) => <span key={`${d}-${i}`} className={i < 6 || i > 35 ? "muted" : ""}>{d}</span>)}
             </div>
           </div>
         </div>
       </section>
 
-      <section
-        id="verifica-disponibilita"
-        className="mx-auto max-w-7xl px-5 py-16"
-      >
-        <div className="mb-8 max-w-3xl">
-          <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-            Disponibilità
-          </p>
-          <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-            Prenota diretto dal sito ufficiale
-          </h2>
-          <p className="mt-5 text-lg leading-8 text-[#555]">
-            Inserisci le date e il sito controllerà la disponibilità tramite il
-            sistema interno Gelone. Se le date sono libere, puoi inviare la
-            richiesta e bloccarle in attesa della conferma finale.
-          </p>
-        </div>
-
-        <div className="grid gap-8 md:grid-cols-[1fr_0.8fr]">
-          <AvailabilityForm />
-
-          <div className="grid gap-4">
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
-              <CalendarCheck className="text-[#9b6b25]" size={30} />
-              <h3 className="mt-3 text-xl font-semibold">
-                1. Controllo date
-              </h3>
-              <p className="mt-2 leading-7 text-[#555]">
-                Il sito invia le date al sistema interno di Gelone Lungomare.
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
-              <ClipboardList className="text-[#9b6b25]" size={30} />
-              <h3 className="mt-3 text-xl font-semibold">
-                2. Blocco richiesta
-              </h3>
-              <p className="mt-2 leading-7 text-[#555]">
-                Se le date sono libere, puoi inviare la richiesta e bloccarle
-                temporaneamente.
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-white p-5 shadow-sm">
-              <ShieldCheck className="text-[#9b6b25]" size={30} />
-              <h3 className="mt-3 text-xl font-semibold">
-                3. Conferma diretta
-              </h3>
-              <p className="mt-2 leading-7 text-[#555]">
-                Riceverai conferma dalla struttura e il link per completare il
-                check-in online.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-[#e4d8c2] bg-[#fff7d6] p-5 shadow-sm">
-              <Info className="text-[#9b6b25]" size={30} />
-              <h3 className="mt-3 text-xl font-semibold">
-                Preferisci i portali?
-              </h3>
-              <p className="mt-2 leading-7 text-[#555]">
-                Puoi prenotare anche da Booking o Airbnb. Per il miglior contatto
-                con la struttura, consigliamo comunque il sito ufficiale.
-              </p>
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                <BookingButton compact />
-                <AirbnbButton compact />
-              </div>
-            </div>
+      <section id="contatti" className="position">
+        <SectionTitle>COME ARRIVARE / POSIZIONE</SectionTitle>
+        <div className="position-card">
+          <div className="position-text">
+            <p className="address">📍 Via Pascoli 1, 93012 Gela (CL)</p>
+            <ul>
+              <li>Lungomare Federico II – 2 min a piedi</li>
+              <li>Spiaggia di Gela – 5 min a piedi</li>
+              <li>Centro Storico – 8 min in auto</li>
+              <li>Stazione di Gela – 7 min in auto</li>
+            </ul>
           </div>
+          <a className="map-card" href="https://maps.app.goo.gl/JwYWW3RqFz5VdtCu6" target="_blank" rel="noreferrer">
+            <div className="map-bg"><span>📍</span></div>
+            <div className="map-label"><strong>Gelone Lungomare</strong><small>Via Pascoli 1, Gela (CL)</small></div>
+          </a>
         </div>
       </section>
 
-      <section id="contatti" className="bg-white py-16">
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 md:grid-cols-[0.9fr_1.1fr]">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-              Contatti
-            </p>
-            <h2 className="mt-3 font-serif text-4xl md:text-5xl">
-              Hai dubbi prima di prenotare?
-            </h2>
-            <p className="mt-5 text-lg leading-8 text-[#555]">
-              Scrivici o chiamaci per informazioni su disponibilità, arrivo,
-              servizi e check-in.
-            </p>
-          </div>
-
-          <div className="grid gap-4">
-            <a
-              href="tel:+393476308456"
-              className="flex items-center gap-4 rounded-2xl border border-[#e4d8c2] bg-[#faf6ee] p-5 font-semibold"
-            >
-              <Phone className="text-[#9b6b25]" /> 347 630 8456
-            </a>
-
-            <a
-              href="tel:+393479461999"
-              className="flex items-center gap-4 rounded-2xl border border-[#e4d8c2] bg-[#faf6ee] p-5 font-semibold"
-            >
-              <Phone className="text-[#9b6b25]" /> 347 946 1999
-            </a>
-
-            <a
-              href="mailto:info@gelone.it"
-              className="flex items-center gap-4 rounded-2xl border border-[#e4d8c2] bg-[#faf6ee] p-5 font-semibold"
-            >
-              <Mail className="text-[#9b6b25]" /> info@gelone.it
-            </a>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <DirectBookingButton />
-              <WhatsAppButton />
-            </div>
-          </div>
+      <footer className="footer">
+        <div>
+          <img src={LOGO_HEADER} alt="Gelone Lungomare" />
+          <p>CIN: {CIN} <span>|</span> CIR: {CIR}</p>
         </div>
-      </section>
-
-      <section id="privacy" className="mx-auto max-w-7xl px-5 py-16">
-        <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm md:p-8">
-          <div className="flex items-start gap-4">
-            <Landmark className="mt-1 text-[#9b6b25]" size={30} />
-            <div>
-              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-                Informazioni
-              </p>
-              <h2 className="mt-3 font-serif text-3xl md:text-4xl">
-                Locazione turistica Gelone Lungomare
-              </h2>
-              <div className="mt-5 space-y-3 leading-7 text-[#555]">
-                <p>
-                  Gelone Lungomare è una locazione turistica a Gela per soggiorni
-                  brevi. I dati inseriti nel modulo vengono usati solo per
-                  gestire la richiesta di disponibilità e prenotazione.
-                </p>
-                <p>
-                  Dopo la conferma della prenotazione, potrà essere richiesto
-                  all'ospite di completare il check-in online per gli adempimenti
-                  previsti dalla normativa.
-                </p>
-                <p>
-                  CIN: <strong>IT084001B4D36830</strong> · CIR:{" "}
-                  <strong>190840010022</strong>
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="contacts">
+          <h3>CONTATTI</h3>
+          <a href="tel:+393476308456">☎ 3476308456</a>
+          <a href="tel:+393479461999">☎ 3479461999</a>
+          <a href="mailto:info@gelone.it">✉ info@gelone.it</a>
+          <a href="https://www.gelone.it">◎ www.gelone.it</a>
         </div>
-      </section>
-
-      <footer className="border-t border-[#e4d8c2] bg-[#0a1d35] px-5 py-10 text-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="font-serif text-2xl">Gelone Lungomare</p>
-            <p className="mt-2 text-sm text-white/70">
-              Locazione turistica · Gela · Via Pascoli 1
-            </p>
-            <p className="mt-2 text-xs text-white/60">
-              CIN IT084001B4D36830 · CIR 190840010022
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <a
-              href="mailto:info@gelone.it"
-              className="rounded-full border border-white/30 px-5 py-3 text-sm font-semibold hover:bg-white/10"
-            >
-              info@gelone.it
-            </a>
-            <a
-              href={whatsappUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-full border border-white/30 px-5 py-3 text-sm font-semibold hover:bg-white/10"
-            >
-              WhatsApp
-            </a>
-            <a
-              href="/ospiti.html"
-              className="rounded-full border border-white/30 px-5 py-3 text-sm font-semibold hover:bg-white/10"
-            >
-              Area ospiti
-            </a>
-          </div>
+        <div>
+          <h3>SEGUICI</h3>
+          <div className="socials"><span>f</span><span>◎</span><span>☘</span></div>
         </div>
       </footer>
+      <div className="copyright">© 2025 Gelone Lungomare – Locazione Turistica. Tutti i diritti riservati.</div>
     </main>
   );
 }
+
+const css = `
+:root {
+  --navy: #071f3d;
+  --navy2: #0b294c;
+  --gold: #b48616;
+  --gold2: #d2ad5c;
+  --cream: #fbf8ef;
+  --paper: #fffdf7;
+  --line: rgba(180, 134, 22, 0.25);
+  --shadow: 0 16px 38px rgba(13, 25, 43, 0.13);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: #f4f1e9; color: var(--navy); font-family: Georgia, 'Times New Roman', serif; }
+a { color: inherit; text-decoration: none; }
+button, input, select { font: inherit; }
+
+.site-shell { width: min(1280px, 100%); margin: 0 auto; background: var(--cream); box-shadow: 0 0 0 1px rgba(0,0,0,0.03); overflow: hidden; }
+
+.topbar { height: 108px; display: grid; grid-template-columns: 250px 1fr 230px; align-items: center; gap: 22px; padding: 14px 58px; background: rgba(255, 253, 247, 0.98); border-bottom: 1px solid rgba(180, 134, 22, 0.18); position: relative; z-index: 5; }
+.brand img { width: 205px; max-height: 82px; object-fit: contain; display: block; }
+.navlinks { display: flex; align-items: center; justify-content: center; gap: 38px; font-weight: 700; font-size: 17px; letter-spacing: .01em; }
+.navlinks a { position: relative; padding: 12px 0; }
+.navlinks a.active::after, .navlinks a:hover::after { content: ''; position: absolute; left: 0; right: 0; bottom: 4px; height: 2px; background: var(--gold); }
+.top-cta { justify-self: end; background: linear-gradient(180deg, #c29523, #a77a0e); color: #fff; border-radius: 5px; padding: 17px 24px; min-width: 205px; text-align: center; font-weight: 800; font-size: 17px; letter-spacing: .02em; box-shadow: 0 12px 24px rgba(130, 92, 5, .18); }
+.top-cta span { margin-left: 8px; font-size: 15px; }
+
+.hero { position: relative; min-height: 430px; overflow: hidden; isolation: isolate; background: #d7d4c7; }
+.hero-video { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; object-position: center center; transform: scale(1.006); }
+.hero::after { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(251,248,239,.52) 0%, rgba(251,248,239,.32) 24%, rgba(251,248,239,.08) 47%, rgba(251,248,239,0) 66%); pointer-events: none; }
+.hero-readable { position: absolute; left: 0; top: 0; bottom: 0; width: 45%; z-index: 2; background: linear-gradient(90deg, rgba(251,248,239,.18), rgba(251,248,239,.04), rgba(251,248,239,0)); pointer-events: none; }
+.hero-bottom-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 104px; z-index: 3; background: linear-gradient(180deg, rgba(251,248,239,0), rgba(251,248,239,.72) 70%, var(--cream)); pointer-events: none; }
+.hero-content { position: relative; z-index: 4; width: min(420px, 40%); padding: 22px 0 112px 64px; }
+.legal-line { margin: 0 0 28px; font-size: 14px; font-weight: 800; letter-spacing: .07em; white-space: nowrap; text-shadow: 0 1px 12px rgba(255,255,255,.70); }
+.legal-line span { color: var(--gold); margin: 0 18px; }
+.hero h1 { margin: 0; max-width: 410px; font-size: clamp(27px, 2.35vw, 35px); line-height: 1.16; font-weight: 500; letter-spacing: .035em; text-wrap: balance; text-shadow: 0 2px 14px rgba(255,255,255,.65); }
+.gold-rule { width: 200px; height: 1px; margin: 18px 0 18px; background: linear-gradient(90deg, var(--gold), rgba(180,134,22,0)); position: relative; }
+.gold-rule::after { content: ''; position: absolute; top: -4px; left: 130px; width: 9px; height: 9px; background: var(--gold); transform: rotate(45deg); }
+.hero-copy { margin: 0; max-width: 390px; font-size: 15px; line-height: 1.52; font-family: Georgia, 'Times New Roman', serif; color: rgba(7,31,61,.96); text-shadow: 0 1px 12px rgba(255,255,255,.72); }
+
+.booking-cards { position: relative; z-index: 5; margin: -38px auto 0; width: min(900px, calc(100% - 170px)); display: grid; grid-template-columns: 1.08fr .92fr .92fr .92fr; gap: 16px; align-items: stretch; }
+.booking-card { min-height: 58px; border-radius: 7px; display: flex; align-items: center; justify-content: center; box-shadow: 0 13px 30px rgba(13,25,43,.12); border: 1px solid rgba(140, 109, 50, .20); background: rgba(255,255,255,.94); backdrop-filter: blur(4px); }
+.booking-card.direct { background: var(--navy); color: #fff; justify-content: flex-start; padding: 8px 14px; border: 2px solid var(--gold); gap: 13px; }
+.booking-card.direct img { width: 42px; height: 36px; object-fit: contain; flex: 0 0 auto; opacity: .95; }
+.booking-card.direct span { display: grid; gap: 2px; }
+.booking-card.direct strong { font-size: 14px; letter-spacing: .08em; }
+.booking-card.direct b { color: var(--gold2); font-size: 12.5px; letter-spacing: .14em; }
+.booking-card.direct em { font-size: 11px; font-style: normal; }
+.booking-card.portal { gap: 12px; font-size: 17px; font-weight: 800; letter-spacing: .015em; }
+.booking-b { color: #0b5ea8; font-size: 28px; line-height: 1; }
+.airbnb-mark { color: #e55b72; font-size: 32px; line-height: 1; font-family: Arial, sans-serif; font-weight: 400; }
+.whatsapp-mark { color: #23bd60; font-size: 32px; line-height: .8; }
+
+.amenities { margin: 34px auto 0; width: min(1050px, calc(100% - 120px)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; grid-template-columns: repeat(5, 1fr); }
+.amenities div { min-height: 76px; display: flex; align-items: center; justify-content: center; gap: 16px; border-right: 1px solid var(--line); text-align: center; }
+.amenities div:last-child { border-right: none; }
+.amenities span { color: var(--gold); font-size: 27px; font-family: Georgia, serif; }
+.amenities strong { font-size: 15px; letter-spacing: .11em; line-height: 1.25; }
+
+.section-title { text-align: center; margin: 30px 0 22px; }
+.section-title h2 { margin: 0; font-size: clamp(20px, 2.2vw, 28px); letter-spacing: .08em; font-weight: 700; }
+.section-title span { display: block; width: 122px; height: 1px; margin: 13px auto 0; background: var(--gold); position: relative; }
+.section-title span::after { content: ''; position: absolute; left: 50%; top: -4px; width: 9px; height: 9px; background: var(--gold); transform: translateX(-50%) rotate(45deg); }
+
+.why, .gallery-section, .availability, .position { padding: 0 58px; }
+.why-grid { width: min(1050px, 100%); margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.why-grid article { background: rgba(255,255,255,.45); border: 1px solid rgba(180,134,22,.22); border-radius: 7px; padding: 25px 28px 24px; text-align: center; min-height: 175px; }
+.why-grid i { width: 58px; height: 58px; margin: 0 auto 14px; border-radius: 50%; background: rgba(180,134,22,.08); border: 1px solid rgba(180,134,22,.16); display: grid; place-items: center; color: var(--gold); font-style: normal; font-size: 22px; }
+.why-grid h3 { margin: 0 0 10px; font-size: 16px; line-height: 1.18; letter-spacing: .05em; }
+.why-grid p { margin: 0; font-size: 14px; line-height: 1.48; }
+
+.gallery-section { padding-top: 4px; }
+.gallery-row { width: min(1050px, 100%); margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.gallery-thumb { border: 0; padding: 0; height: 112px; border-radius: 5px; overflow: hidden; background: #eee; cursor: pointer; box-shadow: 0 0 0 1px rgba(180,134,22,.22); }
+.gallery-thumb img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.photo-button { width: 250px; height: 38px; margin: 12px auto 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--navy); color: #fff; border-radius: 4px; font-size: 14px; font-weight: 800; letter-spacing: .08em; }
+
+.availability-card { width: min(1050px, 100%); margin: 28px auto 0; border: 1px solid rgba(180,134,22,.20); border-radius: 8px; display: grid; grid-template-columns: 1.25fr .9fr; overflow: hidden; background: rgba(255,255,255,.32); }
+.availability-form-wrap { padding: 0 34px 28px; }
+.date-form { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.date-form label { display: grid; gap: 7px; padding: 13px 14px; background: rgba(255,255,255,.55); border: 1px solid rgba(180,134,22,.18); border-radius: 6px; }
+.date-form label span { font-size: 13px; font-weight: 800; }
+.date-form input, .date-form select, .guest-form input { border: 0; background: transparent; color: var(--navy); min-width: 0; outline: none; font-family: Georgia, serif; }
+.date-form button { grid-column: 1 / -1; height: 48px; border: 0; border-radius: 5px; background: linear-gradient(180deg, #c39726, #a5790e); color: #fff; font-weight: 800; letter-spacing: .07em; cursor: pointer; }
+.best-rate { text-align: center; margin: 13px 0 0; font-size: 15px; }
+.notice { margin: 14px 0 0; padding: 12px 14px; border-radius: 6px; font-size: 14px; text-align: center; }
+.notice.ok { background: rgba(47, 125, 78, .10); color: #1e623b; border: 1px solid rgba(47, 125, 78, .18); }
+.notice.no { background: rgba(154, 72, 47, .10); color: #8a351e; border: 1px solid rgba(154, 72, 47, .18); }
+.guest-form { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.guest-form input { background: rgba(255,255,255,.7); border: 1px solid rgba(180,134,22,.18); border-radius: 6px; padding: 12px; }
+.guest-form button { grid-column: 1 / -1; border: 0; border-radius: 5px; background: var(--navy); color: #fff; padding: 13px; font-weight: 800; letter-spacing: .06em; cursor: pointer; }
+.calendar-box { border-left: 1px solid rgba(180,134,22,.16); padding: 32px 42px; background: rgba(255,255,255,.32); }
+.calendar-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.calendar-top strong { letter-spacing: .06em; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px 14px; text-align: center; font-size: 14px; }
+.calendar-grid.labels { margin-bottom: 9px; font-size: 11px; color: rgba(7,31,61,.82); }
+.calendar-grid .muted { opacity: .38; }
+
+.position-card { width: min(1050px, 100%); margin: 0 auto 28px; display: grid; grid-template-columns: .7fr 1.3fr; gap: 24px; border: 1px solid rgba(180,134,22,.20); border-radius: 8px; padding: 20px 26px; background: rgba(255,255,255,.28); }
+.position-text { font-size: 15px; }
+.position-text .address { font-weight: 800; margin: 6px 0 14px; }
+.position-text li { margin: 7px 0; }
+.map-card { min-height: 140px; display: grid; grid-template-columns: 1fr .55fr; border: 1px solid rgba(7,31,61,.10); border-radius: 7px; overflow: hidden; background: #fff; }
+.map-bg { position: relative; background: linear-gradient(140deg, #f7f2e9 0 22%, #e8e0d3 22% 24%, #f7f2e9 24% 55%, #a9d9e8 55%); }
+.map-bg::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(20deg, transparent 0 21px, rgba(7,31,61,.08) 22px, transparent 23px), repeating-linear-gradient(105deg, transparent 0 34px, rgba(180,134,22,.12) 35px, transparent 36px); opacity: .65; }
+.map-bg span { position: absolute; top: 46%; left: 52%; transform: translate(-50%, -50%); font-size: 40px; z-index: 2; }
+.map-label { display: grid; align-content: center; padding: 20px 24px; }
+.map-label strong { font-size: 22px; margin-bottom: 7px; }
+.map-label small { font-size: 15px; }
+
+.footer { border-top: 1px solid rgba(180,134,22,.20); padding: 22px 72px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 28px; align-items: center; background: rgba(255,253,247,.65); }
+.footer img { width: 210px; display: block; }
+.footer p { margin: 6px 0 0; font-size: 13px; letter-spacing: .07em; }
+.footer h3 { margin: 0 0 8px; font-size: 16px; letter-spacing: .08em; }
+.contacts { display: grid; justify-content: center; gap: 4px; }
+.contacts a { font-size: 14px; }
+.socials { display: flex; gap: 16px; }
+.socials span { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--navy); color: #fff; font-family: Arial, sans-serif; font-weight: 700; }
+.copyright { background: var(--navy); color: #fff; text-align: center; padding: 13px; font-size: 13px; }
+
+@media (max-width: 980px) {
+  .topbar { grid-template-columns: 1fr auto; height: auto; padding: 14px 24px; }
+  .navlinks { order: 3; grid-column: 1 / -1; gap: 18px; overflow-x: auto; justify-content: flex-start; padding-bottom: 4px; }
+  .top-cta { min-width: auto; padding: 13px 15px; font-size: 15px; }
+  .brand img { width: 170px; }
+  .hero { min-height: 500px; }
+  .hero-video { object-position: center center; }
+  .hero::after { background: linear-gradient(180deg, rgba(251,248,239,.64), rgba(251,248,239,.20), rgba(251,248,239,0)); }
+  .hero-readable { width: 100%; }
+  .hero-content { width: 100%; padding: 20px 24px 185px; }
+  .hero h1 { font-size: 34px; max-width: 430px; }
+  .legal-line { font-size: 13px; margin-bottom: 26px; }
+  .booking-cards { width: calc(100% - 32px); margin-top: -118px; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .booking-card { min-height: 70px; }
+  .booking-card.portal { font-size: 18px; gap: 8px; }
+  .booking-b { font-size: 35px; }
+  .airbnb-mark { font-size: 31px; }
+  .whatsapp-mark { font-size: 36px; }
+  .booking-card.direct { padding: 11px 13px; gap: 11px; }
+  .booking-card.direct img { width: 42px; }
+  .booking-card.direct strong { font-size: 14px; }
+  .booking-card.direct b { font-size: 13px; }
+  .booking-card.direct em { font-size: 12px; }
+  .amenities { width: calc(100% - 32px); grid-template-columns: 1fr; margin-top: 24px; }
+  .amenities div { border-right: 0; border-bottom: 1px solid var(--line); min-height: 58px; }
+  .why, .gallery-section, .availability, .position { padding: 0 16px; }
+  .why-grid, .gallery-row, .availability-card, .position-card, .footer { grid-template-columns: 1fr; }
+  .gallery-row { grid-template-columns: 1fr 1fr; }
+  .gallery-thumb { height: 125px; }
+  .calendar-box { border-left: 0; border-top: 1px solid rgba(180,134,22,.16); padding: 22px; }
+  .date-form, .guest-form { grid-template-columns: 1fr; }
+  .map-card { grid-template-columns: 1fr; }
+  .map-bg { min-height: 145px; }
+  .footer { padding: 22px 26px; text-align: center; }
+  .footer img { margin: 0 auto; }
+  .contacts { justify-content: center; }
+  .socials { justify-content: center; }
+}
+`;
