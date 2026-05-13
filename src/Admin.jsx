@@ -56,6 +56,11 @@ const defaultSettings = {
   welcomateUrl:
     "https://welcomate.it/guest/property/27a6597b-6fd5-4abe-84f7-bdabed6898c4?ota=DIRECT",
   notificationEmail: "info@gelone.it",
+  nightlyRate: 70,
+  cleaningFee: 0,
+  minimumNights: 1,
+  depositPercent: 30,
+  directRateText: "Miglior tariffa prenotando dal sito",
 };
 
 const sourceOptions = [
@@ -720,6 +725,11 @@ export default function Admin() {
         checkInTime: settings.checkInTime || defaultSettings.checkInTime,
         checkOutTime: settings.checkOutTime || defaultSettings.checkOutTime,
         maxGuests: Number(settings.maxGuests || defaultSettings.maxGuests),
+        nightlyRate: Number(settings.nightlyRate || defaultSettings.nightlyRate),
+        cleaningFee: Number(settings.cleaningFee || 0),
+        minimumNights: Number(settings.minimumNights || defaultSettings.minimumNights),
+        depositPercent: Number(settings.depositPercent || defaultSettings.depositPercent),
+        directRateText: settings.directRateText || defaultSettings.directRateText,
         wifiName: settings.wifiName || "",
         wifiPassword: settings.wifiPassword || "",
         unitId: selectedUnitId,
@@ -2087,6 +2097,78 @@ export default function Admin() {
                     className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                   />
                 </FormField>
+
+                <div className="rounded-2xl border border-[#eadbbf] bg-[#faf6ee] p-5">
+                  <h3 className="font-serif text-2xl text-[#0a1d35]">Tariffe sito diretto</h3>
+                  <p className="mt-2 text-sm leading-6 text-[#666]">
+                    Queste tariffe compaiono nella home e vengono usate per il totale stimato delle richieste dal sito.
+                  </p>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <FormField label="Prezzo diretto per notte (€)">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={settings.nightlyRate}
+                        onChange={(event) =>
+                          setSettings({ ...settings, nightlyRate: event.target.value })
+                        }
+                        className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                      />
+                    </FormField>
+
+                    <FormField label="Pulizie finali (€)">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={settings.cleaningFee}
+                        onChange={(event) =>
+                          setSettings({ ...settings, cleaningFee: event.target.value })
+                        }
+                        className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                      />
+                    </FormField>
+
+                    <FormField label="Soggiorno minimo (notti)">
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={settings.minimumNights}
+                        onChange={(event) =>
+                          setSettings({ ...settings, minimumNights: event.target.value })
+                        }
+                        className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                      />
+                    </FormField>
+
+                    <FormField label="Caparra indicativa (%)">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={settings.depositPercent}
+                        onChange={(event) =>
+                          setSettings({ ...settings, depositPercent: event.target.value })
+                        }
+                        className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                      />
+                    </FormField>
+                  </div>
+
+                  <FormField label="Testo tariffa diretto">
+                    <input
+                      value={settings.directRateText}
+                      onChange={(event) =>
+                        setSettings({ ...settings, directRateText: event.target.value })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                    />
+                  </FormField>
+                </div>
 
                 <FormField label="Nome Wi-Fi">
                   <input

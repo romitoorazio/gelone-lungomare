@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "./firebase";
 
 const LOGO_HEADER = "/images/logo-gelone-header-senza-qrcode.png";
 const LOGO_EMBLEMA = "/images/logo-gelone-emblema-senza-qrcode.png";
@@ -9,12 +11,20 @@ const FOTO_MARE = "/images/vista-mare-gelone.jpg";
 const FOTO_TERRAZZA = "/images/terrazza-gelone.jpg";
 const FOTO_INTERNI = "/images/interni-gelone.jpg";
 
-const bookingUrl = "https://www.booking.com/hotel/it/gelone-lungomare.it.html";
+const bookingUrl = "https://www.booking.com/hotel/it/gelone-lungomare.html";
 const airbnbUrl = "https://www.airbnb.it/rooms/1267419022190887817";
 const whatsappUrl = "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informazioni%20su%20Gelone%20Lungomare";
 
-const CIN = "IT084001B4D36830";
-const CIR = "190840010022";
+const CIN = "IT085007C2TUGEP2SD";
+const CIR = "19085007C264694";
+
+const defaultPricing = {
+  nightlyRate: 70,
+  cleaningFee: 0,
+  minimumNights: 1,
+  depositPercent: 30,
+  directRateText: "Miglior tariffa prenotando dal sito",
+};
 
 const gallery = [FOTO_TERRAZZA, FOTO_MARE, FOTO_INTERNI, FOTO_TERRAZZA, FOTO_MARE];
 
@@ -29,6 +39,25 @@ function addDaysIso(dateIso, days) {
   const d = new Date(`${dateIso}T00:00:00`);
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+function getNightDates(checkIn, checkOut) {
+  if (!checkIn || !checkOut || checkOut <= checkIn) return [];
+  const nights = [];
+  const cursor = new Date(`${checkIn}T00:00:00`);
+  const end = new Date(`${checkOut}T00:00:00`);
+
+  while (cursor < end) {
+    nights.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return nights;
+}
+
+function formatEuro(value) {
+  const number = Number(value || 0);
+  return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(number);
 }
 
 function SectionTitle({ children }) {
@@ -51,6 +80,44 @@ export default function App() {
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [requestStatus, setRequestStatus] = useState(null);
+  const [pricing, setPricing] = useState(defaultPricing);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadPricing() {
+      try {
+        const snapshot = await getDoc(doc(db, "settings", "pms"));
+        if (!mounted || !snapshot.exists()) return;
+
+        const data = snapshot.data();
+        setPricing({
+          nightlyRate: Number(data.nightlyRate || defaultPricing.nightlyRate),
+          cleaningFee: Number(data.cleaningFee || defaultPricing.cleaningFee),
+          minimumNights: Number(data.minimumNights || defaultPricing.minimumNights),
+          depositPercent: Number(data.depositPercent || defaultPricing.depositPercent),
+          directRateText: data.directRateText || defaultPricing.directRateText,
+        });
+      } catch (error) {
+        console.warn("Tariffe non caricate, uso valori predefiniti:", error);
+      }
+    }
+
+    loadPricing();
+    return () => { mounted = false; };
+  }, []);
+
+  const selectedNights = useMemo(() => getNightDates(checkIn, checkOut), [checkIn, checkOut]);
+  const priceEstimate = useMemo(() => {
+    const nights = selectedNights.length;
+    const nightlyRate = Number(pricing.nightlyRate || 0);
+    const cleaningFee = Number(pricing.cleaningFee || 0);
+    const subtotal = nights * nightlyRate;
+    const total = nights > 0 ? subtotal + cleaningFee : 0;
+    const depositAmount = total > 0 ? Math.round((total * Number(pricing.depositPercent || 0)) / 100) : 0;
+
+    return { nights, nightlyRate, cleaningFee, subtotal, total, depositAmount };
+  }, [selectedNights, pricing]);
 
   const checkAvailability = async (event) => {
     event?.preventDefault();
@@ -64,6 +131,14 @@ export default function App() {
 
     if (checkOut <= checkIn) {
       setAvailability({ ok: false, message: "Il check-out deve essere dopo il check-in." });
+      return;
+    }
+
+    if (priceEstimate.nights < Number(pricing.minimumNights || 1)) {
+      setAvailability({
+        ok: false,
+        message: `Soggiorno minimo: ${pricing.minimumNights} notte${Number(pricing.minimumNights) > 1 ? "i" : ""}.`,
+      });
       return;
     }
 
@@ -112,7 +187,12 @@ export default function App() {
           guestName,
           guestEmail,
           guestPhone,
-          notes: "Richiesta inviata dal sito Gelone Lungomare",
+          notes: `Richiesta inviata dal sito Gelone Lungomare. Totale stimato: ${formatEuro(priceEstimate.total)} per ${priceEstimate.nights} notte${priceEstimate.nights === 1 ? "" : "i"}.`,
+          totalPrice: priceEstimate.total,
+          nightlyRate: priceEstimate.nightlyRate,
+          cleaningFee: priceEstimate.cleaningFee,
+          nightsCount: priceEstimate.nights,
+          depositAmount: priceEstimate.depositAmount,
         }),
       });
       const data = await response.json();
@@ -176,8 +256,8 @@ export default function App() {
           <img src={LOGO_EMBLEMA} alt="" />
           <span>
             <strong>PRENOTA DAL SITO</strong>
-            <b>MIGLIOR TARIFFA</b>
-            <em>Risparmia prenotando diretto</em>
+            <b>DA {formatEuro(pricing.nightlyRate)} / NOTTE</b>
+            <em>{pricing.directRateText}</em>
           </span>
         </a>
         <a className="booking-card portal" href={bookingUrl} target="_blank" rel="noreferrer">
@@ -265,7 +345,28 @@ export default function App() {
               </label>
               <button disabled={loading} type="submit">{loading ? "VERIFICA..." : "VERIFICA DISPONIBILITÀ"} <span>▣</span></button>
             </form>
-            <p className="best-rate">♡ Miglior tariffa garantita prenotando dal sito</p>
+            <div className="price-box">
+              <div>
+                <span>Tariffa diretta</span>
+                <strong>da {formatEuro(pricing.nightlyRate)} / notte</strong>
+                <small>Nessuna commissione portale. Su Booking è più alta.</small>
+              </div>
+              {priceEstimate.nights > 0 && (
+                <div>
+                  <span>Totale stimato</span>
+                  <strong>{formatEuro(priceEstimate.total)}</strong>
+                  <small>per {priceEstimate.nights} notte{priceEstimate.nights === 1 ? "" : "i"}{priceEstimate.cleaningFee > 0 ? `, pulizie incluse ${formatEuro(priceEstimate.cleaningFee)}` : ""}</small>
+                </div>
+              )}
+              {priceEstimate.depositAmount > 0 && (
+                <div>
+                  <span>Caparra indicativa</span>
+                  <strong>{formatEuro(priceEstimate.depositAmount)}</strong>
+                  <small>{pricing.depositPercent}% per conferma, salvo accordi diretti.</small>
+                </div>
+              )}
+            </div>
+            <p className="best-rate">♡ {pricing.directRateText}</p>
 
             {availability && (
               <div className={availability.ok ? "notice ok" : "notice no"}>{availability.message}</div>
@@ -421,6 +522,11 @@ button, input, select { font: inherit; }
 .date-form label span { font-size: 13px; font-weight: 800; }
 .date-form input, .date-form select, .guest-form input { border: 0; background: transparent; color: var(--navy); min-width: 0; outline: none; font-family: Georgia, serif; }
 .date-form button { grid-column: 1 / -1; height: 48px; border: 0; border-radius: 5px; background: linear-gradient(180deg, #c39726, #a5790e); color: #fff; font-weight: 800; letter-spacing: .07em; cursor: pointer; }
+.price-box { margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.price-box div { background: rgba(255,255,255,.72); border: 1px solid rgba(180,134,22,.20); border-radius: 8px; padding: 13px 14px; display: grid; gap: 4px; }
+.price-box span { font-size: 11px; font-weight: 800; letter-spacing: .12em; color: var(--gold); text-transform: uppercase; }
+.price-box strong { font-size: 20px; color: var(--navy); }
+.price-box small { font-size: 12px; line-height: 1.35; color: rgba(7,31,61,.72); }
 .best-rate { text-align: center; margin: 13px 0 0; font-size: 15px; }
 .notice { margin: 14px 0 0; padding: 12px 14px; border-radius: 6px; font-size: 14px; text-align: center; }
 .notice.ok { background: rgba(47, 125, 78, .10); color: #1e623b; border: 1px solid rgba(47, 125, 78, .18); }

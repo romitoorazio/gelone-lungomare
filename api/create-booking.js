@@ -1,4 +1,4 @@
-﻿import { getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
+import { getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
 
 const UNIT_ID = "lunarossa1";
 const UNIT_NAME = "Gelone Lungomare";
@@ -33,6 +33,18 @@ function getNightDates(checkIn, checkOut) {
 
 function cleanText(value) {
   return String(value || "").trim();
+}
+
+function cleanMoneyValue(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const number = Number(String(value).replace(",", "."));
+  return Number.isFinite(number) ? number : null;
+}
+
+function cleanIntegerValue(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.round(number) : null;
 }
 
 function getBody(req) {
@@ -130,6 +142,11 @@ export default async function handler(req, res) {
     const checkOut = cleanText(body.checkOut);
     const notes = cleanText(body.notes);
     const guests = Number(body.guests || 1);
+    const totalPrice = cleanMoneyValue(body.totalPrice);
+    const nightlyRate = cleanMoneyValue(body.nightlyRate);
+    const cleaningFee = cleanMoneyValue(body.cleaningFee);
+    const depositAmount = cleanMoneyValue(body.depositAmount);
+    const nightsCountFromClient = cleanIntegerValue(body.nightsCount);
 
     if (!guestName) {
       return res.status(400).json({
@@ -162,7 +179,7 @@ export default async function handler(req, res) {
     if (!Number.isFinite(guests) || guests < 1 || guests > 2) {
       return res.status(400).json({
         ok: false,
-        message: "Gelone Lungomare puÃ² ospitare massimo 2 persone.",
+        message: "Gelone Lungomare può ospitare massimo 2 persone.",
       });
     }
 
@@ -195,7 +212,13 @@ export default async function handler(req, res) {
       guests,
       source: "direct_site",
       status: "pending_direct",
-      totalPrice: null,
+      totalPrice,
+      nightlyRate,
+      cleaningFee,
+      nightsCount: nightsCountFromClient || nights.length,
+      depositAmount,
+      paymentStatus: "unpaid",
+      welcomateStatus: "to_send",
       notes,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -266,7 +289,7 @@ export default async function handler(req, res) {
       return res.status(409).json({
         ok: false,
         message:
-          "Le date selezionate non sono piÃ¹ disponibili. Prova altre date o contattaci su WhatsApp.",
+          "Le date selezionate non sono più disponibili. Prova altre date o contattaci su WhatsApp.",
       });
     }
 
@@ -274,7 +297,7 @@ export default async function handler(req, res) {
       ok: false,
       message:
         error?.message ||
-        "Errore tecnico durante la richiesta. Riprova piÃ¹ tardi o contattaci su WhatsApp.",
+        "Errore tecnico durante la richiesta. Riprova più tardi o contattaci su WhatsApp.",
     });
   }
 }
