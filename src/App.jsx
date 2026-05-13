@@ -3,6 +3,8 @@ import React, { useMemo, useState } from "react";
 const LOGO_HEADER = "/images/logo-gelone-header-senza-qrcode.png";
 const LOGO_EMBLEMA = "/images/logo-gelone-emblema-senza-qrcode.png";
 const HERO_FUSA = "/images/hero-gelone-fusa.png";
+const HERO_VIDEO = "/images/hero-gelone-video.mp4";
+const HERO_POSTER = "/images/hero-gelone-poster.jpg";
 const FOTO_MARE = "/images/vista-mare-gelone.jpg";
 const FOTO_TERRAZZA = "/images/terrazza-gelone.jpg";
 const FOTO_INTERNI = "/images/interni-gelone.jpg";
@@ -144,6 +146,18 @@ export default function App() {
       </header>
 
       <section id="home" className="hero">
+        <video
+          className="hero-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster={HERO_POSTER}
+          aria-hidden="true"
+        >
+          <source src={HERO_VIDEO} type="video/mp4" />
+        </video>
         <div className="hero-readable" />
         <div className="hero-bottom-fade" />
 
@@ -351,7 +365,7 @@ button, input, select { font: inherit; }
 .top-cta span { margin-left: 8px; font-size: 15px; }
 
 .hero { position: relative; min-height: 430px; overflow: hidden; isolation: isolate; background: #d7d4c7; }
-.hero::before { content: ''; position: absolute; inset: 0; z-index: 0; background-image: url('${HERO_FUSA}'); background-size: cover; background-position: center center; transform: scale(1.006); }
+.hero-video { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; object-position: center center; transform: scale(1.006); }
 .hero::after { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(251,248,239,.52) 0%, rgba(251,248,239,.32) 24%, rgba(251,248,239,.08) 47%, rgba(251,248,239,0) 66%); pointer-events: none; }
 .hero-readable { position: absolute; left: 0; top: 0; bottom: 0; width: 45%; z-index: 2; background: linear-gradient(90deg, rgba(251,248,239,.18), rgba(251,248,239,.04), rgba(251,248,239,0)); pointer-events: none; }
 .hero-bottom-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 104px; z-index: 3; background: linear-gradient(180deg, rgba(251,248,239,0), rgba(251,248,239,.72) 70%, var(--cream)); pointer-events: none; }
@@ -449,7 +463,7 @@ button, input, select { font: inherit; }
   .top-cta { min-width: auto; padding: 13px 15px; font-size: 15px; }
   .brand img { width: 170px; }
   .hero { min-height: 500px; }
-  .hero::before { background-position: center center; }
+  .hero-video { object-position: center center; }
   .hero::after { background: linear-gradient(180deg, rgba(251,248,239,.64), rgba(251,248,239,.20), rgba(251,248,239,0)); }
   .hero-readable { width: 100%; }
   .hero-content { width: 100%; padding: 20px 24px 185px; }
