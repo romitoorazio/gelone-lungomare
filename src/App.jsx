@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 
 const LOGO_HEADER = "/images/logo-gelone-header-senza-qrcode.png";
 const LOGO_EMBLEMA = "/images/logo-gelone-emblema-senza-qrcode.png";
+const HERO_FUSA = "/images/hero-gelone-fusa.png";
 const FOTO_MARE = "/images/vista-mare-gelone.jpg";
 const FOTO_TERRAZZA = "/images/terrazza-gelone.jpg";
 const FOTO_INTERNI = "/images/interni-gelone.jpg";
@@ -143,9 +144,7 @@ export default function App() {
       </header>
 
       <section id="home" className="hero">
-        <div className="hero-sea" />
-        <div className="hero-terrace" />
-        <div className="hero-soft-left" />
+        <div className="hero-readable" />
         <div className="hero-bottom-fade" />
 
         <div className="hero-content">
@@ -348,35 +347,34 @@ button, input, select { font: inherit; }
 .navlinks { display: flex; align-items: center; justify-content: center; gap: 38px; font-weight: 700; font-size: 17px; letter-spacing: .01em; }
 .navlinks a { position: relative; padding: 12px 0; }
 .navlinks a.active::after, .navlinks a:hover::after { content: ''; position: absolute; left: 0; right: 0; bottom: 4px; height: 2px; background: var(--gold); }
-.top-cta { justify-self: end; background: linear-gradient(180deg, #c29523, #a77a0e); color: #fff; border-radius: 5px; padding: 17px 24px; min-width: 205px; text-align: center; font-weight: 800; font-size: 19px; letter-spacing: .02em; box-shadow: 0 12px 24px rgba(130, 92, 5, .18); }
+.top-cta { justify-self: end; background: linear-gradient(180deg, #c29523, #a77a0e); color: #fff; border-radius: 5px; padding: 17px 24px; min-width: 205px; text-align: center; font-weight: 800; font-size: 17px; letter-spacing: .02em; box-shadow: 0 12px 24px rgba(130, 92, 5, .18); }
 .top-cta span { margin-left: 8px; font-size: 15px; }
 
-.hero { position: relative; min-height: 410px; overflow: hidden; isolation: isolate; background: #d7d4c7; }
-.hero-sea, .hero-terrace { position: absolute; inset: 0; background-repeat: no-repeat; pointer-events: none; }
-.hero-sea { z-index: 0; background-image: url('${FOTO_MARE}'); background-size: cover; background-position: center 48%; transform: scale(1.015); }
-.hero-terrace { z-index: 1; left: 38%; background-image: url('${FOTO_TERRAZZA}'); background-size: cover; background-position: center 48%; -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.22) 11%, rgba(0,0,0,.72) 24%, #000 38%); mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.22) 11%, rgba(0,0,0,.72) 24%, #000 38%); }
-.hero-soft-left { position: absolute; inset: 0; z-index: 2; background: linear-gradient(90deg, rgba(251,248,239,.50) 0%, rgba(251,248,239,.30) 24%, rgba(251,248,239,.10) 43%, rgba(251,248,239,0) 63%); pointer-events: none; }
-.hero-bottom-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 118px; z-index: 3; background: linear-gradient(180deg, rgba(251,248,239,0), rgba(251,248,239,.74) 68%, var(--cream)); pointer-events: none; }
-.hero-content { position: relative; z-index: 4; width: min(455px, 43%); padding: 22px 0 104px 64px; }
-.legal-line { margin: 0 0 32px; font-size: 15px; font-weight: 800; letter-spacing: .075em; white-space: nowrap; text-shadow: 0 1px 12px rgba(255,255,255,.65); }
-.legal-line span { color: var(--gold); margin: 0 20px; }
-.hero h1 { margin: 0; max-width: 425px; font-size: clamp(28px, 2.55vw, 37px); line-height: 1.18; font-weight: 500; letter-spacing: .035em; text-wrap: balance; text-shadow: 0 2px 14px rgba(255,255,255,.60); }
-.gold-rule { width: 220px; height: 1px; margin: 19px 0 20px; background: linear-gradient(90deg, var(--gold), rgba(180,134,22,0)); position: relative; }
-.gold-rule::after { content: ''; position: absolute; top: -4px; left: 138px; width: 9px; height: 9px; background: var(--gold); transform: rotate(45deg); }
-.hero-copy { margin: 0; max-width: 405px; font-size: 15.5px; line-height: 1.56; font-family: Georgia, 'Times New Roman', serif; color: rgba(7,31,61,.96); text-shadow: 0 1px 12px rgba(255,255,255,.70); }
+.hero { position: relative; min-height: 430px; overflow: hidden; isolation: isolate; background: #d7d4c7; }
+.hero::before { content: ''; position: absolute; inset: 0; z-index: 0; background-image: url('${HERO_FUSA}'); background-size: cover; background-position: center center; transform: scale(1.006); }
+.hero::after { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(251,248,239,.52) 0%, rgba(251,248,239,.32) 24%, rgba(251,248,239,.08) 47%, rgba(251,248,239,0) 66%); pointer-events: none; }
+.hero-readable { position: absolute; left: 0; top: 0; bottom: 0; width: 45%; z-index: 2; background: linear-gradient(90deg, rgba(251,248,239,.18), rgba(251,248,239,.04), rgba(251,248,239,0)); pointer-events: none; }
+.hero-bottom-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 104px; z-index: 3; background: linear-gradient(180deg, rgba(251,248,239,0), rgba(251,248,239,.72) 70%, var(--cream)); pointer-events: none; }
+.hero-content { position: relative; z-index: 4; width: min(420px, 40%); padding: 22px 0 112px 64px; }
+.legal-line { margin: 0 0 28px; font-size: 14px; font-weight: 800; letter-spacing: .07em; white-space: nowrap; text-shadow: 0 1px 12px rgba(255,255,255,.70); }
+.legal-line span { color: var(--gold); margin: 0 18px; }
+.hero h1 { margin: 0; max-width: 410px; font-size: clamp(27px, 2.35vw, 35px); line-height: 1.16; font-weight: 500; letter-spacing: .035em; text-wrap: balance; text-shadow: 0 2px 14px rgba(255,255,255,.65); }
+.gold-rule { width: 200px; height: 1px; margin: 18px 0 18px; background: linear-gradient(90deg, var(--gold), rgba(180,134,22,0)); position: relative; }
+.gold-rule::after { content: ''; position: absolute; top: -4px; left: 130px; width: 9px; height: 9px; background: var(--gold); transform: rotate(45deg); }
+.hero-copy { margin: 0; max-width: 390px; font-size: 15px; line-height: 1.52; font-family: Georgia, 'Times New Roman', serif; color: rgba(7,31,61,.96); text-shadow: 0 1px 12px rgba(255,255,255,.72); }
 
-.booking-cards { position: relative; z-index: 5; margin: -43px auto 0; width: min(930px, calc(100% - 150px)); display: grid; grid-template-columns: 1.08fr .92fr .92fr .92fr; gap: 16px; align-items: stretch; }
-.booking-card { min-height: 64px; border-radius: 7px; display: flex; align-items: center; justify-content: center; box-shadow: 0 13px 30px rgba(13,25,43,.12); border: 1px solid rgba(140, 109, 50, .20); background: rgba(255,255,255,.94); backdrop-filter: blur(4px); }
-.booking-card.direct { background: var(--navy); color: #fff; justify-content: flex-start; padding: 10px 15px; border: 2px solid var(--gold); gap: 13px; }
-.booking-card.direct img { width: 46px; height: 40px; object-fit: contain; flex: 0 0 auto; opacity: .95; }
+.booking-cards { position: relative; z-index: 5; margin: -38px auto 0; width: min(900px, calc(100% - 170px)); display: grid; grid-template-columns: 1.08fr .92fr .92fr .92fr; gap: 16px; align-items: stretch; }
+.booking-card { min-height: 58px; border-radius: 7px; display: flex; align-items: center; justify-content: center; box-shadow: 0 13px 30px rgba(13,25,43,.12); border: 1px solid rgba(140, 109, 50, .20); background: rgba(255,255,255,.94); backdrop-filter: blur(4px); }
+.booking-card.direct { background: var(--navy); color: #fff; justify-content: flex-start; padding: 8px 14px; border: 2px solid var(--gold); gap: 13px; }
+.booking-card.direct img { width: 42px; height: 36px; object-fit: contain; flex: 0 0 auto; opacity: .95; }
 .booking-card.direct span { display: grid; gap: 2px; }
-.booking-card.direct strong { font-size: 15px; letter-spacing: .08em; }
-.booking-card.direct b { color: var(--gold2); font-size: 13px; letter-spacing: .14em; }
-.booking-card.direct em { font-size: 11.5px; font-style: normal; }
-.booking-card.portal { gap: 12px; font-size: 19px; font-weight: 800; letter-spacing: .015em; }
-.booking-b { color: #0b5ea8; font-size: 38px; line-height: 1; }
+.booking-card.direct strong { font-size: 14px; letter-spacing: .08em; }
+.booking-card.direct b { color: var(--gold2); font-size: 12.5px; letter-spacing: .14em; }
+.booking-card.direct em { font-size: 11px; font-style: normal; }
+.booking-card.portal { gap: 12px; font-size: 17px; font-weight: 800; letter-spacing: .015em; }
+.booking-b { color: #0b5ea8; font-size: 28px; line-height: 1; }
 .airbnb-mark { color: #e55b72; font-size: 32px; line-height: 1; font-family: Arial, sans-serif; font-weight: 400; }
-.whatsapp-mark { color: #23bd60; font-size: 38px; line-height: .8; }
+.whatsapp-mark { color: #23bd60; font-size: 32px; line-height: .8; }
 
 .amenities { margin: 34px auto 0; width: min(1050px, calc(100% - 120px)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: grid; grid-template-columns: repeat(5, 1fr); }
 .amenities div { min-height: 76px; display: flex; align-items: center; justify-content: center; gap: 16px; border-right: 1px solid var(--line); text-align: center; }
@@ -450,14 +448,14 @@ button, input, select { font: inherit; }
   .navlinks { order: 3; grid-column: 1 / -1; gap: 18px; overflow-x: auto; justify-content: flex-start; padding-bottom: 4px; }
   .top-cta { min-width: auto; padding: 13px 15px; font-size: 15px; }
   .brand img { width: 170px; }
-  .hero { min-height: 520px; }
-  .hero-sea { right: 0; bottom: 42%; }
-  .hero-terrace { left: 0; top: 42%; }
-  .hero-soft-left { background: linear-gradient(180deg, rgba(251,248,239,.72), rgba(251,248,239,.18), rgba(251,248,239,0)); }
-  .hero-content { width: 100%; padding: 20px 24px 210px; }
+  .hero { min-height: 500px; }
+  .hero::before { background-position: center center; }
+  .hero::after { background: linear-gradient(180deg, rgba(251,248,239,.64), rgba(251,248,239,.20), rgba(251,248,239,0)); }
+  .hero-readable { width: 100%; }
+  .hero-content { width: 100%; padding: 20px 24px 185px; }
   .hero h1 { font-size: 34px; max-width: 430px; }
   .legal-line { font-size: 13px; margin-bottom: 26px; }
-  .booking-cards { width: calc(100% - 32px); margin-top: -135px; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .booking-cards { width: calc(100% - 32px); margin-top: -118px; grid-template-columns: 1fr 1fr; gap: 10px; }
   .booking-card { min-height: 70px; }
   .booking-card.portal { font-size: 18px; gap: 8px; }
   .booking-b { font-size: 35px; }
