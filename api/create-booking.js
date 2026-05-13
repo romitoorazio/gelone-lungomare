@@ -1,7 +1,6 @@
 import { getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
+import { DEFAULT_UNIT_ID, bookingUnitId, getPublicUnitConfig } from "./_units.js";
 
-const UNIT_ID = "lunarossa1";
-const UNIT_NAME = "Gelone Lungomare";
 const NOTIFY_EMAIL = "info@gelone.it";
 
 function isValidDate(value) {
@@ -66,9 +65,8 @@ function isActiveStatus(status) {
   return !["cancelled", "canceled", "deleted", "available", "rejected", "declined"].includes(value);
 }
 
-function bookingBelongsToUnit(data) {
-  const bookingUnitId = String(data?.unitId || UNIT_ID).trim();
-  return bookingUnitId === UNIT_ID;
+function bookingBelongsToUnit(data, unitId) {
+  return bookingUnitId(data) === unitId;
 }
 
 function bookingOverlaps(data, checkIn, checkOut) {
@@ -82,7 +80,7 @@ function bookingOverlaps(data, checkIn, checkOut) {
   return bookingCheckIn < checkOut && bookingCheckOut > checkIn;
 }
 
-async function hasBookingConflict(adminDb, checkIn, checkOut) {
+async function hasBookingConflict(adminDb, unitId, checkIn, checkOut) {
   const snapshot = await adminDb.collection("bookings").get();
 
   let conflict = false;
@@ -92,7 +90,7 @@ async function hasBookingConflict(adminDb, checkIn, checkOut) {
 
     const data = doc.data();
 
-    if (bookingBelongsToUnit(data) && isActiveStatus(data?.status) && bookingOverlaps(data, checkIn, checkOut)) {
+    if (bookingBelongsToUnit(data, unitId) && isActiveStatus(data?.status) && bookingOverlaps(data, checkIn, checkOut)) {
       conflict = true;
     }
   });
@@ -100,7 +98,7 @@ async function hasBookingConflict(adminDb, checkIn, checkOut) {
   return conflict;
 }
 
-async function sendNotificationEmail(booking) {
+async function sendNotificationEmail(booking, unit) {
   const resendApiKey = process.env.RESEND_API_KEY;
   const emailFrom =
     process.env.EMAIL_FROM || "Gelone Lungomare <onboarding@resend.dev>";
@@ -112,12 +110,12 @@ async function sendNotificationEmail(booking) {
     };
   }
 
-  const subject = "Nuova richiesta prenotazione Gelone Lungomare";
+  const subject = `Nuova richiesta prenotazione ${unit.publicName || unit.name}`;
 
   const text = `
 Nuova richiesta prenotazione ricevuta dal sito.
 
-Struttura: ${UNIT_NAME}
+Struttura: ${unit.publicName || unit.name}
 Nome ospite: ${booking.guestName}
 Email ospite: ${booking.guestEmail || "-"}
 Telefono ospite: ${booking.guestPhone || "-"}
@@ -175,6 +173,19 @@ export default async function handler(req, res) {
     const adminDb = getFirebaseAdminDb();
     const body = getBody(req);
 
+    const requestedUnitId = body.unitId || DEFAULT_UNIT_ID;
+    const unit = await getPublicUnitConfig(adminDb, requestedUnitId);
+
+    if (!unit) {
+      return res.status(404).json({
+        ok: false,
+        message: "Unità non disponibile sul sito pubblico.",
+      });
+    }
+
+    const unitId = unit.id;
+    const unitName = unit.publicName || unit.name;
+
     const guestName = cleanText(body.guestName);
     const guestEmail = cleanText(body.guestEmail);
     const guestPhone = cleanText(body.guestPhone);
@@ -216,10 +227,10 @@ export default async function handler(req, res) {
       });
     }
 
-    if (!Number.isFinite(guests) || guests < 1 || guests > 2) {
+    if (!Number.isFinite(guests) || guests < 1 || guests > Number(unit.maxGuests || 2)) {
       return res.status(400).json({
         ok: false,
-        message: "Gelone Lungomare può ospitare massimo 2 persone.",
+        message: `${unitName} può ospitare massimo ${unit.maxGuests || 2} persone.`,
       });
     }
 
@@ -241,15 +252,15 @@ export default async function handler(req, res) {
 
     // Controllo di sicurezza sulle prenotazioni: serve se una prenotazione esiste
     // in bookings ma mancano i relativi documenti nights.
-    if (await hasBookingConflict(adminDb, checkIn, checkOut)) {
+    if (await hasBookingConflict(adminDb, unitId, checkIn, checkOut)) {
       throw new Error("DATES_NOT_AVAILABLE");
     }
 
     const bookingRef = adminDb.collection("bookings").doc();
 
     const bookingData = {
-      unitId: UNIT_ID,
-      unitName: UNIT_NAME,
+      unitId,
+      unitName,
       guestName,
       guestEmail,
       guestPhone,
@@ -272,7 +283,7 @@ export default async function handler(req, res) {
 
     await adminDb.runTransaction(async (transaction) => {
       const nightRefs = nights.map((night) =>
-        adminDb.collection("nights").doc(`${UNIT_ID}_${night}`)
+        adminDb.collection("nights").doc(`${unitId}_${night}`)
       );
 
       const nightSnapshots = [];
@@ -295,10 +306,10 @@ export default async function handler(req, res) {
       transaction.set(bookingRef, bookingData);
 
       nights.forEach((night) => {
-        const nightRef = adminDb.collection("nights").doc(`${UNIT_ID}_${night}`);
+        const nightRef = adminDb.collection("nights").doc(`${unitId}_${night}`);
 
         transaction.set(nightRef, {
-          unitId: UNIT_ID,
+          unitId,
           date: night,
           bookingId: bookingRef.id,
           status: "pending_direct",
@@ -313,19 +324,19 @@ export default async function handler(req, res) {
     const emailResult = await sendNotificationEmail({
       ...bookingData,
       bookingId: bookingRef.id,
-    });
+    }, unit);
 
     return res.status(201).json({
       ok: true,
       bookingId: bookingRef.id,
-      unitId: UNIT_ID,
-      unitName: UNIT_NAME,
+      unitId,
+      unitName,
       checkIn,
       checkOut,
       nights,
       status: "pending_direct",
       message:
-        "Richiesta ricevuta. Le date sono state bloccate nel sistema Gelone Lungomare in attesa di conferma della struttura.",
+        `Richiesta ricevuta. Le date sono state bloccate nel sistema ${unitName} in attesa di conferma della struttura.`,
       emailNotification: emailResult,
     });
   } catch (error) {

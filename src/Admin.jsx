@@ -14,6 +14,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
   writeBatch,
@@ -34,16 +35,8 @@ import {
   ShieldCheck,
   Wifi,
 } from "lucide-react";
-import { auth, db, ADMIN_EMAILS, UNIT_ID, UNIT_NAME } from "./firebase";
-
-const UNITS = [
-  {
-    id: UNIT_ID,
-    name: UNIT_NAME,
-    publicName: "Gelone Lungomare",
-    maxGuests: 2,
-  },
-];
+import { auth, db, ADMIN_EMAILS, UNIT_ID } from "./firebase";
+import { DEFAULT_UNIT, DEFAULT_UNITS, normalizeUnit, sanitizeUnitId } from "./units";
 
 const defaultSettings = {
   checkInTime: "15:00",
@@ -309,6 +302,31 @@ Orazio
 Gelone Lungomare`;
 }
 
+
+function createUnitForm(unit = DEFAULT_UNIT) {
+  const normalized = normalizeUnit(unit);
+
+  return {
+    id: normalized.id,
+    name: normalized.name,
+    publicName: normalized.publicName,
+    description: normalized.description || "",
+    maxGuests: String(normalized.maxGuests || 2),
+    bedrooms: String(normalized.bedrooms || 1),
+    bathrooms: String(normalized.bathrooms || 1),
+    hasKitchen: Boolean(normalized.hasKitchen),
+    cin: normalized.cin || "",
+    cir: normalized.cir || "",
+    active: Boolean(normalized.active),
+    publicVisible: Boolean(normalized.publicVisible),
+    welcomateEnabled: Boolean(normalized.welcomateEnabled),
+    bookingUrl: normalized.bookingUrl || "",
+    airbnbUrl: normalized.airbnbUrl || "",
+    icalPath: normalized.icalPath || `/api/ical/${normalized.id}.ics`,
+    sortOrder: String(normalized.sortOrder || 999),
+  };
+}
+
 function LoginScreen() {
   const [email, setEmail] = useState("romitoorazio@gmail.com");
   const [password, setPassword] = useState("");
@@ -460,6 +478,8 @@ export default function Admin() {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [bookings, setBookings] = useState([]);
+  const [units, setUnits] = useState(DEFAULT_UNITS);
+  const [unitForm, setUnitForm] = useState(() => createUnitForm(DEFAULT_UNIT));
   const [settings, setSettings] = useState(defaultSettings);
   const [activeTab, setActiveTab] = useState("calendar");
   const [selectedUnitId, setSelectedUnitId] = useState(UNIT_ID);
@@ -508,7 +528,7 @@ export default function Admin() {
   });
 
   const selectedUnit =
-    UNITS.find((unit) => unit.id === selectedUnitId) || UNITS[0];
+    units.find((unit) => unit.id === selectedUnitId) || DEFAULT_UNITS[0];
 
   const selectedBooking = useMemo(
     () => bookings.find((booking) => booking.id === selectedBookingId) || null,
@@ -529,19 +549,58 @@ export default function Admin() {
   useEffect(() => {
     if (!isAdmin) return undefined;
 
+    const unsubscribeUnits = onSnapshot(
+      doc(db, "settings", "units"),
+      (snapshot) => {
+        const items = Array.isArray(snapshot.data()?.items)
+          ? snapshot.data().items
+          : [];
+
+        const rows = items
+          .map((item) => normalizeUnit(item))
+          .sort((a, b) => {
+            if ((a.sortOrder || 999) === (b.sortOrder || 999)) {
+              return a.name.localeCompare(b.name);
+            }
+            return (a.sortOrder || 999) - (b.sortOrder || 999);
+          });
+
+        const nextUnits = rows.length > 0 ? rows : DEFAULT_UNITS;
+        setUnits(nextUnits);
+        setSelectedUnitId((current) =>
+          nextUnits.some((unit) => unit.id === current) ? current : UNIT_ID
+        );
+      },
+      (err) => {
+        console.error("Errore lettura unità:", err);
+        setUnits(DEFAULT_UNITS);
+      }
+    );
+
+    return () => unsubscribeUnits();
+  }, [isAdmin]);
+
+  useEffect(() => {
+    setUnitForm(createUnitForm(selectedUnit));
+  }, [selectedUnitId, units]);
+
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+
     const bookingsQuery = query(
       collection(db, "bookings"),
-      where("unitId", "==", selectedUnitId),
       orderBy("checkIn", "asc")
     );
 
     const unsubscribeBookings = onSnapshot(
       bookingsQuery,
       (snapshot) => {
-        const rows = snapshot.docs.map((item) => ({
-          id: item.id,
-          ...item.data(),
-        }));
+        const rows = snapshot.docs
+          .map((item) => ({
+            id: item.id,
+            ...item.data(),
+          }))
+          .filter((item) => (item.unitId || UNIT_ID) === selectedUnitId);
         setBookings(rows);
       },
       (err) => {
@@ -552,7 +611,12 @@ export default function Admin() {
       }
     );
 
-    const unsubscribeSettings = onSnapshot(doc(db, "settings", "pms"), (snap) => {
+    const publicSettingsDocId = selectedUnitId === UNIT_ID ? "pms" : `pms_${selectedUnitId}`;
+    const privateSettingsDocId = selectedUnitId === UNIT_ID ? "pms" : selectedUnitId;
+
+    setSettings(defaultSettings);
+
+    const unsubscribeSettings = onSnapshot(doc(db, "settings", publicSettingsDocId), (snap) => {
       if (snap.exists()) {
         setSettings((currentSettings) => ({
           ...defaultSettings,
@@ -563,7 +627,7 @@ export default function Admin() {
     });
 
     const unsubscribePrivateSettings = onSnapshot(
-      doc(db, "privateSettings", "pms"),
+      doc(db, "privateSettings", privateSettingsDocId),
       (snap) => {
         if (snap.exists()) {
           setSettings((currentSettings) => ({
@@ -721,10 +785,13 @@ export default function Admin() {
     try {
       const batch = writeBatch(db);
 
-      batch.set(doc(db, "settings", "pms"), {
+      const publicSettingsDocId = selectedUnitId === UNIT_ID ? "pms" : `pms_${selectedUnitId}`;
+      const privateSettingsDocId = selectedUnitId === UNIT_ID ? "pms" : selectedUnitId;
+
+      batch.set(doc(db, "settings", publicSettingsDocId), {
         checkInTime: settings.checkInTime || defaultSettings.checkInTime,
         checkOutTime: settings.checkOutTime || defaultSettings.checkOutTime,
-        maxGuests: Number(settings.maxGuests || defaultSettings.maxGuests),
+        maxGuests: Number(settings.maxGuests || selectedUnit.maxGuests || defaultSettings.maxGuests),
         nightlyRate: Number(settings.nightlyRate || defaultSettings.nightlyRate),
         cleaningFee: Number(settings.cleaningFee || 0),
         minimumNights: Number(settings.minimumNights || defaultSettings.minimumNights),
@@ -737,7 +804,7 @@ export default function Admin() {
         updatedAt: serverTimestamp(),
       });
 
-      batch.set(doc(db, "privateSettings", "pms"), {
+      batch.set(doc(db, "privateSettings", privateSettingsDocId), {
         bookingIcalUrl: settings.bookingIcalUrl || "",
         airbnbIcalUrl: settings.airbnbIcalUrl || "",
         welcomateUrl: settings.welcomateUrl || "",
@@ -1174,6 +1241,98 @@ export default function Admin() {
     }
   }
 
+  function prepareNewUnit() {
+    clearMessages();
+
+    const usedIds = new Set(units.map((unit) => unit.id));
+    let index = units.length + 1;
+    let nextId = `lunarossa${index}`;
+
+    while (usedIds.has(nextId)) {
+      index += 1;
+      nextId = `lunarossa${index}`;
+    }
+
+    setUnitForm(
+      createUnitForm({
+        ...DEFAULT_UNIT,
+        id: nextId,
+        name: `Lunarossa ${index}`,
+        publicName: `Gelone Lungomare - Lunarossa ${index}`,
+        description: "Nuova unità da completare",
+        cin: "",
+        cir: "",
+        active: false,
+        publicVisible: false,
+        welcomateEnabled: false,
+        bookingUrl: "",
+        airbnbUrl: "",
+        icalPath: `/api/ical/${nextId}.ics`,
+        sortOrder: index,
+      })
+    );
+
+    setMessage("Scheda nuova unità pronta. Completa i dati e premi Salva unità.");
+  }
+
+  async function saveUnit(event) {
+    event.preventDefault();
+    clearMessages();
+
+    const id = sanitizeUnitId(unitForm.id);
+
+    if (!id) {
+      setError("Inserisci un ID tecnico valido, per esempio lunarossa2.");
+      return;
+    }
+
+    if (!unitForm.name.trim()) {
+      setError("Inserisci il nome dell'unità.");
+      return;
+    }
+
+    try {
+      const normalized = normalizeUnit({
+        ...unitForm,
+        id,
+        maxGuests: Number(unitForm.maxGuests || 1),
+        bedrooms: Number(unitForm.bedrooms || 0),
+        bathrooms: Number(unitForm.bathrooms || 0),
+        sortOrder: Number(unitForm.sortOrder || 999),
+        hasKitchen: Boolean(unitForm.hasKitchen),
+        active: Boolean(unitForm.active),
+        publicVisible: Boolean(unitForm.publicVisible),
+        welcomateEnabled: Boolean(unitForm.welcomateEnabled),
+        icalPath: unitForm.icalPath || `/api/ical/${id}.ics`,
+      });
+
+      const nextUnits = [
+        ...units.filter((unit) => unit.id !== id),
+        normalized,
+      ].sort((a, b) => {
+        if ((a.sortOrder || 999) === (b.sortOrder || 999)) {
+          return a.name.localeCompare(b.name);
+        }
+        return (a.sortOrder || 999) - (b.sortOrder || 999);
+      });
+
+      await setDoc(
+        doc(db, "settings", "units"),
+        {
+          items: nextUnits,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      setSelectedUnitId(id);
+      setMessage("Unità salvata. Lunarossa 1 resta invariata e le future unità avranno calendari separati.");
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante il salvataggio dell'unità.");
+    }
+  }
+
   async function copyText(text, successMessage) {
     clearMessages();
 
@@ -1253,7 +1412,7 @@ export default function Admin() {
               onChange={(event) => setSelectedUnitId(event.target.value)}
               className="rounded-full border border-[#d7c49f] bg-white px-5 py-3 font-semibold text-[#0a1d35]"
             >
-              {UNITS.map((unit) => (
+              {units.map((unit) => (
                 <option key={unit.id} value={unit.id}>
                   {unit.name}
                 </option>
@@ -1301,6 +1460,9 @@ export default function Admin() {
           </TabButton>
           <TabButton active={activeTab === "block"} onClick={() => setActiveTab("block")}>
             Blocca date
+          </TabButton>
+          <TabButton active={activeTab === "units"} onClick={() => setActiveTab("units")}>
+            Unità alloggiative
           </TabButton>
           <TabButton active={activeTab === "settings"} onClick={() => setActiveTab("settings")}>
             Impostazioni
@@ -1574,6 +1736,62 @@ export default function Admin() {
                   <DetailRow label="Aggiornata" value={formatDateTime(selectedBooking.updatedAt)} />
                 </div>
 
+                <div className="mt-6 rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#9b6b25]">
+                        Link WelcoMate da inviare all'ospite
+                      </p>
+                      <p className="mt-2 break-all rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-[#0a1d35]">
+                        {settings?.welcomateUrl || defaultSettings.welcomateUrl}
+                      </p>
+                      <p className="mt-2 text-sm text-[#555]">
+                        Questo è il link dati ospiti che puoi copiare, aprire o mandare direttamente su WhatsApp/email.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <SmallButton
+                        onClick={() =>
+                          copyText(
+                            settings?.welcomateUrl || defaultSettings.welcomateUrl,
+                            "Link WelcoMate copiato negli appunti."
+                          )
+                        }
+                        className="bg-[#0a1d35] px-5 py-3 text-white"
+                      >
+                        <Copy size={16} />
+                        Copia link
+                      </SmallButton>
+
+                      <a
+                        href={settings?.welcomateUrl || defaultSettings.welcomateUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-full border border-[#0a1d35] bg-white px-5 py-3 text-sm font-bold text-[#0a1d35]"
+                      >
+                        Apri link
+                      </a>
+
+                      {selectedBooking.guestPhone && (
+                        <a
+                          href={`https://wa.me/${normalizePhoneForWhatsApp(
+                            selectedBooking.guestPhone
+                          )}?text=${encodeURIComponent(
+                            buildWelcomateText(selectedBooking, settings)
+                          )}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-3 text-sm font-bold text-white"
+                        >
+                          <MessageCircle size={16} />
+                          Invia su WhatsApp
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <form
                   onSubmit={saveBookingDetails}
                   className="mt-6 grid gap-4 md:grid-cols-2"
@@ -1754,7 +1972,9 @@ export default function Admin() {
                       <a
                         href={`https://wa.me/${normalizePhoneForWhatsApp(
                           selectedBooking.guestPhone
-                        )}?text=${buildWhatsAppMessage(selectedBooking, settings)}`}
+                        )}?text=${encodeURIComponent(
+                          buildWelcomateText(selectedBooking, settings)
+                        )}`}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-2 rounded-full bg-green-600 px-6 py-4 font-bold text-white"
@@ -2032,6 +2252,268 @@ export default function Admin() {
                 </button>
               </div>
             </form>
+          </section>
+        )}
+
+        {activeTab === "units" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h2 className="font-serif text-3xl">Unità alloggiative</h2>
+                  <p className="mt-2 leading-7 text-[#555]">
+                    Base multi-unità: Lunarossa 1 resta funzionante, ma da qui puoi preparare nuove unità con ID, dati, iCal e visibilità separati.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={prepareNewUnit}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#9b6b25] px-6 py-4 font-bold text-white"
+                >
+                  <Plus size={18} />
+                  Prepara nuova unità
+                </button>
+              </div>
+
+              <div className="mt-6 grid gap-4 lg:grid-cols-3">
+                {units.map((unit) => (
+                  <button
+                    type="button"
+                    key={unit.id}
+                    onClick={() => setSelectedUnitId(unit.id)}
+                    className={`rounded-2xl border p-5 text-left transition ${
+                      selectedUnitId === unit.id
+                        ? "border-[#0a1d35] bg-[#faf6ee] shadow-sm"
+                        : "border-[#e4d8c2] bg-white hover:bg-[#faf6ee]"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <Building2 className="text-[#9b6b25]" size={28} />
+                      <Pill className={unit.active ? "border-green-200 bg-green-50 text-green-900" : "border-slate-200 bg-slate-100 text-slate-900"}>
+                        {unit.active ? "Attiva" : "Bozza"}
+                      </Pill>
+                    </div>
+                    <h3 className="mt-4 font-serif text-2xl">{unit.name}</h3>
+                    <p className="mt-1 text-sm text-[#666]">ID: {unit.id}</p>
+                    <p className="mt-3 text-sm leading-6 text-[#555]">
+                      {unit.maxGuests} ospiti · {unit.bedrooms || 0} camera/e · {unit.bathrooms || 0} bagno/i
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Pill className={unit.publicVisible ? "border-blue-200 bg-blue-50 text-blue-900" : "border-slate-200 bg-slate-100 text-slate-900"}>
+                        {unit.publicVisible ? "Pubblica" : "Nascosta"}
+                      </Pill>
+                      <Pill className={unit.welcomateEnabled ? "border-amber-200 bg-amber-50 text-amber-900" : "border-slate-200 bg-slate-100 text-slate-900"}>
+                        {unit.welcomateEnabled ? "WelcoMate" : "No WelcoMate"}
+                      </Pill>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <h3 className="font-serif text-3xl">Scheda unità</h3>
+              <p className="mt-2 leading-7 text-[#555]">
+                Per ora il sito pubblico continua a vendere Lunarossa 1. Le nuove unità possono essere preparate qui e attivate nel prossimo step senza mischiare prenotazioni e calendari.
+              </p>
+
+              <form onSubmit={saveUnit} className="mt-6 grid gap-4 lg:grid-cols-2">
+                <FormField label="ID tecnico unità">
+                  <input
+                    value={unitForm.id}
+                    onChange={(event) =>
+                      setUnitForm({
+                        ...unitForm,
+                        id: sanitizeUnitId(event.target.value),
+                        icalPath: `/api/ical/${sanitizeUnitId(event.target.value)}.ics`,
+                      })
+                    }
+                    placeholder="es. lunarossa2"
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Nome interno">
+                  <input
+                    value={unitForm.name}
+                    onChange={(event) => setUnitForm({ ...unitForm, name: event.target.value })}
+                    placeholder="es. Lunarossa 2"
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Nome pubblico">
+                  <input
+                    value={unitForm.publicName}
+                    onChange={(event) => setUnitForm({ ...unitForm, publicName: event.target.value })}
+                    placeholder="es. Gelone Lungomare - Lunarossa 2"
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Ordine visualizzazione">
+                  <input
+                    type="number"
+                    min="1"
+                    value={unitForm.sortOrder}
+                    onChange={(event) => setUnitForm({ ...unitForm, sortOrder: event.target.value })}
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Ospiti massimi">
+                  <input
+                    type="number"
+                    min="1"
+                    value={unitForm.maxGuests}
+                    onChange={(event) => setUnitForm({ ...unitForm, maxGuests: event.target.value })}
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Camere da letto">
+                  <input
+                    type="number"
+                    min="0"
+                    value={unitForm.bedrooms}
+                    onChange={(event) => setUnitForm({ ...unitForm, bedrooms: event.target.value })}
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Bagni">
+                  <input
+                    type="number"
+                    min="0"
+                    value={unitForm.bathrooms}
+                    onChange={(event) => setUnitForm({ ...unitForm, bathrooms: event.target.value })}
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Cucina presente">
+                  <select
+                    value={unitForm.hasKitchen ? "yes" : "no"}
+                    onChange={(event) => setUnitForm({ ...unitForm, hasKitchen: event.target.value === "yes" })}
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  >
+                    <option value="yes">Sì</option>
+                    <option value="no">No</option>
+                  </select>
+                </FormField>
+
+                <FormField label="CIN">
+                  <input
+                    value={unitForm.cin}
+                    onChange={(event) => setUnitForm({ ...unitForm, cin: event.target.value })}
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="CIR">
+                  <input
+                    value={unitForm.cir}
+                    onChange={(event) => setUnitForm({ ...unitForm, cir: event.target.value })}
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Link Booking">
+                  <input
+                    value={unitForm.bookingUrl}
+                    onChange={(event) => setUnitForm({ ...unitForm, bookingUrl: event.target.value })}
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Link Airbnb">
+                  <input
+                    value={unitForm.airbnbUrl}
+                    onChange={(event) => setUnitForm({ ...unitForm, airbnbUrl: event.target.value })}
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Link iCal esportato dal sito">
+                  <div className="flex gap-3">
+                    <input
+                      value={`https://www.gelone.it${unitForm.icalPath || `/api/ical/${unitForm.id}.ics`}`}
+                      readOnly
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyText(
+                          `https://www.gelone.it${unitForm.icalPath || `/api/ical/${unitForm.id}.ics`}`,
+                          "Link iCal unità copiato."
+                        )
+                      }
+                      className="rounded-2xl bg-[#0a1d35] px-5 font-bold text-white"
+                    >
+                      <Copy size={18} />
+                    </button>
+                  </div>
+                </FormField>
+
+                <div className="rounded-2xl border border-[#eadbbf] bg-[#faf6ee] p-5 lg:col-span-2">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <label className="flex items-center gap-3 font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={unitForm.active}
+                        onChange={(event) => setUnitForm({ ...unitForm, active: event.target.checked })}
+                      />
+                      Unità attiva
+                    </label>
+                    <label className="flex items-center gap-3 font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={unitForm.publicVisible}
+                        onChange={(event) => setUnitForm({ ...unitForm, publicVisible: event.target.checked })}
+                      />
+                      Visibile sul sito
+                    </label>
+                    <label className="flex items-center gap-3 font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={unitForm.welcomateEnabled}
+                        onChange={(event) => setUnitForm({ ...unitForm, welcomateEnabled: event.target.checked })}
+                      />
+                      WelcoMate attivo
+                    </label>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-[#666]">
+                    Consiglio: lascia le nuove unità in bozza finché non prepariamo foto, tariffe, iCal in ingresso e pagina pubblica multi-alloggio.
+                  </p>
+                </div>
+
+                <FormField label="Descrizione interna">
+                  <textarea
+                    value={unitForm.description}
+                    onChange={(event) => setUnitForm({ ...unitForm, description: event.target.value })}
+                    className="min-h-28 w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <div className="flex flex-wrap items-end gap-3">
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white"
+                  >
+                    <Save size={18} />
+                    Salva unità
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUnitForm(createUnitForm(selectedUnit))}
+                    className="rounded-full border border-[#0a1d35] px-6 py-4 font-bold"
+                  >
+                    Annulla modifiche
+                  </button>
+                </div>
+              </form>
+            </div>
           </section>
         )}
 

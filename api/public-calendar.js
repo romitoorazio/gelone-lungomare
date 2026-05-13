@@ -1,7 +1,5 @@
 import { getFirebaseAdminDb } from "./_firebaseAdmin.js";
-
-const DEFAULT_UNIT_ID = "lunarossa1";
-const ALLOWED_UNIT_IDS = new Set(["lunarossa1"]);
+import { DEFAULT_UNIT_ID, bookingUnitId, getPublicUnitConfig } from "./_units.js";
 
 function isValidDate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -89,10 +87,7 @@ function setStatus(statusByDate, date, status) {
 }
 
 function bookingBelongsToUnit(data, unitId) {
-  // Compatibilità con vecchie prenotazioni salvate prima del multi-unità:
-  // se manca unitId, vengono considerate Lunarossa 1.
-  const bookingUnitId = String(data?.unitId || DEFAULT_UNIT_ID).trim();
-  return bookingUnitId === unitId;
+  return bookingUnitId(data) === unitId;
 }
 
 function isBookingActive(data) {
@@ -127,10 +122,18 @@ export default async function handler(req, res) {
   }
 
   try {
+    const adminDb = getFirebaseAdminDb();
     const requestedUnitId = String(getQuery(req, "unitId") || DEFAULT_UNIT_ID).trim();
-    const unitId = ALLOWED_UNIT_IDS.has(requestedUnitId)
-      ? requestedUnitId
-      : DEFAULT_UNIT_ID;
+    const unit = await getPublicUnitConfig(adminDb, requestedUnitId);
+
+    if (!unit) {
+      return res.status(404).json({
+        ok: false,
+        message: "Unità non disponibile sul sito pubblico.",
+      });
+    }
+
+    const unitId = unit.id;
     const start = String(getQuery(req, "start") || "").trim();
     const end = String(getQuery(req, "end") || "").trim();
 
@@ -157,7 +160,6 @@ export default async function handler(req, res) {
       });
     }
 
-    const adminDb = getFirebaseAdminDb();
     const statusByDate = new Map();
 
     // Fonte 1: nights. È la fonte principale usata dal PMS.
@@ -201,6 +203,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       unitId,
+      unitName: unit.publicName || unit.name,
       start,
       end,
       days: publicDays,

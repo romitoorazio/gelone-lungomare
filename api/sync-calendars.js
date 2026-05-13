@@ -1,14 +1,12 @@
-﻿import crypto from "node:crypto";
+import crypto from "node:crypto";
 import {
   FieldValue,
   getFirebaseAdminAuth,
   getFirebaseAdminDb,
 } from "./_firebaseAdmin.js";
+import { DEFAULT_UNIT_ID, getUnitConfig, sanitizeUnitId } from "./_units.js";
 
-const UNIT_ID = "lunarossa1";
-const UNIT_NAME = "Gelone Lungomare";
-const ADMIN_EMAILS = ["romitoorazio@gmail.com"];
-
+const ADMIN_EMAILS = ["romitoorazio@gmail.com", "romitofrancesco1@gmail.com"];
 const FETCH_TIMEOUT_MS = 15000;
 
 const SOURCE_CONFIGS = [
@@ -25,8 +23,6 @@ const SOURCE_CONFIGS = [
     guestName: "Prenotazione Airbnb",
   },
 ];
-
-/* ----------------------------- helpers base ----------------------------- */
 
 function json(res, status, payload) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -51,12 +47,8 @@ function sha1(value) {
   return crypto.createHash("sha1").update(String(value)).digest("hex");
 }
 
-function getBookingDocId(sourceKey, externalKey) {
-  return `sync_${sourceKey}_${sha1(externalKey).slice(0, 32)}`;
-}
-
-function getTodayUtcDateString() {
-  return new Date().toISOString().slice(0, 10);
+function getBookingDocId(unitId, sourceKey, externalKey) {
+  return `sync_${unitId}_${sourceKey}_${sha1(externalKey).slice(0, 24)}`;
 }
 
 function isValidDate(value) {
@@ -104,12 +96,8 @@ function getNightDates(checkIn, checkOut) {
   return nights;
 }
 
-/* ------------------------------ ICS parser ------------------------------ */
-
 function unfoldIcsLines(text) {
-  const normalized = String(text || "")
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n");
+  const normalized = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const lines = normalized.split("\n");
   const out = [];
   for (const line of lines) {
@@ -137,11 +125,7 @@ function splitIcsLine(line) {
   const left = line.slice(0, i);
   const value = line.slice(i + 1);
   const [name, ...params] = left.split(";");
-  return {
-    name: String(name || "").trim().toUpperCase(),
-    params,
-    value,
-  };
+  return { name: String(name || "").trim().toUpperCase(), params, value };
 }
 
 function parseIcsEvents(icsText) {
@@ -183,7 +167,6 @@ function normalizeExternalEvent(event, sourceConfig) {
 
   const rawStart = getFirstIcsValue(event, "DTSTART");
   const rawEnd = getFirstIcsValue(event, "DTEND");
-
   const checkIn = normalizeDateValue(rawStart);
   const checkOut = normalizeDateValue(rawEnd) || addDays(checkIn, 1);
 
@@ -195,18 +178,12 @@ function normalizeExternalEvent(event, sourceConfig) {
   if (nights.length < 1 || nights.length > 370) return null;
 
   const uid = cleanText(getFirstIcsValue(event, "UID"));
-  const summary = escapeSingleLine(
-    unescapeIcsText(getFirstIcsValue(event, "SUMMARY"))
-  );
-  const description = escapeSingleLine(
-    unescapeIcsText(getFirstIcsValue(event, "DESCRIPTION"))
-  );
-
+  const summary = escapeSingleLine(unescapeIcsText(getFirstIcsValue(event, "SUMMARY")));
+  const description = escapeSingleLine(unescapeIcsText(getFirstIcsValue(event, "DESCRIPTION")));
   const stable = uid || `${sourceConfig.key}_${checkIn}_${checkOut}_${summary}`;
-  const externalKey = `${sourceConfig.key}:${stable}`;
 
   return {
-    externalKey,
+    externalKey: `${sourceConfig.key}:${stable}`,
     externalUid: uid,
     source: sourceConfig.key,
     sourceLabel: sourceConfig.label,
@@ -219,22 +196,10 @@ function normalizeExternalEvent(event, sourceConfig) {
   };
 }
 
-function isSyncedExternalSource(source) {
-  return SOURCE_CONFIGS.some((c) => c.key === source);
+function isActiveStatus(status) {
+  const value = String(status || "").toLowerCase();
+  return !["cancelled", "canceled", "deleted", "available", "rejected", "declined"].includes(value);
 }
-
-function isActiveNight(data) {
-  const status = String(data?.status || "").toLowerCase();
-  return (
-    data?.unitId === UNIT_ID &&
-    status !== "cancelled" &&
-    status !== "canceled" &&
-    status !== "deleted" &&
-    status !== "available"
-  );
-}
-
-/* --------------------------------- auth --------------------------------- */
 
 async function verifyRequest(req) {
   const configuredSecret = cleanText(process.env.SYNC_SECRET);
@@ -248,22 +213,174 @@ async function verifyRequest(req) {
   const match = authorization.match(/^Bearer\s+(.+)$/i);
 
   if (!match) {
-    return {
-      ok: false,
-      status: 401,
-      message: "Accesso non autorizzato. Effettua il login admin e riprova.",
-    };
+    return { ok: false, status: 401, message: "Accesso non autorizzato. Effettua il login admin e riprova." };
   }
 
   try {
     const decoded = await getFirebaseAdminAuth().verifyIdToken(match[1]);
     const email = cleanText(decoded.email).toLowerCase();
-    const allowed = ADMIN_EMAILS.some(
-      (a) => a.toLowerCase() === email
-    );
+    const allowed = ADMIN_EMAILS.some((a) => a.toLowerCase() === email);
     if (!allowed) {
-      return {
-        ok: false,
-        status: 403,
-        message: "Email non autorizzata alla sincronizzazione cale
+      return { ok: false, status: 403, message: "Email non autorizzata alla sincronizzazione calendari." };
+    }
+    return { ok: true, mode: "firebase", email };
+  } catch (error) {
+    return { ok: false, status: 401, message: "Sessione admin non valida. Rieffettua il login." };
+  }
+}
 
+async function fetchIcs(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "User-Agent": "GelonePMS/1.0" },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readPrivateSettings(adminDb, unitId) {
+  const unitSpecific = await adminDb.collection("privateSettings").doc(unitId).get();
+  if (unitSpecific.exists) return unitSpecific.data();
+
+  const legacy = await adminDb.collection("privateSettings").doc("pms").get();
+  return legacy.exists ? legacy.data() : {};
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return json(res, 405, { ok: false, message: "Metodo non consentito." });
+  }
+
+  const authResult = await verifyRequest(req);
+  if (!authResult.ok) {
+    return json(res, authResult.status, { ok: false, message: authResult.message });
+  }
+
+  try {
+    const adminDb = getFirebaseAdminDb();
+    const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
+    const requestedUnitId = sanitizeUnitId(body.unitId || DEFAULT_UNIT_ID) || DEFAULT_UNIT_ID;
+    const unit = await getUnitConfig(adminDb, requestedUnitId);
+
+    if (!unit) {
+      return json(res, 404, { ok: false, message: "Unità non trovata." });
+    }
+
+    const settings = await readPrivateSettings(adminDb, unit.id);
+    const totals = {
+      imported: 0,
+      skippedNoUrl: 0,
+      skippedInvalid: 0,
+      skippedConflict: 0,
+      sources: {},
+    };
+
+    for (const sourceConfig of SOURCE_CONFIGS) {
+      const url = cleanText(settings[sourceConfig.settingsField]);
+      totals.sources[sourceConfig.key] = { imported: 0, skippedConflict: 0, skippedInvalid: 0, urlPresent: Boolean(url) };
+
+      if (!url) {
+        totals.skippedNoUrl += 1;
+        continue;
+      }
+
+      const icsText = await fetchIcs(url);
+      const events = parseIcsEvents(icsText)
+        .map((event) => normalizeExternalEvent(event, sourceConfig))
+        .filter(Boolean);
+
+      for (const event of events) {
+        const bookingId = getBookingDocId(unit.id, sourceConfig.key, event.externalKey);
+        const nightRefs = event.nights.map((night) => adminDb.collection("nights").doc(`${unit.id}_${night}`));
+        const nightSnapshots = await adminDb.getAll(...nightRefs);
+        const hasConflict = nightSnapshots.some((snapshot) => {
+          if (!snapshot.exists) return false;
+          const data = snapshot.data();
+          return isActiveStatus(data?.status) && data?.bookingId && data.bookingId !== bookingId;
+        });
+
+        if (hasConflict) {
+          totals.skippedConflict += 1;
+          totals.sources[sourceConfig.key].skippedConflict += 1;
+          continue;
+        }
+
+        const batch = adminDb.batch();
+        const bookingRef = adminDb.collection("bookings").doc(bookingId);
+
+        batch.set(
+          bookingRef,
+          {
+            unitId: unit.id,
+            unitName: unit.publicName || unit.name,
+            guestName: event.guestName,
+            guestEmail: "",
+            guestPhone: "",
+            checkIn: event.checkIn,
+            checkOut: event.checkOut,
+            guests: Number(unit.maxGuests || 2),
+            source: event.source,
+            status: "imported_ical",
+            paymentStatus: "unpaid",
+            welcomateStatus: "not_needed",
+            notes: event.sourceSummary || event.sourceDescription || "Importata da calendario esterno",
+            internalNotes: event.sourceDescription || "",
+            externalKey: event.externalKey,
+            externalUid: event.externalUid || "",
+            updatedAt: FieldValue.serverTimestamp(),
+            createdAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        event.nights.forEach((night) => {
+          batch.set(
+            adminDb.collection("nights").doc(`${unit.id}_${night}`),
+            {
+              unitId: unit.id,
+              date: night,
+              bookingId,
+              status: "imported_ical",
+              source: event.source,
+              guestName: event.guestName,
+              updatedAt: FieldValue.serverTimestamp(),
+              createdAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        });
+
+        await batch.commit();
+        totals.imported += 1;
+        totals.sources[sourceConfig.key].imported += 1;
+      }
+    }
+
+    return json(res, 200, {
+      ok: true,
+      unitId: unit.id,
+      unitName: unit.publicName || unit.name,
+      totals,
+      importedBookings: totals.imported,
+      skippedNights: totals.skippedConflict,
+    });
+  } catch (error) {
+    console.error("Errore sync-calendars:", error);
+    return json(res, 500, {
+      ok: false,
+      message: error?.message || "Errore tecnico durante la sincronizzazione calendari.",
+    });
+  }
+}

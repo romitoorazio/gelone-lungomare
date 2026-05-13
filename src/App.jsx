@@ -258,7 +258,7 @@ export default function App() {
       const response = await fetch("/api/check-availability", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checkIn, checkOut, guests: Number(guests) }),
+        body: JSON.stringify({ unitId: UNIT_ID, checkIn, checkOut, guests: Number(guests) }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.message || "Errore verifica disponibilità");
@@ -292,6 +292,7 @@ export default function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          unitId: UNIT_ID,
           checkIn,
           checkOut,
           guests: Number(guests),

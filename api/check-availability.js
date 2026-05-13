@@ -1,7 +1,5 @@
 import { getFirebaseAdminDb } from "./_firebaseAdmin.js";
-
-const UNIT_ID = "lunarossa1";
-const PUBLIC_UNIT_NAME = "Gelone Lungomare";
+import { DEFAULT_UNIT_ID, bookingUnitId, getPublicUnitConfig } from "./_units.js";
 
 function isValidDate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -49,9 +47,8 @@ function isActiveStatus(status) {
   return !["cancelled", "canceled", "deleted", "available", "rejected", "declined"].includes(value);
 }
 
-function bookingBelongsToUnit(data) {
-  const bookingUnitId = String(data?.unitId || UNIT_ID).trim();
-  return bookingUnitId === UNIT_ID;
+function bookingBelongsToUnit(data, unitId) {
+  return bookingUnitId(data) === unitId;
 }
 
 function bookingOverlaps(data, checkIn, checkOut) {
@@ -65,14 +62,14 @@ function bookingOverlaps(data, checkIn, checkOut) {
   return bookingCheckIn < checkOut && bookingCheckOut > checkIn;
 }
 
-async function getOccupiedNightsFromBookings(adminDb, checkIn, checkOut) {
+async function getOccupiedNightsFromBookings(adminDb, unitId, checkIn, checkOut) {
   const occupied = new Set();
   const snapshot = await adminDb.collection("bookings").get();
 
   snapshot.forEach((doc) => {
     const data = doc.data();
 
-    if (!bookingBelongsToUnit(data) || !isActiveStatus(data?.status) || !bookingOverlaps(data, checkIn, checkOut)) {
+    if (!bookingBelongsToUnit(data, unitId) || !isActiveStatus(data?.status) || !bookingOverlaps(data, checkIn, checkOut)) {
       return;
     }
 
@@ -99,6 +96,17 @@ export default async function handler(req, res) {
     const adminDb = getFirebaseAdminDb();
     const body = getBody(req);
 
+    const requestedUnitId = body.unitId || DEFAULT_UNIT_ID;
+    const unit = await getPublicUnitConfig(adminDb, requestedUnitId);
+
+    if (!unit) {
+      return res.status(404).json({
+        ok: false,
+        message: "Unità non disponibile sul sito pubblico.",
+      });
+    }
+
+    const unitId = unit.id;
     const { checkIn, checkOut } = body;
 
     if (!isValidDate(checkIn) || !isValidDate(checkOut)) {
@@ -132,7 +140,7 @@ export default async function handler(req, res) {
     }
 
     const nightRefs = nights.map((night) =>
-      adminDb.collection("nights").doc(`${UNIT_ID}_${night}`)
+      adminDb.collection("nights").doc(`${unitId}_${night}`)
     );
 
     const nightSnapshots = await adminDb.getAll(...nightRefs);
@@ -146,23 +154,23 @@ export default async function handler(req, res) {
       .map((snapshot, index) => snapshot.data()?.date || nights[index])
       .filter(Boolean);
 
-    const occupiedFromBookings = await getOccupiedNightsFromBookings(adminDb, checkIn, checkOut);
+    const occupiedFromBookings = await getOccupiedNightsFromBookings(adminDb, unitId, checkIn, checkOut);
 
     const occupiedNights = [...new Set([...occupiedFromNights, ...occupiedFromBookings])].sort();
     const available = occupiedNights.length === 0;
 
     return res.status(200).json({
       ok: true,
-      unitId: UNIT_ID,
-      unitName: PUBLIC_UNIT_NAME,
+      unitId,
+      unitName: unit.publicName || unit.name,
       checkIn,
       checkOut,
       nights,
       available,
       occupiedNights,
       message: available
-        ? "Gelone Lungomare risulta disponibile per le date selezionate."
-        : "Gelone Lungomare non risulta disponibile per le date selezionate.",
+        ? `${unit.publicName || unit.name} risulta disponibile per le date selezionate.`
+        : `${unit.publicName || unit.name} non risulta disponibile per le date selezionate.`,
     });
   } catch (error) {
     console.error("Errore check-availability:", error);
