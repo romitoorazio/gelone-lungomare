@@ -1,4 +1,4 @@
-﻿import { getFirebaseAdminDb } from "./_firebaseAdmin.js";
+import { getFirebaseAdminDb } from "./_firebaseAdmin.js";
 
 const UNIT_ID = "lunarossa1";
 const PUBLIC_UNIT_NAME = "Gelone Lungomare";
@@ -44,8 +44,49 @@ function getBody(req) {
   return req.body;
 }
 
+function isActiveStatus(status) {
+  const value = String(status || "").toLowerCase();
+  return !["cancelled", "canceled", "deleted", "available", "rejected", "declined"].includes(value);
+}
+
+function bookingBelongsToUnit(data) {
+  const bookingUnitId = String(data?.unitId || UNIT_ID).trim();
+  return bookingUnitId === UNIT_ID;
+}
+
+function bookingOverlaps(data, checkIn, checkOut) {
+  const bookingCheckIn = String(data?.checkIn || "").trim();
+  const bookingCheckOut = String(data?.checkOut || "").trim();
+
+  if (!isValidDate(bookingCheckIn) || !isValidDate(bookingCheckOut)) {
+    return false;
+  }
+
+  return bookingCheckIn < checkOut && bookingCheckOut > checkIn;
+}
+
+async function getOccupiedNightsFromBookings(adminDb, checkIn, checkOut) {
+  const occupied = new Set();
+  const snapshot = await adminDb.collection("bookings").get();
+
+  snapshot.forEach((doc) => {
+    const data = doc.data();
+
+    if (!bookingBelongsToUnit(data) || !isActiveStatus(data?.status) || !bookingOverlaps(data, checkIn, checkOut)) {
+      return;
+    }
+
+    getNightDates(data.checkIn, data.checkOut)
+      .filter((night) => night >= checkIn && night < checkOut)
+      .forEach((night) => occupied.add(night));
+  });
+
+  return [...occupied].sort();
+}
+
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
+  res.setHeader("Cache-Control", "no-store, max-age=0");
 
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -96,15 +137,18 @@ export default async function handler(req, res) {
 
     const nightSnapshots = await adminDb.getAll(...nightRefs);
 
-    const occupiedNights = nightSnapshots
+    const occupiedFromNights = nightSnapshots
       .filter((snapshot) => {
         if (!snapshot.exists) return false;
         const data = snapshot.data();
-        return data?.status !== "cancelled";
+        return isActiveStatus(data?.status);
       })
-      .map((snapshot) => snapshot.data()?.date)
+      .map((snapshot, index) => snapshot.data()?.date || nights[index])
       .filter(Boolean);
 
+    const occupiedFromBookings = await getOccupiedNightsFromBookings(adminDb, checkIn, checkOut);
+
+    const occupiedNights = [...new Set([...occupiedFromNights, ...occupiedFromBookings])].sort();
     const available = occupiedNights.length === 0;
 
     return res.status(200).json({
@@ -127,7 +171,7 @@ export default async function handler(req, res) {
       ok: false,
       message:
         error?.message ||
-        "Errore tecnico durante il controllo disponibilitÃ . Riprova piÃ¹ tardi o contatta la struttura.",
+        "Errore tecnico durante il controllo disponibilità. Riprova più tardi o contatta la struttura.",
     });
   }
 }

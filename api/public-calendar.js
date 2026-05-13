@@ -28,21 +28,96 @@ function getDateRange(start, end) {
   return days;
 }
 
+function getNightDates(checkIn, checkOut) {
+  const nights = [];
+
+  if (!isValidDate(checkIn) || !isValidDate(checkOut) || checkOut <= checkIn) {
+    return nights;
+  }
+
+  const [startYear, startMonth, startDay] = checkIn.split("-").map(Number);
+  const [endYear, endMonth, endDay] = checkOut.split("-").map(Number);
+
+  const cursor = new Date(Date.UTC(startYear, startMonth - 1, startDay));
+  const last = new Date(Date.UTC(endYear, endMonth - 1, endDay));
+
+  while (cursor < last) {
+    nights.push(toDateInputValue(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return nights;
+}
+
 function getQuery(req, key) {
   const value = req.query?.[key];
   return Array.isArray(value) ? value[0] : value;
 }
 
-function publicStatus(status) {
-  if (!status || status === "cancelled") return null;
-  if (status === "blocked") return "blocked";
-  if (["pending", "pending_direct"].includes(status)) return "pending_direct";
+function publicStatusFromRaw(rawStatus, source) {
+  const status = String(rawStatus || "").toLowerCase();
+  const sourceValue = String(source || "").toLowerCase();
+
+  if (["cancelled", "canceled", "deleted", "available", "rejected", "declined"].includes(status)) {
+    return null;
+  }
+
+  if (status === "blocked" || sourceValue === "manual" || sourceValue === "manual_block") {
+    return "blocked";
+  }
+
+  if (["pending", "pending_direct", "request", "requested"].includes(status)) {
+    return "pending_direct";
+  }
+
   return "occupied";
+}
+
+function getStatusPriority(status) {
+  if (status === "blocked") return 3;
+  if (status === "occupied") return 2;
+  if (status === "pending_direct") return 1;
+  return 0;
+}
+
+function setStatus(statusByDate, date, status) {
+  if (!date || !status) return;
+  const current = statusByDate.get(date);
+  if (!current || getStatusPriority(status) >= getStatusPriority(current)) {
+    statusByDate.set(date, status);
+  }
+}
+
+function bookingBelongsToUnit(data, unitId) {
+  // Compatibilità con vecchie prenotazioni salvate prima del multi-unità:
+  // se manca unitId, vengono considerate Lunarossa 1.
+  const bookingUnitId = String(data?.unitId || DEFAULT_UNIT_ID).trim();
+  return bookingUnitId === unitId;
+}
+
+function isBookingActive(data) {
+  return Boolean(publicStatusFromRaw(data?.status, data?.source));
+}
+
+function getBookingNightsInsideRange(data, start, end) {
+  const checkIn = String(data?.checkIn || "").trim();
+  const checkOut = String(data?.checkOut || "").trim();
+
+  if (!isValidDate(checkIn) || !isValidDate(checkOut) || checkOut <= checkIn) {
+    return [];
+  }
+
+  // Nessuna sovrapposizione con il mese richiesto.
+  if (checkOut <= start || checkIn > end) {
+    return [];
+  }
+
+  return getNightDates(checkIn, checkOut).filter((night) => night >= start && night <= end);
 }
 
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
-  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Cache-Control", "no-store, max-age=0");
 
   if (req.method !== "GET") {
     return res.status(405).json({
@@ -83,24 +158,45 @@ export default async function handler(req, res) {
     }
 
     const adminDb = getFirebaseAdminDb();
+    const statusByDate = new Map();
+
+    // Fonte 1: nights. È la fonte principale usata dal PMS.
     const refs = days.map((day) => adminDb.collection("nights").doc(`${unitId}_${day}`));
     const snapshots = await adminDb.getAll(...refs);
 
-    const publicDays = snapshots
-      .map((snapshot, index) => {
-        if (!snapshot.exists) return null;
+    snapshots.forEach((snapshot, index) => {
+      if (!snapshot.exists) return;
 
-        const data = snapshot.data();
-        const status = publicStatus(data?.status);
+      const data = snapshot.data();
+      const status = publicStatusFromRaw(data?.status, data?.source);
 
-        if (!status) return null;
+      if (status) {
+        setStatus(statusByDate, days[index], status);
+      }
+    });
 
-        return {
-          date: days[index],
-          status,
-        };
-      })
-      .filter(Boolean);
+    // Fonte 2 di sicurezza: bookings. Serve quando esiste una prenotazione/blocco,
+    // ma per qualche motivo non sono stati creati tutti i documenti nights.
+    const bookingsSnapshot = await adminDb.collection("bookings").get();
+
+    bookingsSnapshot.forEach((doc) => {
+      const data = doc.data();
+
+      if (!bookingBelongsToUnit(data, unitId) || !isBookingActive(data)) {
+        return;
+      }
+
+      const status = publicStatusFromRaw(data?.status, data?.source);
+      const bookingNights = getBookingNightsInsideRange(data, start, end);
+
+      bookingNights.forEach((night) => {
+        setStatus(statusByDate, night, status);
+      });
+    });
+
+    const publicDays = [...statusByDate.entries()]
+      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+      .map(([date, status]) => ({ date, status }));
 
     return res.status(200).json({
       ok: true,

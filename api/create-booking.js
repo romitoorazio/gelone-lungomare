@@ -61,6 +61,45 @@ function getBody(req) {
   return req.body;
 }
 
+function isActiveStatus(status) {
+  const value = String(status || "").toLowerCase();
+  return !["cancelled", "canceled", "deleted", "available", "rejected", "declined"].includes(value);
+}
+
+function bookingBelongsToUnit(data) {
+  const bookingUnitId = String(data?.unitId || UNIT_ID).trim();
+  return bookingUnitId === UNIT_ID;
+}
+
+function bookingOverlaps(data, checkIn, checkOut) {
+  const bookingCheckIn = String(data?.checkIn || "").trim();
+  const bookingCheckOut = String(data?.checkOut || "").trim();
+
+  if (!isValidDate(bookingCheckIn) || !isValidDate(bookingCheckOut)) {
+    return false;
+  }
+
+  return bookingCheckIn < checkOut && bookingCheckOut > checkIn;
+}
+
+async function hasBookingConflict(adminDb, checkIn, checkOut) {
+  const snapshot = await adminDb.collection("bookings").get();
+
+  let conflict = false;
+
+  snapshot.forEach((doc) => {
+    if (conflict) return;
+
+    const data = doc.data();
+
+    if (bookingBelongsToUnit(data) && isActiveStatus(data?.status) && bookingOverlaps(data, checkIn, checkOut)) {
+      conflict = true;
+    }
+  });
+
+  return conflict;
+}
+
 async function sendNotificationEmail(booking) {
   const resendApiKey = process.env.RESEND_API_KEY;
   const emailFrom =
@@ -123,6 +162,7 @@ https://www.gelone.it/admin
 
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
+  res.setHeader("Cache-Control", "no-store, max-age=0");
 
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -199,6 +239,12 @@ export default async function handler(req, res) {
       });
     }
 
+    // Controllo di sicurezza sulle prenotazioni: serve se una prenotazione esiste
+    // in bookings ma mancano i relativi documenti nights.
+    if (await hasBookingConflict(adminDb, checkIn, checkOut)) {
+      throw new Error("DATES_NOT_AVAILABLE");
+    }
+
     const bookingRef = adminDb.collection("bookings").doc();
 
     const bookingData = {
@@ -239,7 +285,7 @@ export default async function handler(req, res) {
       const occupiedNight = nightSnapshots.find((snapshot) => {
         if (!snapshot.exists) return false;
         const data = snapshot.data();
-        return data?.status !== "cancelled";
+        return isActiveStatus(data?.status);
       });
 
       if (occupiedNight) {
