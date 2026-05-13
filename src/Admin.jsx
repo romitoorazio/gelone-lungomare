@@ -489,6 +489,7 @@ export default function Admin() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [settingsSavedAt, setSettingsSavedAt] = useState("");
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [manualCopy, setManualCopy] = useState({ title: "", text: "" });
@@ -758,6 +759,7 @@ export default function Admin() {
   function clearMessages() {
     setMessage("");
     setError("");
+    setSettingsSavedAt("");
     setSyncResult(null);
     setManualCopy({ title: "", text: "" });
   }
@@ -817,13 +819,20 @@ export default function Admin() {
       await batch.commit();
 
       if (!options.silent) {
-        setMessage("Impostazioni salvate.");
+        const savedTime = new Intl.DateTimeFormat("it-IT", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }).format(new Date());
+        setSettingsSavedAt(savedTime);
+        setMessage(`Impostazioni salvate alle ${savedTime}.`);
       }
 
       return true;
     } catch (err) {
       console.error(err);
       if (!options.silent) {
+        setSettingsSavedAt("");
         setError("Errore durante il salvataggio delle impostazioni.");
       }
 
@@ -2685,13 +2694,21 @@ export default function Admin() {
                   />
                 </FormField>
 
-                <button
-                  type="submit"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white"
-                >
-                  <Save size={18} />
-                  Salva impostazioni
-                </button>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white"
+                  >
+                    <Save size={18} />
+                    {settingsSavedAt ? "Impostazioni salvate" : "Salva impostazioni"}
+                  </button>
+
+                  {settingsSavedAt && (
+                    <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-900">
+                      Salvate alle {settingsSavedAt}. Tariffe, soggiorno minimo e contatti aggiornati.
+                    </div>
+                  )}
+                </div>
               </form>
             </div>
 

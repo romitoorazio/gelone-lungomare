@@ -113,6 +113,11 @@ function formatEuro(value) {
   return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(number);
 }
 
+function formatNightsLabel(value) {
+  const nights = Number(value || 0);
+  return `${nights} ${nights === 1 ? "notte" : "notti"}`;
+}
+
 function SectionTitle({ children }) {
   return (
     <div className="section-title">
@@ -248,7 +253,7 @@ export default function App() {
     if (priceEstimate.nights < Number(pricing.minimumNights || 1)) {
       setAvailability({
         ok: false,
-        message: `Soggiorno minimo: ${pricing.minimumNights} notte${Number(pricing.minimumNights) > 1 ? "i" : ""}.`,
+        message: `Soggiorno minimo: ${formatNightsLabel(pricing.minimumNights)}.`,
       });
       return;
     }
@@ -299,7 +304,7 @@ export default function App() {
           guestName,
           guestEmail,
           guestPhone,
-          notes: `Richiesta inviata dal sito Gelone Lungomare. Totale stimato: ${formatEuro(priceEstimate.total)} per ${priceEstimate.nights} notte${priceEstimate.nights === 1 ? "" : "i"}.`,
+          notes: `Richiesta inviata dal sito Gelone Lungomare. Totale stimato: ${formatEuro(priceEstimate.total)} per ${formatNightsLabel(priceEstimate.nights)}.`,
           totalPrice: priceEstimate.total,
           nightlyRate: priceEstimate.nightlyRate,
           cleaningFee: priceEstimate.cleaningFee,
@@ -498,7 +503,7 @@ export default function App() {
                 <div>
                   <span>Totale stimato</span>
                   <strong>{formatEuro(priceEstimate.total)}</strong>
-                  <small>per {priceEstimate.nights} notte{priceEstimate.nights === 1 ? "" : "i"}{priceEstimate.cleaningFee > 0 ? `, pulizie incluse ${formatEuro(priceEstimate.cleaningFee)}` : ""}</small>
+                  <small>per {formatNightsLabel(priceEstimate.nights)}{priceEstimate.cleaningFee > 0 ? `, pulizie incluse ${formatEuro(priceEstimate.cleaningFee)}` : ""}</small>
                 </div>
               )}
               {priceEstimate.depositAmount > 0 && (
