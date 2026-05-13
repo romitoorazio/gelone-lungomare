@@ -117,15 +117,52 @@ function BenefitCard({ icon: Icon, title, text }) {
   );
 }
 
+
+function BrandMark({ type = "gelone" }) {
+  const config = {
+    gelone: {
+      label: "G",
+      className: "bg-[#0a1d35] text-white ring-2 ring-[#f5c84b]/80",
+    },
+    booking: {
+      label: "B",
+      className: "bg-[#174ea6] text-white",
+    },
+    airbnb: {
+      label: "A",
+      className: "bg-[#ff385c] text-white",
+    },
+  };
+
+  const current = config[type] || config.gelone;
+
+  return (
+    <span
+      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold shadow-sm ${current.className}`}
+      aria-hidden="true"
+    >
+      {current.label}
+    </span>
+  );
+}
+
 function DirectBookingButton({ compact = false }) {
   return (
     <a
       href="#verifica-disponibilita"
-      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border-2 border-[#0a1d35] bg-[#f5c84b] text-center font-extrabold text-[#0a1d35] shadow-lg transition hover:bg-[#ffd96a] ${
-        compact ? "px-4 py-3 text-sm" : "px-7 py-4"
+      className={`inline-flex min-h-[48px] items-center justify-center gap-3 rounded-full border-2 border-[#0a1d35] bg-[#f5c84b] text-center font-extrabold text-[#0a1d35] shadow-lg transition hover:bg-[#ffd96a] ${
+        compact ? "px-4 py-3 text-sm" : "px-6 py-4"
       }`}
     >
-      {compact ? "Prenota diretto" : "Prenota diretto e risparmia"}
+      <BrandMark type="gelone" />
+      <span className="flex flex-col items-start leading-tight">
+        <span>{compact ? "Gelone" : "Prenota diretto e risparmia"}</span>
+        {!compact && (
+          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#5e471a]">
+            Sito ufficiale
+          </span>
+        )}
+      </span>
       {!compact && <CalendarCheck size={18} />}
     </a>
   );
@@ -137,11 +174,19 @@ function BookingButton({ compact = false }) {
       href={bookingUrl}
       target="_blank"
       rel="noreferrer"
-      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border border-[#174ea6] bg-white text-center font-extrabold text-[#174ea6] shadow-sm transition hover:bg-[#eef5ff] ${
+      className={`inline-flex min-h-[48px] items-center justify-center gap-3 rounded-full border border-[#174ea6] bg-white text-center font-extrabold text-[#174ea6] shadow-sm transition hover:bg-[#eef5ff] ${
         compact ? "px-4 py-3 text-sm" : "px-6 py-4"
       }`}
     >
-      {compact ? "Booking" : "Booking.com"}
+      <BrandMark type="booking" />
+      <span className="flex flex-col items-start leading-tight">
+        <span>{compact ? "Booking" : "Booking.com"}</span>
+        {!compact && (
+          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#4c6fb8]">
+            Portale esterno
+          </span>
+        )}
+      </span>
       {!compact && <ExternalLink size={18} />}
     </a>
   );
@@ -153,11 +198,19 @@ function AirbnbButton({ compact = false }) {
       href={airbnbUrl}
       target="_blank"
       rel="noreferrer"
-      className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border border-[#ff385c] bg-white text-center font-extrabold text-[#c51f46] shadow-sm transition hover:bg-[#fff1f4] ${
+      className={`inline-flex min-h-[48px] items-center justify-center gap-3 rounded-full border border-[#ff385c] bg-white text-center font-extrabold text-[#c51f46] shadow-sm transition hover:bg-[#fff1f4] ${
         compact ? "px-4 py-3 text-sm" : "px-6 py-4"
       }`}
     >
-      {compact ? "Airbnb" : "Airbnb"}
+      <BrandMark type="airbnb" />
+      <span className="flex flex-col items-start leading-tight">
+        <span>{compact ? "Airbnb" : "Airbnb"}</span>
+        {!compact && (
+          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#de5e79]">
+            Portale esterno
+          </span>
+        )}
+      </span>
       {!compact && <ExternalLink size={18} />}
     </a>
   );
@@ -645,6 +698,18 @@ export default function App() {
             <div className="mt-4 flex flex-col gap-3 sm:flex-row">
               <BookingButton />
               <AirbnbButton />
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#6d552d]">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#f5c84b] bg-white/80 px-3 py-2">
+                <BrandMark type="gelone" /> Canale consigliato
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#d7c49f] bg-white/70 px-3 py-2">
+                <BrandMark type="booking" /> Booking
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#d7c49f] bg-white/70 px-3 py-2">
+                <BrandMark type="airbnb" /> Airbnb
+              </span>
             </div>
 
             <div className="mt-8 grid max-w-xl grid-cols-2 gap-3 text-sm text-[#4c4c4c] sm:grid-cols-4">
