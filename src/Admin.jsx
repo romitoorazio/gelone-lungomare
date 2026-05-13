@@ -8,9 +8,8 @@ import {
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
-  getDocs,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -20,18 +19,31 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import {
+  Building2,
   CalendarDays,
+  Copy,
+  CreditCard,
   Lock,
   LogOut,
+  Mail,
+  MessageCircle,
   Plus,
-  Trash2,
-  Save,
-  Wifi,
-  Home,
   RefreshCcw,
+  Save,
+  Search,
   ShieldCheck,
+  Wifi,
 } from "lucide-react";
 import { auth, db, ADMIN_EMAILS, UNIT_ID, UNIT_NAME } from "./firebase";
+
+const UNITS = [
+  {
+    id: UNIT_ID,
+    name: UNIT_NAME,
+    publicName: "Gelone Lungomare",
+    maxGuests: 2,
+  },
+];
 
 const defaultSettings = {
   checkInTime: "15:00",
@@ -41,35 +53,188 @@ const defaultSettings = {
   wifiPassword: "gelone123",
   bookingIcalUrl: "",
   airbnbIcalUrl: "",
+  welcomateUrl:
+    "https://welcomate.it/guest/property/27a6597b-6fd5-4abe-84f7-bdabed6898c4?ota=DIRECT",
+  notificationEmail: "info@gelone.it",
 };
 
+const sourceOptions = [
+  { value: "manual", label: "Manuale" },
+  { value: "direct_site", label: "Sito diretto" },
+  { value: "booking", label: "Booking" },
+  { value: "booking_ical", label: "Booking iCal" },
+  { value: "airbnb", label: "Airbnb" },
+  { value: "airbnb_ical", label: "Airbnb iCal" },
+];
+
+const statusOptions = [
+  { value: "pending_direct", label: "Richiesta sito" },
+  { value: "confirmed_direct", label: "Confermata" },
+  { value: "pending", label: "Richiesta" },
+  { value: "booking", label: "Booking" },
+  { value: "imported_ical", label: "Importata iCal" },
+  { value: "blocked", label: "Bloccata" },
+  { value: "cancelled", label: "Cancellata" },
+];
+
+const paymentOptions = [
+  { value: "unpaid", label: "Non pagato" },
+  { value: "deposit_paid", label: "Caparra pagata" },
+  { value: "paid", label: "Pagato" },
+  { value: "refunded", label: "Rimborsato" },
+];
+
 function toDateInputValue(date) {
-  return date.toISOString().slice(0, 10);
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
 }
 
 function getToday() {
   return toDateInputValue(new Date());
 }
 
+function parseDateAsUTC(dateString) {
+  const [year, month, day] = String(dateString || "")
+    .split("-")
+    .map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
 function getNightDates(checkIn, checkOut) {
   const nights = [];
-  const start = new Date(`${checkIn}T00:00:00`);
-  const end = new Date(`${checkOut}T00:00:00`);
+  if (!checkIn || !checkOut) return nights;
 
-  const cursor = new Date(start);
+  const cursor = parseDateAsUTC(checkIn);
+  const end = parseDateAsUTC(checkOut);
 
   while (cursor < end) {
-    nights.push(toDateInputValue(cursor));
-    cursor.setDate(cursor.getDate() + 1);
+    nights.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
   return nights;
 }
 
 function formatDate(dateString) {
-  if (!dateString) return "";
+  if (!dateString) return "-";
   const [year, month, day] = dateString.split("-");
   return `${day}/${month}/${year}`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+
+  try {
+    const date =
+      typeof value.toDate === "function" ? value.toDate() : new Date(value);
+    return date.toLocaleString("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "-";
+  }
+}
+
+function formatEuro(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "-";
+
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
+  }).format(number);
+}
+
+function getNightsCount(checkIn, checkOut) {
+  return getNightDates(checkIn, checkOut).length;
+}
+
+function getSourceLabel(source) {
+  return sourceOptions.find((item) => item.value === source)?.label || source || "-";
+}
+
+function getStatusLabel(status) {
+  return statusOptions.find((item) => item.value === status)?.label || status || "-";
+}
+
+function getPaymentLabel(paymentStatus) {
+  return (
+    paymentOptions.find((item) => item.value === paymentStatus)?.label ||
+    "Non pagato"
+  );
+}
+
+function getStatusClass(status) {
+  if (status === "confirmed_direct" || status === "booking") {
+    return "border-green-200 bg-green-50 text-green-900";
+  }
+
+  if (status === "pending_direct" || status === "pending") {
+    return "border-amber-200 bg-amber-50 text-amber-900";
+  }
+
+  if (status === "blocked") {
+    return "border-slate-200 bg-slate-100 text-slate-900";
+  }
+
+  if (status === "cancelled") {
+    return "border-red-200 bg-red-50 text-red-900";
+  }
+
+  return "border-[#e4d8c2] bg-[#faf6ee] text-[#0a1d35]";
+}
+
+function normalizePhoneForWhatsApp(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return "";
+
+  if (digits.startsWith("39")) return digits;
+  return `39${digits}`;
+}
+
+function cleanMoneyValue(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const number = Number(String(value).replace(",", "."));
+  return Number.isFinite(number) ? number : null;
+}
+
+function buildWhatsAppMessage(booking, settings) {
+  const name = booking.guestName || "ospite";
+  const checkIn = formatDate(booking.checkIn);
+  const checkOut = formatDate(booking.checkOut);
+
+  return encodeURIComponent(
+    `Ciao ${name}, ti contatto da Gelone Lungomare per la tua richiesta dal ${checkIn} al ${checkOut}. ` +
+      `Per completare la prenotazione ti invio le informazioni e il link per la registrazione ospiti. ` +
+      `${settings?.welcomateUrl ? `Link dati ospiti: ${settings.welcomateUrl}` : ""}`
+  );
+}
+
+function buildWelcomateText(booking, settings) {
+  const name = booking.guestName || "";
+  const checkIn = formatDate(booking.checkIn);
+  const checkOut = formatDate(booking.checkOut);
+  const link = settings?.welcomateUrl || defaultSettings.welcomateUrl;
+
+  return `Ciao ${name},
+
+grazie per aver scelto Gelone Lungomare.
+
+Per velocizzare il check-in e completare la registrazione obbligatoria degli ospiti per Polizia di Stato / Alloggiati Web e ISTAT, ti chiediamo di compilare il modulo online prima dell'arrivo tramite questo link sicuro:
+
+${link}
+
+Date richiesta:
+Arrivo: ${checkIn}
+Partenza: ${checkOut}
+
+Grazie,
+Orazio
+Gelone Lungomare`;
 }
 
 function LoginScreen() {
@@ -106,8 +271,8 @@ function LoginScreen() {
           </p>
           <h1 className="mt-3 font-serif text-4xl">Gelone Lungomare</h1>
           <p className="mt-3 leading-7 text-[#555]">
-            Accedi per gestire prenotazioni, blocchi date e impostazioni di
-            Lunarossa 1.
+            Accedi per gestire prenotazioni, blocchi date, pagamenti e
+            impostazioni della struttura.
           </p>
         </div>
 
@@ -152,7 +317,7 @@ function LoginScreen() {
   );
 }
 
-function StatCard({ title, value, icon: Icon }) {
+function StatCard({ title, value, icon: Icon, subtitle }) {
   return (
     <div className="rounded-2xl border border-[#e4d8c2] bg-white p-5 shadow-sm">
       <Icon className="text-[#9b6b25]" size={28} />
@@ -160,7 +325,62 @@ function StatCard({ title, value, icon: Icon }) {
         {title}
       </p>
       <p className="mt-2 text-3xl font-bold text-[#0a1d35]">{value}</p>
+      {subtitle && <p className="mt-1 text-sm text-[#666]">{subtitle}</p>}
     </div>
+  );
+}
+
+function TabButton({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-full px-5 py-3 font-bold transition ${
+        active ? "bg-[#0a1d35] text-white" : "bg-white text-[#0a1d35]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Pill({ children, className = "" }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SmallButton({ children, onClick, className = "", type = "button", disabled }) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div className="rounded-2xl bg-[#faf6ee] p-4">
+      <p className="text-xs uppercase tracking-[0.18em] text-[#9b6b25]">{label}</p>
+      <p className="mt-1 font-semibold text-[#0a1d35]">{value || "-"}</p>
+    </div>
+  );
+}
+
+function FormField({ label, children }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-semibold">{label}</span>
+      {children}
+    </label>
   );
 }
 
@@ -170,10 +390,26 @@ export default function Admin() {
   const [bookings, setBookings] = useState([]);
   const [settings, setSettings] = useState(defaultSettings);
   const [activeTab, setActiveTab] = useState("calendar");
+  const [selectedUnitId, setSelectedUnitId] = useState(UNIT_ID);
+  const [selectedBookingId, setSelectedBookingId] = useState("");
+  const [bookingSearch, setBookingSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("active");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+
+  const [detailForm, setDetailForm] = useState({
+    guestName: "",
+    guestEmail: "",
+    guestPhone: "",
+    totalPrice: "",
+    depositAmount: "",
+    paymentStatus: "unpaid",
+    notes: "",
+    internalNotes: "",
+  });
 
   const [newBooking, setNewBooking] = useState({
     guestName: "",
@@ -185,6 +421,8 @@ export default function Admin() {
     source: "manual",
     status: "confirmed_direct",
     totalPrice: "",
+    depositAmount: "",
+    paymentStatus: "unpaid",
     notes: "",
   });
 
@@ -193,6 +431,14 @@ export default function Admin() {
     checkOut: "",
     notes: "",
   });
+
+  const selectedUnit =
+    UNITS.find((unit) => unit.id === selectedUnitId) || UNITS[0];
+
+  const selectedBooking = useMemo(
+    () => bookings.find((booking) => booking.id === selectedBookingId) || null,
+    [bookings, selectedBookingId]
+  );
 
   const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
 
@@ -210,17 +456,26 @@ export default function Admin() {
 
     const bookingsQuery = query(
       collection(db, "bookings"),
-      where("unitId", "==", UNIT_ID),
+      where("unitId", "==", selectedUnitId),
       orderBy("checkIn", "asc")
     );
 
-    const unsubscribeBookings = onSnapshot(bookingsQuery, (snapshot) => {
-      const rows = snapshot.docs.map((item) => ({
-        id: item.id,
-        ...item.data(),
-      }));
-      setBookings(rows);
-    });
+    const unsubscribeBookings = onSnapshot(
+      bookingsQuery,
+      (snapshot) => {
+        const rows = snapshot.docs.map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }));
+        setBookings(rows);
+      },
+      (err) => {
+        console.error("Errore lettura prenotazioni:", err);
+        setError(
+          "Non riesco a leggere le prenotazioni. Controlla indici e regole Firestore."
+        );
+      }
+    );
 
     const unsubscribeSettings = onSnapshot(doc(db, "settings", "pms"), (snap) => {
       if (snap.exists()) {
@@ -237,9 +492,18 @@ export default function Admin() {
       (snap) => {
         if (snap.exists()) {
           setSettings((currentSettings) => ({
+            ...defaultSettings,
             ...currentSettings,
             bookingIcalUrl: snap.data().bookingIcalUrl || "",
             airbnbIcalUrl: snap.data().airbnbIcalUrl || "",
+            welcomateUrl:
+              snap.data().welcomateUrl ||
+              currentSettings.welcomateUrl ||
+              defaultSettings.welcomateUrl,
+            notificationEmail:
+              snap.data().notificationEmail ||
+              currentSettings.notificationEmail ||
+              defaultSettings.notificationEmail,
           }));
         }
       }
@@ -250,24 +514,97 @@ export default function Admin() {
       unsubscribeSettings();
       unsubscribePrivateSettings();
     };
-  }, [isAdmin]);
+  }, [isAdmin, selectedUnitId]);
+
+  useEffect(() => {
+    if (!selectedBooking) {
+      setDetailForm({
+        guestName: "",
+        guestEmail: "",
+        guestPhone: "",
+        totalPrice: "",
+        depositAmount: "",
+        paymentStatus: "unpaid",
+        notes: "",
+        internalNotes: "",
+      });
+      return;
+    }
+
+    setDetailForm({
+      guestName: selectedBooking.guestName || "",
+      guestEmail: selectedBooking.guestEmail || "",
+      guestPhone: selectedBooking.guestPhone || "",
+      totalPrice:
+        selectedBooking.totalPrice === null || selectedBooking.totalPrice === undefined
+          ? ""
+          : String(selectedBooking.totalPrice),
+      depositAmount:
+        selectedBooking.depositAmount === null ||
+        selectedBooking.depositAmount === undefined
+          ? ""
+          : String(selectedBooking.depositAmount),
+      paymentStatus: selectedBooking.paymentStatus || "unpaid",
+      notes: selectedBooking.notes || "",
+      internalNotes: selectedBooking.internalNotes || "",
+    });
+  }, [selectedBookingId, selectedBooking?.updatedAt]);
+
+  const filteredBookings = useMemo(() => {
+    const text = bookingSearch.trim().toLowerCase();
+
+    return bookings.filter((booking) => {
+      if (statusFilter === "active" && booking.status === "cancelled") {
+        return false;
+      }
+
+      if (statusFilter !== "all" && statusFilter !== "active") {
+        if ((booking.status || "") !== statusFilter) return false;
+      }
+
+      if (sourceFilter !== "all" && (booking.source || "") !== sourceFilter) {
+        return false;
+      }
+
+      if (!text) return true;
+
+      return [
+        booking.guestName,
+        booking.guestEmail,
+        booking.guestPhone,
+        booking.checkIn,
+        booking.checkOut,
+        booking.source,
+        booking.status,
+        booking.notes,
+        booking.internalNotes,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(text);
+    });
+  }, [bookings, bookingSearch, sourceFilter, statusFilter]);
 
   const stats = useMemo(() => {
     const active = bookings.filter((item) => item.status !== "cancelled");
-    const confirmed = active.filter(
-      (item) =>
-        item.status === "confirmed_direct" ||
-        item.status === "booking" ||
-        item.status === "manual"
+    const confirmed = active.filter((item) =>
+      ["confirmed_direct", "booking", "airbnb", "imported_ical"].includes(
+        item.status
+      )
     );
     const blocked = active.filter((item) => item.status === "blocked");
-    const pending = active.filter((item) => item.status === "pending");
+    const pending = active.filter((item) =>
+      ["pending_direct", "pending"].includes(item.status)
+    );
+    const paid = active.filter((item) => item.paymentStatus === "paid");
 
     return {
       active: active.length,
       confirmed: confirmed.length,
       blocked: blocked.length,
       pending: pending.length,
+      paid: paid.length,
     };
   }, [bookings]);
 
@@ -275,6 +612,21 @@ export default function Admin() {
     setMessage("");
     setError("");
     setSyncResult(null);
+  }
+
+  async function getOccupiedNights(nights) {
+    const snapshots = await Promise.all(
+      nights.map((night) => getDoc(doc(db, "nights", `${selectedUnitId}_${night}`)))
+    );
+
+    return snapshots
+      .filter((snapshot) => {
+        if (!snapshot.exists()) return false;
+        const data = snapshot.data();
+        return data?.status !== "cancelled";
+      })
+      .map((snapshot) => snapshot.data()?.date)
+      .filter(Boolean);
   }
 
   async function saveSettings(options = {}) {
@@ -291,16 +643,18 @@ export default function Admin() {
         maxGuests: Number(settings.maxGuests || defaultSettings.maxGuests),
         wifiName: settings.wifiName || "",
         wifiPassword: settings.wifiPassword || "",
-        unitId: UNIT_ID,
-        unitName: UNIT_NAME,
+        unitId: selectedUnitId,
+        unitName: selectedUnit.name,
         updatedAt: serverTimestamp(),
       });
 
       batch.set(doc(db, "privateSettings", "pms"), {
         bookingIcalUrl: settings.bookingIcalUrl || "",
         airbnbIcalUrl: settings.airbnbIcalUrl || "",
-        unitId: UNIT_ID,
-        unitName: UNIT_NAME,
+        welcomateUrl: settings.welcomateUrl || "",
+        notificationEmail: settings.notificationEmail || "info@gelone.it",
+        unitId: selectedUnitId,
+        unitName: selectedUnit.name,
         updatedAt: serverTimestamp(),
       });
 
@@ -312,6 +666,7 @@ export default function Admin() {
 
       return true;
     } catch (err) {
+      console.error(err);
       if (!options.silent) {
         setError("Errore durante il salvataggio delle impostazioni.");
       }
@@ -339,24 +694,26 @@ export default function Admin() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ unitId: UNIT_ID }),
+        body: JSON.stringify({ unitId: selectedUnitId }),
       });
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok || !data?.ok) {
         setError(
-          data?.message ||
-            "Errore durante la sincronizzazione dei calendari esterni."
+          data?.message || "Errore durante la sincronizzazione dei calendari esterni."
         );
         return;
       }
 
       setSyncResult(data);
+
+      const totals = data.totals || {};
       setMessage(
-        `Sincronizzazione completata: ${data.totals.imported} eventi importati, ${data.totals.skippedDuplicate} duplicati evitati, ${data.totals.skippedConflict} conflitti protetti.`
+        `Sincronizzazione completata: ${totals.imported || data.importedBookings || 0} eventi importati, ${totals.skippedDuplicate || 0} duplicati evitati, ${totals.skippedConflict || data.skippedNights || 0} conflitti protetti.`
       );
     } catch (err) {
+      console.error(err);
       setError("Errore tecnico durante la sincronizzazione calendari.");
     } finally {
       setSyncLoading(false);
@@ -380,26 +737,18 @@ export default function Admin() {
     const nights = getNightDates(newBooking.checkIn, newBooking.checkOut);
 
     try {
-      const nightsSnapshot = await getDocs(
-        query(
-          collection(db, "nights"),
-          where("unitId", "==", UNIT_ID),
-          where("date", "in", nights.slice(0, 30))
-        )
-      );
-
-      const occupied = nightsSnapshot.docs
-        .map((item) => item.data())
-        .filter((item) => item.status !== "cancelled");
+      const occupied = await getOccupiedNights(nights);
 
       if (occupied.length > 0) {
-        setError("Almeno una notte risulta giÃ  occupata. Controlla il calendario.");
+        setError(
+          `Almeno una notte risulta già occupata: ${occupied.map(formatDate).join(", ")}.`
+        );
         return;
       }
 
       const bookingRef = await addDoc(collection(db, "bookings"), {
-        unitId: UNIT_ID,
-        unitName: UNIT_NAME,
+        unitId: selectedUnitId,
+        unitName: selectedUnit.name,
         guestName: newBooking.guestName || "Prenotazione manuale",
         guestEmail: newBooking.guestEmail || "",
         guestPhone: newBooking.guestPhone || "",
@@ -408,8 +757,11 @@ export default function Admin() {
         guests: Number(newBooking.guests || 1),
         source: newBooking.source,
         status: newBooking.status,
-        totalPrice: newBooking.totalPrice ? Number(newBooking.totalPrice) : null,
+        totalPrice: cleanMoneyValue(newBooking.totalPrice),
+        depositAmount: cleanMoneyValue(newBooking.depositAmount),
+        paymentStatus: newBooking.paymentStatus || "unpaid",
         notes: newBooking.notes || "",
+        internalNotes: "",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -417,8 +769,8 @@ export default function Admin() {
       const batch = writeBatch(db);
 
       nights.forEach((night) => {
-        batch.set(doc(db, "nights", `${UNIT_ID}_${night}`), {
-          unitId: UNIT_ID,
+        batch.set(doc(db, "nights", `${selectedUnitId}_${night}`), {
+          unitId: selectedUnitId,
           date: night,
           bookingId: bookingRef.id,
           status: newBooking.status,
@@ -441,11 +793,15 @@ export default function Admin() {
         source: "manual",
         status: "confirmed_direct",
         totalPrice: "",
+        depositAmount: "",
+        paymentStatus: "unpaid",
         notes: "",
       });
 
       setMessage("Prenotazione inserita e notti bloccate.");
+      setActiveTab("calendar");
     } catch (err) {
+      console.error(err);
       setError("Errore durante la creazione della prenotazione.");
     }
   }
@@ -467,9 +823,20 @@ export default function Admin() {
     const nights = getNightDates(blockForm.checkIn, blockForm.checkOut);
 
     try {
+      const occupied = await getOccupiedNights(nights);
+
+      if (occupied.length > 0) {
+        setError(
+          `Non posso bloccare: alcune notti risultano già occupate (${occupied
+            .map(formatDate)
+            .join(", ")}).`
+        );
+        return;
+      }
+
       const bookingRef = await addDoc(collection(db, "bookings"), {
-        unitId: UNIT_ID,
-        unitName: UNIT_NAME,
+        unitId: selectedUnitId,
+        unitName: selectedUnit.name,
         guestName: "Blocco manuale",
         guestEmail: "",
         guestPhone: "",
@@ -479,7 +846,10 @@ export default function Admin() {
         source: "manual",
         status: "blocked",
         totalPrice: null,
+        depositAmount: null,
+        paymentStatus: "unpaid",
         notes: blockForm.notes || "",
+        internalNotes: "",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -487,8 +857,8 @@ export default function Admin() {
       const batch = writeBatch(db);
 
       nights.forEach((night) => {
-        batch.set(doc(db, "nights", `${UNIT_ID}_${night}`), {
-          unitId: UNIT_ID,
+        batch.set(doc(db, "nights", `${selectedUnitId}_${night}`), {
+          unitId: selectedUnitId,
           date: night,
           bookingId: bookingRef.id,
           status: "blocked",
@@ -508,8 +878,46 @@ export default function Admin() {
       });
 
       setMessage("Date bloccate.");
+      setActiveTab("calendar");
     } catch (err) {
+      console.error(err);
       setError("Errore durante il blocco date.");
+    }
+  }
+
+  async function confirmBooking(booking) {
+    clearMessages();
+
+    try {
+      const batch = writeBatch(db);
+
+      batch.update(doc(db, "bookings", booking.id), {
+        status: "confirmed_direct",
+        confirmedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      getNightDates(booking.checkIn, booking.checkOut).forEach((night) => {
+        batch.set(
+          doc(db, "nights", `${booking.unitId || selectedUnitId}_${night}`),
+          {
+            unitId: booking.unitId || selectedUnitId,
+            date: night,
+            bookingId: booking.id,
+            status: "confirmed_direct",
+            source: booking.source || "manual",
+            guestName: booking.guestName || "Prenotazione confermata",
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      });
+
+      await batch.commit();
+      setMessage("Prenotazione confermata.");
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante la conferma della prenotazione.");
     }
   }
 
@@ -521,17 +929,19 @@ export default function Admin() {
 
       batch.update(doc(db, "bookings", booking.id), {
         status: "cancelled",
+        cancelledAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
       const nights = getNightDates(booking.checkIn, booking.checkOut);
       nights.forEach((night) => {
-        batch.delete(doc(db, "nights", `${UNIT_ID}_${night}`));
+        batch.delete(doc(db, "nights", `${booking.unitId || selectedUnitId}_${night}`));
       });
 
       await batch.commit();
       setMessage("Prenotazione annullata e notti liberate.");
     } catch (err) {
+      console.error(err);
       setError("Errore durante l'annullamento.");
     }
   }
@@ -544,15 +954,78 @@ export default function Admin() {
       const nights = getNightDates(booking.checkIn, booking.checkOut);
 
       nights.forEach((night) => {
-        batch.delete(doc(db, "nights", `${UNIT_ID}_${night}`));
+        batch.delete(doc(db, "nights", `${booking.unitId || selectedUnitId}_${night}`));
       });
 
       batch.delete(doc(db, "bookings", booking.id));
 
       await batch.commit();
+
+      if (selectedBookingId === booking.id) {
+        setSelectedBookingId("");
+      }
+
       setMessage("Prenotazione eliminata definitivamente.");
     } catch (err) {
+      console.error(err);
       setError("Errore durante l'eliminazione.");
+    }
+  }
+
+  async function saveBookingDetails(event) {
+    event.preventDefault();
+    clearMessages();
+
+    if (!selectedBooking) {
+      setError("Seleziona una prenotazione.");
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "bookings", selectedBooking.id), {
+        guestName: detailForm.guestName || "",
+        guestEmail: detailForm.guestEmail || "",
+        guestPhone: detailForm.guestPhone || "",
+        totalPrice: cleanMoneyValue(detailForm.totalPrice),
+        depositAmount: cleanMoneyValue(detailForm.depositAmount),
+        paymentStatus: detailForm.paymentStatus || "unpaid",
+        notes: detailForm.notes || "",
+        internalNotes: detailForm.internalNotes || "",
+        updatedAt: serverTimestamp(),
+      });
+
+      setMessage("Dettagli prenotazione aggiornati.");
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante il salvataggio dei dettagli.");
+    }
+  }
+
+  async function setPaymentStatus(booking, paymentStatus) {
+    clearMessages();
+
+    try {
+      await updateDoc(doc(db, "bookings", booking.id), {
+        paymentStatus,
+        updatedAt: serverTimestamp(),
+      });
+
+      setMessage(`Stato pagamento aggiornato: ${getPaymentLabel(paymentStatus)}.`);
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante l'aggiornamento del pagamento.");
+    }
+  }
+
+  async function copyText(text, successMessage) {
+    clearMessages();
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setMessage(successMessage);
+    } catch (err) {
+      console.error(err);
+      setError("Non riesco a copiare automaticamente. Copia manualmente il testo.");
     }
   }
 
@@ -574,7 +1047,7 @@ export default function Admin() {
         <div className="mx-auto max-w-xl rounded-[2rem] border border-red-200 bg-red-50 p-8 text-red-900">
           <h1 className="font-serif text-3xl">Accesso non autorizzato</h1>
           <p className="mt-3">
-            L'email collegata non Ã¨ autorizzata come amministratore.
+            L'email collegata non è autorizzata come amministratore.
           </p>
           <button
             onClick={() => signOut(auth)}
@@ -597,11 +1070,23 @@ export default function Admin() {
             </p>
             <h1 className="font-serif text-3xl">Gelone Lungomare</h1>
             <p className="text-sm text-[#555]">
-              Admin: {user.email} Â· UnitÃ : {UNIT_NAME}
+              Admin: {user.email} · Unità: {selectedUnit.name}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <select
+              value={selectedUnitId}
+              onChange={(event) => setSelectedUnitId(event.target.value)}
+              className="rounded-full border border-[#d7c49f] bg-white px-5 py-3 font-semibold text-[#0a1d35]"
+            >
+              {UNITS.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name}
+                </option>
+              ))}
+            </select>
+
             <a
               href="/"
               className="rounded-full border border-[#0a1d35] bg-white px-5 py-3 font-semibold text-[#0a1d35]"
@@ -620,54 +1105,27 @@ export default function Admin() {
       </header>
 
       <section className="mx-auto max-w-7xl px-5 py-8">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <StatCard title="Attive" value={stats.active} icon={CalendarDays} />
           <StatCard title="Confermate" value={stats.confirmed} icon={ShieldCheck} />
-          <StatCard title="Blocchi" value={stats.blocked} icon={Lock} />
           <StatCard title="Richieste" value={stats.pending} icon={RefreshCcw} />
+          <StatCard title="Blocchi" value={stats.blocked} icon={Lock} />
+          <StatCard title="Pagate" value={stats.paid} icon={CreditCard} />
         </div>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <button
-            onClick={() => setActiveTab("calendar")}
-            className={`rounded-full px-5 py-3 font-bold ${
-              activeTab === "calendar"
-                ? "bg-[#0a1d35] text-white"
-                : "bg-white text-[#0a1d35]"
-            }`}
-          >
+          <TabButton active={activeTab === "calendar"} onClick={() => setActiveTab("calendar")}>
             Prenotazioni
-          </button>
-          <button
-            onClick={() => setActiveTab("new")}
-            className={`rounded-full px-5 py-3 font-bold ${
-              activeTab === "new"
-                ? "bg-[#0a1d35] text-white"
-                : "bg-white text-[#0a1d35]"
-            }`}
-          >
+          </TabButton>
+          <TabButton active={activeTab === "new"} onClick={() => setActiveTab("new")}>
             Nuova prenotazione
-          </button>
-          <button
-            onClick={() => setActiveTab("block")}
-            className={`rounded-full px-5 py-3 font-bold ${
-              activeTab === "block"
-                ? "bg-[#0a1d35] text-white"
-                : "bg-white text-[#0a1d35]"
-            }`}
-          >
+          </TabButton>
+          <TabButton active={activeTab === "block"} onClick={() => setActiveTab("block")}>
             Blocca date
-          </button>
-          <button
-            onClick={() => setActiveTab("settings")}
-            className={`rounded-full px-5 py-3 font-bold ${
-              activeTab === "settings"
-                ? "bg-[#0a1d35] text-white"
-                : "bg-white text-[#0a1d35]"
-            }`}
-          >
+          </TabButton>
+          <TabButton active={activeTab === "settings"} onClick={() => setActiveTab("settings")}>
             Impostazioni
-          </button>
+          </TabButton>
         </div>
 
         {message && (
@@ -683,83 +1141,410 @@ export default function Admin() {
         )}
 
         {activeTab === "calendar" && (
-          <section className="mt-8 rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
-            <h2 className="font-serif text-3xl">Prenotazioni e blocchi</h2>
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h2 className="font-serif text-3xl">Prenotazioni e blocchi</h2>
+                  <p className="mt-2 text-[#555]">
+                    Gestisci richieste dal sito, conferme, pagamenti, WhatsApp e
+                    link WelcoMate.
+                  </p>
+                </div>
 
-            <div className="mt-6 overflow-x-auto">
-              <table className="w-full min-w-[900px] border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
-                    <th className="py-3">Arrivo</th>
-                    <th className="py-3">Partenza</th>
-                    <th className="py-3">Ospite</th>
-                    <th className="py-3">Telefono</th>
-                    <th className="py-3">Origine</th>
-                    <th className="py-3">Stato</th>
-                    <th className="py-3">Prezzo</th>
-                    <th className="py-3">Azioni</th>
-                  </tr>
-                </thead>
+                <div className="flex flex-wrap gap-3">
+                  <div className="relative">
+                    <Search
+                      size={18}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9b6b25]"
+                    />
+                    <input
+                      value={bookingSearch}
+                      onChange={(event) => setBookingSearch(event.target.value)}
+                      placeholder="Cerca ospite, telefono, data..."
+                      className="w-full min-w-[260px] rounded-full border border-[#d7c49f] bg-[#faf6ee] py-3 pl-11 pr-4 outline-none"
+                    />
+                  </div>
 
-                <tbody>
-                  {bookings.length === 0 && (
-                    <tr>
-                      <td colSpan="8" className="py-8 text-center text-[#555]">
-                        Nessuna prenotazione inserita.
-                      </td>
+                  <select
+                    value={statusFilter}
+                    onChange={(event) => setStatusFilter(event.target.value)}
+                    className="rounded-full border border-[#d7c49f] bg-[#faf6ee] px-4 py-3 font-semibold"
+                  >
+                    <option value="active">Solo attive</option>
+                    <option value="all">Tutte</option>
+                    {statusOptions.map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={sourceFilter}
+                    onChange={(event) => setSourceFilter(event.target.value)}
+                    className="rounded-full border border-[#d7c49f] bg-[#faf6ee] px-4 py-3 font-semibold"
+                  >
+                    <option value="all">Tutte le origini</option>
+                    {sourceOptions.map((source) => (
+                      <option key={source.value} value={source.value}>
+                        {source.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-6 overflow-x-auto">
+                <table className="w-full min-w-[1150px] border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                      <th className="py-3">Arrivo</th>
+                      <th className="py-3">Partenza</th>
+                      <th className="py-3">Notti</th>
+                      <th className="py-3">Ospite</th>
+                      <th className="py-3">Telefono</th>
+                      <th className="py-3">Origine</th>
+                      <th className="py-3">Stato</th>
+                      <th className="py-3">Pagamento</th>
+                      <th className="py-3">Prezzo</th>
+                      <th className="py-3">Azioni</th>
                     </tr>
-                  )}
+                  </thead>
 
-                  {bookings.map((booking) => (
-                    <tr key={booking.id} className="border-b border-[#f0e6d5]">
-                      <td className="py-4">{formatDate(booking.checkIn)}</td>
-                      <td className="py-4">{formatDate(booking.checkOut)}</td>
-                      <td className="py-4 font-semibold">
-                        {booking.guestName || "-"}
-                      </td>
-                      <td className="py-4">{booking.guestPhone || "-"}</td>
-                      <td className="py-4">{booking.source || "-"}</td>
-                      <td className="py-4">
-                        <span className="rounded-full bg-[#faf6ee] px-3 py-1 text-sm font-semibold">
-                          {booking.status || "-"}
-                        </span>
-                      </td>
-                      <td className="py-4">
-                        {booking.totalPrice ? `â‚¬ ${booking.totalPrice}` : "-"}
-                      </td>
-                      <td className="py-4">
-                        <div className="flex gap-2">
-                          {booking.status !== "cancelled" && (
-                            <button
-                              onClick={() => cancelBooking(booking)}
-                              className="rounded-full bg-[#f5c84b] px-4 py-2 text-sm font-bold text-[#0a1d35]"
-                            >
-                              Annulla
-                            </button>
-                          )}
-                          <button
-                            onClick={() => deleteBookingForever(booking)}
-                            className="rounded-full bg-red-900 px-4 py-2 text-sm font-bold text-white"
-                          >
-                            Elimina
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                  <tbody>
+                    {filteredBookings.length === 0 && (
+                      <tr>
+                        <td colSpan="10" className="py-8 text-center text-[#555]">
+                          Nessuna prenotazione trovata.
+                        </td>
+                      </tr>
+                    )}
+
+                    {filteredBookings.map((booking) => {
+                      const whatsappNumber = normalizePhoneForWhatsApp(
+                        booking.guestPhone
+                      );
+                      const isPending = ["pending_direct", "pending"].includes(
+                        booking.status
+                      );
+
+                      return (
+                        <tr key={booking.id} className="border-b border-[#f0e6d5]">
+                          <td className="py-4">{formatDate(booking.checkIn)}</td>
+                          <td className="py-4">{formatDate(booking.checkOut)}</td>
+                          <td className="py-4">
+                            {getNightsCount(booking.checkIn, booking.checkOut)}
+                          </td>
+                          <td className="py-4 font-semibold">
+                            {booking.guestName || "-"}
+                          </td>
+                          <td className="py-4">{booking.guestPhone || "-"}</td>
+                          <td className="py-4">{getSourceLabel(booking.source)}</td>
+                          <td className="py-4">
+                            <Pill className={getStatusClass(booking.status)}>
+                              {getStatusLabel(booking.status)}
+                            </Pill>
+                          </td>
+                          <td className="py-4">
+                            {getPaymentLabel(booking.paymentStatus)}
+                          </td>
+                          <td className="py-4">{formatEuro(booking.totalPrice)}</td>
+                          <td className="py-4">
+                            <div className="flex flex-wrap gap-2">
+                              <SmallButton
+                                onClick={() => {
+                                  setSelectedBookingId(booking.id);
+                                  setActiveTab("calendar");
+                                }}
+                                className="bg-[#0a1d35] text-white"
+                              >
+                                Dettagli
+                              </SmallButton>
+
+                              {isPending && (
+                                <SmallButton
+                                  onClick={() => confirmBooking(booking)}
+                                  className="bg-green-700 text-white"
+                                >
+                                  Conferma
+                                </SmallButton>
+                              )}
+
+                              {whatsappNumber && (
+                                <a
+                                  href={`https://wa.me/${whatsappNumber}?text=${buildWhatsAppMessage(
+                                    booking,
+                                    settings
+                                  )}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white"
+                                >
+                                  WhatsApp
+                                </a>
+                              )}
+
+                              {booking.status !== "cancelled" && (
+                                <SmallButton
+                                  onClick={() => cancelBooking(booking)}
+                                  className="bg-[#f5c84b] text-[#0a1d35]"
+                                >
+                                  Annulla
+                                </SmallButton>
+                              )}
+
+                              <SmallButton
+                                onClick={() => deleteBookingForever(booking)}
+                                className="bg-red-900 text-white"
+                              >
+                                Elimina
+                              </SmallButton>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
+
+            {selectedBooking && (
+              <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                      Dettaglio prenotazione
+                    </p>
+                    <h3 className="mt-2 font-serif text-3xl">
+                      {selectedBooking.guestName || "Prenotazione"}
+                    </h3>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Pill className={getStatusClass(selectedBooking.status)}>
+                        {getStatusLabel(selectedBooking.status)}
+                      </Pill>
+                      <Pill className="border-[#e4d8c2] bg-[#faf6ee] text-[#0a1d35]">
+                        {getSourceLabel(selectedBooking.source)}
+                      </Pill>
+                      <Pill className="border-[#e4d8c2] bg-[#faf6ee] text-[#0a1d35]">
+                        {getPaymentLabel(selectedBooking.paymentStatus)}
+                      </Pill>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedBookingId("")}
+                    className="rounded-full border border-[#0a1d35] px-5 py-3 font-bold"
+                  >
+                    Chiudi dettagli
+                  </button>
+                </div>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-4">
+                  <DetailRow label="Arrivo" value={formatDate(selectedBooking.checkIn)} />
+                  <DetailRow label="Partenza" value={formatDate(selectedBooking.checkOut)} />
+                  <DetailRow
+                    label="Notti"
+                    value={getNightsCount(selectedBooking.checkIn, selectedBooking.checkOut)}
+                  />
+                  <DetailRow label="Ospiti" value={selectedBooking.guests ?? "-"} />
+                  <DetailRow label="Email" value={selectedBooking.guestEmail || "-"} />
+                  <DetailRow label="Telefono" value={selectedBooking.guestPhone || "-"} />
+                  <DetailRow label="Creata" value={formatDateTime(selectedBooking.createdAt)} />
+                  <DetailRow label="Aggiornata" value={formatDateTime(selectedBooking.updatedAt)} />
+                </div>
+
+                <form
+                  onSubmit={saveBookingDetails}
+                  className="mt-6 grid gap-4 md:grid-cols-2"
+                >
+                  <FormField label="Nome ospite">
+                    <input
+                      value={detailForm.guestName}
+                      onChange={(event) =>
+                        setDetailForm({ ...detailForm, guestName: event.target.value })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    />
+                  </FormField>
+
+                  <FormField label="Telefono">
+                    <input
+                      value={detailForm.guestPhone}
+                      onChange={(event) =>
+                        setDetailForm({ ...detailForm, guestPhone: event.target.value })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    />
+                  </FormField>
+
+                  <FormField label="Email">
+                    <input
+                      type="email"
+                      value={detailForm.guestEmail}
+                      onChange={(event) =>
+                        setDetailForm({ ...detailForm, guestEmail: event.target.value })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    />
+                  </FormField>
+
+                  <FormField label="Stato pagamento">
+                    <select
+                      value={detailForm.paymentStatus}
+                      onChange={(event) =>
+                        setDetailForm({
+                          ...detailForm,
+                          paymentStatus: event.target.value,
+                        })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    >
+                      {paymentOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+
+                  <FormField label="Prezzo totale">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={detailForm.totalPrice}
+                      onChange={(event) =>
+                        setDetailForm({ ...detailForm, totalPrice: event.target.value })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    />
+                  </FormField>
+
+                  <FormField label="Caparra">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={detailForm.depositAmount}
+                      onChange={(event) =>
+                        setDetailForm({
+                          ...detailForm,
+                          depositAmount: event.target.value,
+                        })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    />
+                  </FormField>
+
+                  <FormField label="Note ospite">
+                    <textarea
+                      value={detailForm.notes}
+                      onChange={(event) =>
+                        setDetailForm({ ...detailForm, notes: event.target.value })
+                      }
+                      className="min-h-28 w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    />
+                  </FormField>
+
+                  <FormField label="Note interne">
+                    <textarea
+                      value={detailForm.internalNotes}
+                      onChange={(event) =>
+                        setDetailForm({
+                          ...detailForm,
+                          internalNotes: event.target.value,
+                        })
+                      }
+                      className="min-h-28 w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    />
+                  </FormField>
+
+                  <div className="flex flex-wrap gap-3 md:col-span-2">
+                    <button
+                      type="submit"
+                      className="inline-flex items-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white"
+                    >
+                      <Save size={18} />
+                      Salva dettagli
+                    </button>
+
+                    {["pending_direct", "pending"].includes(selectedBooking.status) && (
+                      <SmallButton
+                        onClick={() => confirmBooking(selectedBooking)}
+                        className="bg-green-700 px-6 py-4 text-white"
+                      >
+                        Conferma richiesta
+                      </SmallButton>
+                    )}
+
+                    <SmallButton
+                      onClick={() => setPaymentStatus(selectedBooking, "deposit_paid")}
+                      className="bg-[#f5c84b] px-6 py-4 text-[#0a1d35]"
+                    >
+                      Caparra pagata
+                    </SmallButton>
+
+                    <SmallButton
+                      onClick={() => setPaymentStatus(selectedBooking, "paid")}
+                      className="bg-green-700 px-6 py-4 text-white"
+                    >
+                      Pagato
+                    </SmallButton>
+
+                    <SmallButton
+                      onClick={() =>
+                        copyText(
+                          buildWelcomateText(selectedBooking, settings),
+                          "Testo WelcoMate copiato. Incollalo su WhatsApp o email."
+                        )
+                      }
+                      className="bg-[#9b6b25] px-6 py-4 text-white"
+                    >
+                      Copia WelcoMate
+                    </SmallButton>
+
+                    {selectedBooking.guestPhone && (
+                      <a
+                        href={`https://wa.me/${normalizePhoneForWhatsApp(
+                          selectedBooking.guestPhone
+                        )}?text=${buildWhatsAppMessage(selectedBooking, settings)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-full bg-green-600 px-6 py-4 font-bold text-white"
+                      >
+                        <MessageCircle size={18} />
+                        Apri WhatsApp
+                      </a>
+                    )}
+
+                    {selectedBooking.guestEmail && (
+                      <a
+                        href={`mailto:${selectedBooking.guestEmail}?subject=Gelone Lungomare - richiesta prenotazione&body=${encodeURIComponent(
+                          buildWelcomateText(selectedBooking, settings)
+                        )}`}
+                        className="inline-flex items-center gap-2 rounded-full border border-[#0a1d35] px-6 py-4 font-bold text-[#0a1d35]"
+                      >
+                        <Mail size={18} />
+                        Email ospite
+                      </a>
+                    )}
+                  </div>
+                </form>
+              </div>
+            )}
           </section>
         )}
 
         {activeTab === "new" && (
           <section className="mt-8 rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
             <h2 className="font-serif text-3xl">Nuova prenotazione</h2>
+            <p className="mt-2 text-[#555]">
+              Inserisci manualmente una prenotazione già confermata, oppure una
+              richiesta ricevuta fuori dal sito.
+            </p>
 
             <form onSubmit={createBooking} className="mt-6 grid gap-4 md:grid-cols-2">
-              <label>
-                <span className="mb-2 block text-sm font-semibold">Nome ospite</span>
+              <FormField label="Nome ospite">
                 <input
                   value={newBooking.guestName}
                   onChange={(event) =>
@@ -767,10 +1552,9 @@ export default function Admin() {
                   }
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 />
-              </label>
+              </FormField>
 
-              <label>
-                <span className="mb-2 block text-sm font-semibold">Telefono</span>
+              <FormField label="Telefono">
                 <input
                   value={newBooking.guestPhone}
                   onChange={(event) =>
@@ -778,10 +1562,9 @@ export default function Admin() {
                   }
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 />
-              </label>
+              </FormField>
 
-              <label>
-                <span className="mb-2 block text-sm font-semibold">Email</span>
+              <FormField label="Email">
                 <input
                   type="email"
                   value={newBooking.guestEmail}
@@ -790,24 +1573,22 @@ export default function Admin() {
                   }
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 />
-              </label>
+              </FormField>
 
-              <label>
-                <span className="mb-2 block text-sm font-semibold">Ospiti</span>
+              <FormField label="Ospiti">
                 <input
                   type="number"
                   min="1"
-                  max="2"
+                  max={selectedUnit.maxGuests}
                   value={newBooking.guests}
                   onChange={(event) =>
                     setNewBooking({ ...newBooking, guests: event.target.value })
                   }
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 />
-              </label>
+              </FormField>
 
-              <label>
-                <span className="mb-2 block text-sm font-semibold">Arrivo</span>
+              <FormField label="Arrivo">
                 <input
                   type="date"
                   value={newBooking.checkIn}
@@ -816,10 +1597,9 @@ export default function Admin() {
                   }
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 />
-              </label>
+              </FormField>
 
-              <label>
-                <span className="mb-2 block text-sm font-semibold">Partenza</span>
+              <FormField label="Partenza">
                 <input
                   type="date"
                   value={newBooking.checkOut}
@@ -828,10 +1608,9 @@ export default function Admin() {
                   }
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 />
-              </label>
+              </FormField>
 
-              <label>
-                <span className="mb-2 block text-sm font-semibold">Origine</span>
+              <FormField label="Origine">
                 <select
                   value={newBooking.source}
                   onChange={(event) =>
@@ -839,15 +1618,15 @@ export default function Admin() {
                   }
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 >
-                  <option value="manual">Manuale</option>
-                  <option value="direct_site">Sito</option>
-                  <option value="booking">Booking</option>
-                  <option value="airbnb">Airbnb</option>
+                  {sourceOptions.map((source) => (
+                    <option key={source.value} value={source.value}>
+                      {source.label}
+                    </option>
+                  ))}
                 </select>
-              </label>
+              </FormField>
 
-              <label>
-                <span className="mb-2 block text-sm font-semibold">Stato</span>
+              <FormField label="Stato">
                 <select
                   value={newBooking.status}
                   onChange={(event) =>
@@ -855,24 +1634,61 @@ export default function Admin() {
                   }
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 >
-                  <option value="confirmed_direct">Confermata diretta</option>
-                  <option value="pending">Richiesta</option>
-                  <option value="booking">Booking</option>
-                  <option value="blocked">Bloccata</option>
+                  {statusOptions
+                    .filter((status) => status.value !== "cancelled")
+                    .map((status) => (
+                      <option key={status.value} value={status.value}>
+                        {status.label}
+                      </option>
+                    ))}
                 </select>
-              </label>
+              </FormField>
 
-              <label>
-                <span className="mb-2 block text-sm font-semibold">Prezzo totale</span>
+              <FormField label="Prezzo totale">
                 <input
                   type="number"
+                  step="0.01"
                   value={newBooking.totalPrice}
                   onChange={(event) =>
                     setNewBooking({ ...newBooking, totalPrice: event.target.value })
                   }
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 />
-              </label>
+              </FormField>
+
+              <FormField label="Caparra">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newBooking.depositAmount}
+                  onChange={(event) =>
+                    setNewBooking({
+                      ...newBooking,
+                      depositAmount: event.target.value,
+                    })
+                  }
+                  className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                />
+              </FormField>
+
+              <FormField label="Stato pagamento">
+                <select
+                  value={newBooking.paymentStatus}
+                  onChange={(event) =>
+                    setNewBooking({
+                      ...newBooking,
+                      paymentStatus: event.target.value,
+                    })
+                  }
+                  className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                >
+                  {paymentOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
 
               <label className="md:col-span-2">
                 <span className="mb-2 block text-sm font-semibold">Note</span>
@@ -888,7 +1704,7 @@ export default function Admin() {
               <div className="md:col-span-2">
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 rounded-full bg-[#0a1d35] px-7 py-4 font-bold text-white"
+                  className="inline-flex items-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white"
                 >
                   <Plus size={18} />
                   Inserisci prenotazione
@@ -901,10 +1717,13 @@ export default function Admin() {
         {activeTab === "block" && (
           <section className="mt-8 rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
             <h2 className="font-serif text-3xl">Blocca date</h2>
+            <p className="mt-2 text-[#555]">
+              Usa questa funzione per manutenzioni, uso personale o periodi non
+              vendibili. Il blocco protegge le notti anche sul sito pubblico.
+            </p>
 
             <form onSubmit={createBlock} className="mt-6 grid gap-4 md:grid-cols-2">
-              <label>
-                <span className="mb-2 block text-sm font-semibold">Data inizio</span>
+              <FormField label="Inizio blocco">
                 <input
                   type="date"
                   value={blockForm.checkIn}
@@ -913,10 +1732,9 @@ export default function Admin() {
                   }
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 />
-              </label>
+              </FormField>
 
-              <label>
-                <span className="mb-2 block text-sm font-semibold">Data fine</span>
+              <FormField label="Fine blocco">
                 <input
                   type="date"
                   value={blockForm.checkOut}
@@ -925,10 +1743,10 @@ export default function Admin() {
                   }
                   className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                 />
-              </label>
+              </FormField>
 
               <label className="md:col-span-2">
-                <span className="mb-2 block text-sm font-semibold">Note blocco</span>
+                <span className="mb-2 block text-sm font-semibold">Motivo / note</span>
                 <textarea
                   value={blockForm.notes}
                   onChange={(event) =>
@@ -941,7 +1759,7 @@ export default function Admin() {
               <div className="md:col-span-2">
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 rounded-full bg-[#0a1d35] px-7 py-4 font-bold text-white"
+                  className="inline-flex items-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white"
                 >
                   <Lock size={18} />
                   Blocca date
@@ -952,199 +1770,209 @@ export default function Admin() {
         )}
 
         {activeTab === "settings" && (
-          <section className="mt-8 rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
-            <h2 className="font-serif text-3xl">Impostazioni PMS</h2>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <label>
-                <span className="mb-2 block text-sm font-semibold">
-                  Check-in standard
-                </span>
-                <input
-                  type="time"
-                  value={settings.checkInTime}
-                  onChange={(event) =>
-                    setSettings({ ...settings, checkInTime: event.target.value })
-                  }
-                  className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
-                />
-              </label>
-
-              <label>
-                <span className="mb-2 block text-sm font-semibold">
-                  Check-out standard
-                </span>
-                <input
-                  type="time"
-                  value={settings.checkOutTime}
-                  onChange={(event) =>
-                    setSettings({ ...settings, checkOutTime: event.target.value })
-                  }
-                  className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
-                />
-              </label>
-
-              <label>
-                <span className="mb-2 block text-sm font-semibold">
-                  Ospiti massimi
-                </span>
-                <input
-                  type="number"
-                  min="1"
-                  max="2"
-                  value={settings.maxGuests}
-                  onChange={(event) =>
-                    setSettings({ ...settings, maxGuests: Number(event.target.value) })
-                  }
-                  className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
-                />
-              </label>
-
-              <label>
-                <span className="mb-2 block text-sm font-semibold">
-                  Nome rete Wi-Fi
-                </span>
-                <input
-                  value={settings.wifiName}
-                  onChange={(event) =>
-                    setSettings({ ...settings, wifiName: event.target.value })
-                  }
-                  className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
-                />
-              </label>
-
-              <label>
-                <span className="mb-2 block text-sm font-semibold">
-                  Password Wi-Fi
-                </span>
-                <input
-                  value={settings.wifiPassword}
-                  onChange={(event) =>
-                    setSettings({ ...settings, wifiPassword: event.target.value })
-                  }
-                  className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
-                />
-              </label>
-
-              <label className="md:col-span-2">
-                <span className="mb-2 block text-sm font-semibold">
-                  Link calendario Booking iCal in entrata
-                </span>
-                <input
-                  value={settings.bookingIcalUrl}
-                  onChange={(event) =>
-                    setSettings({
-                      ...settings,
-                      bookingIcalUrl: event.target.value,
-                    })
-                  }
-                  placeholder="Incolla qui il link iCal esportato da Booking"
-                  className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
-                />
-              </label>
-
-              <label className="md:col-span-2">
-                <span className="mb-2 block text-sm font-semibold">
-                  Link calendario Airbnb iCal in entrata
-                </span>
-                <input
-                  value={settings.airbnbIcalUrl}
-                  onChange={(event) =>
-                    setSettings({
-                      ...settings,
-                      airbnbIcalUrl: event.target.value,
-                    })
-                  }
-                  placeholder="Incolla qui il link iCal esportato da Airbnb"
-                  className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
-                />
-              </label>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                onClick={() => saveSettings()}
-                className="inline-flex items-center gap-2 rounded-full bg-[#0a1d35] px-7 py-4 font-bold text-white"
-              >
-                <Save size={18} />
-                Salva impostazioni
-              </button>
-
-              <button
-                onClick={syncCalendars}
-                disabled={syncLoading}
-                className="inline-flex items-center gap-2 rounded-full bg-[#9b6b25] px-7 py-4 font-bold text-white disabled:opacity-60"
-              >
-                <RefreshCcw size={18} className={syncLoading ? "animate-spin" : ""} />
-                {syncLoading ? "Sincronizzazione..." : "Sincronizza calendari"}
-              </button>
-            </div>
-
-            <div className="mt-6 rounded-2xl border border-[#e4d8c2] bg-[#faf6ee] p-5">
-              <RefreshCcw className="text-[#9b6b25]" size={28} />
-              <p className="mt-3 font-semibold">Import automatico Booking/Airbnb â†’ PMS</p>
-              <p className="mt-2 leading-7 text-[#555]">
-                I link iCal esterni vengono salvati in un documento privato admin,
-                poi l'API importa solo le notti occupate esterne senza cancellare
-                prenotazioni manuali o richieste arrivate dal sito.
-              </p>
-            </div>
-
-            {syncResult && (
-              <div className="mt-6 rounded-2xl border border-[#e4d8c2] bg-white p-5">
-                <h3 className="font-serif text-2xl">Ultima sincronizzazione</h3>
-                <div className="mt-4 grid gap-3 md:grid-cols-4">
-                  <div className="rounded-2xl bg-[#faf6ee] p-4">
-                    <p className="text-sm text-[#555]">Importati</p>
-                    <p className="text-2xl font-bold">{syncResult.totals.imported}</p>
-                  </div>
-                  <div className="rounded-2xl bg-[#faf6ee] p-4">
-                    <p className="text-sm text-[#555]">Creati</p>
-                    <p className="text-2xl font-bold">{syncResult.totals.created}</p>
-                  </div>
-                  <div className="rounded-2xl bg-[#faf6ee] p-4">
-                    <p className="text-sm text-[#555]">Aggiornati</p>
-                    <p className="text-2xl font-bold">{syncResult.totals.updated}</p>
-                  </div>
-                  <div className="rounded-2xl bg-[#faf6ee] p-4">
-                    <p className="text-sm text-[#555]">Duplicati evitati</p>
-                    <p className="text-2xl font-bold">
-                      {syncResult.totals.skippedDuplicate}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  {syncResult.results.map((item) => (
-                    <div key={item.source} className="rounded-2xl bg-[#faf6ee] p-4">
-                      <p className="font-bold">{item.label}</p>
-                      <p className="mt-2 text-sm leading-6 text-[#555]">
-                        Configurato: {item.configured ? "sÃ¬" : "no"} Â· Importati: {item.imported} Â·
-                        Creati: {item.created} Â· Aggiornati: {item.updated} Â· Duplicati evitati: {item.skippedDuplicate} Â·
-                        Conflitti protetti: {item.skippedConflict} Â· Vecchi rimossi: {item.staleCancelled}
-                      </p>
-                      {item.errors.length > 0 && (
-                        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">
-                          {item.errors.map((syncError, index) => (
-                            <p key={`${item.source}_${index}`}>
-                              {syncError.checkIn} â†’ {syncError.checkOut}: {syncError.message}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+          <section className="mt-8 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <Building2 className="text-[#9b6b25]" />
+                <h2 className="font-serif text-3xl">Unità abitativa</h2>
               </div>
-            )}
 
-            <div className="mt-6 rounded-2xl bg-[#faf6ee] p-5">
-              <Wifi className="text-[#9b6b25]" size={28} />
-              <p className="mt-3 font-semibold">Pagina QR ospiti</p>
+              <div className="mt-6 grid gap-4">
+                <DetailRow label="Unità attuale" value={selectedUnit.name} />
+                <DetailRow label="ID tecnico" value={selectedUnit.id} />
+                <p className="rounded-2xl bg-[#faf6ee] p-4 text-sm leading-7 text-[#555]">
+                  La struttura è già preparata con <strong>unitId</strong>. In
+                  futuro potremo aggiungere altre unità senza rifare il PMS da
+                  zero.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <Wifi className="text-[#9b6b25]" />
+                <h2 className="font-serif text-3xl">Impostazioni ospiti</h2>
+              </div>
+
+              <form onSubmit={(event) => {
+                event.preventDefault();
+                saveSettings();
+              }} className="mt-6 grid gap-4">
+                <FormField label="Orario check-in">
+                  <input
+                    type="time"
+                    value={settings.checkInTime}
+                    onChange={(event) =>
+                      setSettings({ ...settings, checkInTime: event.target.value })
+                    }
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Orario check-out">
+                  <input
+                    type="time"
+                    value={settings.checkOutTime}
+                    onChange={(event) =>
+                      setSettings({ ...settings, checkOutTime: event.target.value })
+                    }
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Numero massimo ospiti">
+                  <input
+                    type="number"
+                    min="1"
+                    value={settings.maxGuests}
+                    onChange={(event) =>
+                      setSettings({ ...settings, maxGuests: event.target.value })
+                    }
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Nome Wi-Fi">
+                  <input
+                    value={settings.wifiName}
+                    onChange={(event) =>
+                      setSettings({ ...settings, wifiName: event.target.value })
+                    }
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Password Wi-Fi">
+                  <input
+                    value={settings.wifiPassword}
+                    onChange={(event) =>
+                      setSettings({ ...settings, wifiPassword: event.target.value })
+                    }
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Email notifiche">
+                  <input
+                    value={settings.notificationEmail}
+                    onChange={(event) =>
+                      setSettings({
+                        ...settings,
+                        notificationEmail: event.target.value,
+                      })
+                    }
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white"
+                >
+                  <Save size={18} />
+                  Salva impostazioni
+                </button>
+              </form>
+            </div>
+
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm lg:col-span-2">
+              <h2 className="font-serif text-3xl">Sincronizzazione calendari</h2>
               <p className="mt-2 leading-7 text-[#555]">
-                Nel prossimo step colleghiamo queste impostazioni alla pagina QR
-                ospiti, cosÃ¬ Wi-Fi e regole saranno modificabili da admin.
+                Inserisci i link iCal di Booking e Airbnb. Il calendario del sito
+                Gelone esporta automaticamente le date occupate verso i portali.
               </p>
+
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                <FormField label="iCal Booking">
+                  <input
+                    value={settings.bookingIcalUrl}
+                    onChange={(event) =>
+                      setSettings({
+                        ...settings,
+                        bookingIcalUrl: event.target.value,
+                      })
+                    }
+                    placeholder="https://ical.booking.com/..."
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="iCal Airbnb">
+                  <input
+                    value={settings.airbnbIcalUrl}
+                    onChange={(event) =>
+                      setSettings({
+                        ...settings,
+                        airbnbIcalUrl: event.target.value,
+                      })
+                    }
+                    placeholder="https://www.airbnb.it/calendar/ical/..."
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Link WelcoMate sito diretto">
+                  <input
+                    value={settings.welcomateUrl}
+                    onChange={(event) =>
+                      setSettings({
+                        ...settings,
+                        welcomateUrl: event.target.value,
+                      })
+                    }
+                    className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                  />
+                </FormField>
+
+                <FormField label="Calendario iCal del sito Gelone">
+                  <div className="flex gap-3">
+                    <input
+                      readOnly
+                      value={`https://www.gelone.it/api/ical/${selectedUnitId}.ics`}
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyText(
+                          `https://www.gelone.it/api/ical/${selectedUnitId}.ics`,
+                          "Link calendario iCal copiato."
+                        )
+                      }
+                      className="rounded-2xl bg-[#0a1d35] px-5 font-bold text-white"
+                    >
+                      <Copy size={18} />
+                    </button>
+                  </div>
+                </FormField>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={saveSettings}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white"
+                >
+                  <Save size={18} />
+                  Salva link
+                </button>
+
+                <button
+                  type="button"
+                  onClick={syncCalendars}
+                  disabled={syncLoading}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#9b6b25] px-6 py-4 font-bold text-white disabled:opacity-60"
+                >
+                  <RefreshCcw size={18} />
+                  {syncLoading ? "Sincronizzazione..." : "Sincronizza ora"}
+                </button>
+              </div>
+
+              {syncResult && (
+                <pre className="mt-6 overflow-auto rounded-2xl bg-[#0a1d35] p-4 text-sm text-white">
+                  {JSON.stringify(syncResult, null, 2)}
+                </pre>
+              )}
             </div>
           </section>
         )}
