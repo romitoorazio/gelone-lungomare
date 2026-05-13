@@ -278,7 +278,7 @@ export default function App() {
             <div className="hero-content">
               <h1>Vista mare, terrazza e comfort a due passi dal lungomare di Gela</h1>
               <div className="ornament" />
-              <p>Appartamento accogliente e riservato con ampia terrazza vista mare, ideale per coppie e viaggiatori di relax in Sicilia.</p>
+              <p>Appartamento accogliente e riservato con ampia terrazza vista mare, ideale per coppie e soggiorni di relax in Sicilia.</p>
             </div>
           </div>
 
@@ -474,7 +474,7 @@ button { cursor: pointer; }
 .legal-line span { color: var(--gelone-gold); padding: 0 16px; }
 .hero-photo {
   position: relative;
-  height: 355px;
+  height: 365px;
   overflow: hidden;
   background: #e9dfcf;
 }
@@ -486,36 +486,38 @@ button { cursor: pointer; }
   filter: saturate(1.06) contrast(1.02) brightness(1.08);
 }
 .hero-terrace {
-  left: 48%;
-  background-image: linear-gradient(90deg, rgba(251,247,238,0) 0%, rgba(251,247,238,.05) 10%, rgba(0,0,0,0) 24%), url("/images/terrazza-gelone.jpg");
+  left: 52%;
+  background-image: linear-gradient(90deg, rgba(251,247,238,0) 0%, rgba(251,247,238,.03) 12%, rgba(0,0,0,0) 28%), url("/images/terrazza-gelone.jpg");
   background-size: cover;
   background-position: center center;
-  opacity: .93;
-  -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.68) 17%, rgba(0,0,0,1) 40%);
-  mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.68) 17%, rgba(0,0,0,1) 40%);
+  opacity: .95;
+  -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 13%, rgba(0,0,0,1) 36%);
+  mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 13%, rgba(0,0,0,1) 36%);
 }
 .hero-soft-left {
-  background: linear-gradient(90deg, rgba(251,247,238,.98) 0%, rgba(251,247,238,.93) 29%, rgba(251,247,238,.45) 45%, rgba(251,247,238,0) 62%);
+  background: linear-gradient(90deg, rgba(251,247,238,.56) 0%, rgba(251,247,238,.44) 24%, rgba(251,247,238,.16) 43%, rgba(251,247,238,0) 62%);
+  backdrop-filter: blur(1px);
 }
 .hero-content {
   position: relative;
   z-index: 2;
-  width: 435px;
-  padding: 65px 0 0 48px;
+  width: 430px;
+  padding: 68px 0 0 48px;
 }
 .hero-content h1 {
   margin: 0;
-  max-width: 380px;
-  font-size: clamp(34px, 4.4vw, 44px);
-  line-height: 1.18;
+  max-width: 365px;
+  font-size: clamp(28px, 3.45vw, 36px);
+  line-height: 1.2;
   letter-spacing: .045em;
   font-weight: 500;
+  text-shadow: 0 2px 18px rgba(251,247,238,.9);
 }
 .ornament {
   width: 165px;
   height: 1px;
   background: var(--gelone-soft-gold);
-  margin: 24px 0 20px;
+  margin: 18px 0 16px;
   position: relative;
 }
 .ornament::after {
@@ -531,14 +533,15 @@ button { cursor: pointer; }
 .ornament.center { margin: 10px auto 18px; width: 95px; }
 .hero-content p {
   margin: 0;
-  max-width: 350px;
-  font-size: 15px;
-  line-height: 1.65;
+  max-width: 340px;
+  font-size: 14px;
+  line-height: 1.55;
+  text-shadow: 0 2px 14px rgba(251,247,238,.95);
   font-family: Georgia, serif;
 }
 .portal-row {
   width: calc(100% - 120px);
-  margin: -45px auto 0;
+  margin: -50px auto 0;
   position: relative;
   z-index: 6;
   display: grid;
@@ -752,9 +755,9 @@ textarea { resize: vertical; min-height: 76px; }
   .legal-line { position: relative; left: auto; top: auto; padding: 8px 18px; text-align: center; }
   .hero-photo { height: 430px; }
   .hero-terrace { left: 35%; }
-  .hero-soft-left { background: linear-gradient(180deg, rgba(251,247,238,.98) 0%, rgba(251,247,238,.90) 46%, rgba(251,247,238,.1) 72%, rgba(251,247,238,0) 100%); }
+  .hero-soft-left { background: linear-gradient(180deg, rgba(251,247,238,.72) 0%, rgba(251,247,238,.48) 46%, rgba(251,247,238,.1) 72%, rgba(251,247,238,0) 100%); }
   .hero-content { width: auto; padding: 38px 28px 0; }
-  .hero-content h1 { max-width: 420px; font-size: 33px; }
+  .hero-content h1 { max-width: 390px; font-size: 30px; }
   .portal-row { width: calc(100% - 32px); grid-template-columns: 1fr 1fr; margin-top: -38px; }
   .amenities-row { margin: 22px 18px 0; grid-template-columns: 1fr 1fr; }
   .amenity:nth-child(2n) { border-right: 0; }
@@ -771,7 +774,7 @@ textarea { resize: vertical; min-height: 76px; }
   .nav-links button { font-size: 13px; }
   .hero-photo { height: 460px; }
   .hero-terrace { left: 20%; opacity: .72; }
-  .hero-content h1 { font-size: 28px; line-height: 1.22; }
+  .hero-content h1 { font-size: 25px; line-height: 1.22; }
   .portal-row { grid-template-columns: 1fr; }
   .booking-card { min-height: 72px; }
   .amenities-row, .features-grid, .gallery-grid { grid-template-columns: 1fr; }
