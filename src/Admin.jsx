@@ -535,6 +535,8 @@ export default function Admin() {
   const [settingsSavedAt, setSettingsSavedAt] = useState("");
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState(null);
   const [manualCopy, setManualCopy] = useState({ title: "", text: "" });
   const [photoUploading, setPhotoUploading] = useState(false);
 
@@ -805,6 +807,7 @@ export default function Admin() {
     setError("");
     setSettingsSavedAt("");
     setSyncResult(null);
+    setCleanupResult(null);
     setManualCopy({ title: "", text: "" });
   }
 
@@ -926,6 +929,56 @@ export default function Admin() {
       setError("Errore tecnico durante la sincronizzazione calendari.");
     } finally {
       setSyncLoading(false);
+    }
+  }
+
+  async function cleanupGhostNights() {
+    clearMessages();
+
+    const selectedUnitName =
+      selectedUnit.publicName || selectedUnit.name || selectedUnitId;
+
+    const confirmed = window.confirm(
+      "Vuoi controllare e cancellare le notti fantasma per " +
+        selectedUnitName +
+        "?\n\nLe prenotazioni vere e i blocchi manuali attivi non vengono toccati."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setCleanupLoading(true);
+
+      const token = await getIdToken(user, true);
+      const response = await fetch("/api/cleanup-ghost-nights", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ unitId: selectedUnitId }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.ok) {
+        setError(
+          data?.message ||
+            "Errore durante la pulizia delle notti fantasma."
+        );
+        return;
+      }
+
+      setCleanupResult(data);
+      setMessage(
+        data.message ||
+          "Pulizia completata. Controlla il riepilogo nella sezione Manutenzione."
+      );
+    } catch (err) {
+      console.error(err);
+      setError("Errore tecnico durante la pulizia notti fantasma.");
+    } finally {
+      setCleanupLoading(false);
     }
   }
 
@@ -1786,6 +1839,9 @@ export default function Admin() {
           <TabButton active={activeTab === "settings"} onClick={() => setActiveTab("settings")}>
             Impostazioni
           </TabButton>
+          <TabButton active={activeTab === "maintenance"} onClick={() => setActiveTab("maintenance")}>
+            Manutenzione
+          </TabButton>
         </div>
 
         {message && (
@@ -1827,6 +1883,95 @@ export default function Admin() {
               className="mt-4 min-h-56 w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-sm leading-6"
             />
           </div>
+        )}
+
+        {activeTab === "maintenance" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Manutenzione PMS
+              </p>
+              <h2 className="mt-2 font-serif text-3xl">Strumenti tecnici</h2>
+              <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                Area riservata ai controlli interni del PMS. Qui puoi pulire eventuali
+                notti bloccate senza prenotazione o blocco attivo collegato.
+              </p>
+
+              <div className="mt-6 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <h3 className="text-2xl font-bold text-[#0a1d35]">
+                      Pulisci notti fantasma
+                    </h3>
+                    <p className="mt-2 leading-7 text-[#555]">
+                      Controlla la disponibilità dell'unità selezionata e cancella solo
+                      le notti isolate che non hanno una prenotazione o un blocco attivo
+                      collegato.
+                    </p>
+                    <div className="mt-4 rounded-2xl bg-white p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[#9b6b25]">
+                        Unità selezionata
+                      </p>
+                      <p className="mt-1 font-bold text-[#0a1d35]">
+                        {selectedUnit.publicName || selectedUnit.name}{" "}
+                        <span className="text-sm font-semibold text-[#777]">
+                          ({selectedUnit.id})
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={cleanupGhostNights}
+                    disabled={cleanupLoading}
+                    className="rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white transition hover:bg-[#132f52] disabled:opacity-60"
+                  >
+                    {cleanupLoading ? "Pulizia in corso..." : "Pulisci notti fantasma"}
+                  </button>
+                </div>
+
+                {cleanupResult && (
+                  <div className="mt-5 rounded-2xl border border-[#d7c49f] bg-white p-5">
+                    <p className="text-sm uppercase tracking-[0.2em] text-[#9b6b25]">
+                      Risultato pulizia
+                    </p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-4">
+                      <DetailRow label="Unità" value={cleanupResult.unitName || cleanupResult.unitId} />
+                      <DetailRow label="Controllate" value={cleanupResult.scannedCount ?? 0} />
+                      <DetailRow label="Eliminate" value={cleanupResult.deletedCount ?? 0} />
+                      <DetailRow label="Protette" value={cleanupResult.keptCount ?? 0} />
+                    </div>
+
+                    {Array.isArray(cleanupResult.deletedNights) &&
+                      cleanupResult.deletedNights.length > 0 && (
+                        <div className="mt-4 rounded-2xl bg-[#faf6ee] p-4">
+                          <p className="mb-2 font-bold text-[#0a1d35]">
+                            Notti eliminate
+                          </p>
+                          <div className="space-y-2 text-sm text-[#555]">
+                            {cleanupResult.deletedNights.map((night) => (
+                              <div
+                                key={night.id}
+                                className="rounded-xl bg-white px-3 py-2"
+                              >
+                                {formatDate(night.date)} · {night.status || "-"} ·{" "}
+                                {night.source || "-"}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                )}
+
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                  Le prenotazioni vere e i blocchi manuali attivi non vengono toccati.
+                  La pulizia lavora solo sulla tabella tecnica delle notti.
+                </div>
+              </div>
+            </div>
+          </section>
         )}
 
         {activeTab === "calendar" && (
