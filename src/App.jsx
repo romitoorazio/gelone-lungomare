@@ -12,7 +12,7 @@ const FOTO_MARE = "/images/vista-mare-gelone.jpg";
 const FOTO_TERRAZZA = "/images/terrazza-gelone.jpg";
 const FOTO_INTERNI = "/images/interni-gelone.jpg";
 
-const bookingUrl = "https://www.booking.com/hotel/it/gelone-lungomare.html";
+const bookingUrl = "https://www.booking.com/Share-OQe9T5";
 const airbnbUrl = "https://www.airbnb.it/rooms/1267419022190887817";
 const whatsappUrl = "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informazioni%20su%20Gelone%20Lungomare";
 
@@ -72,7 +72,7 @@ function getUnitDescription(unit) {
     return text;
   }
 
-  return "Alloggio riservato e curato, ideale per soggiorni vicino al lungomare con prenotazione diretta e disponibilità aggiornata.";
+  return "Locazione turistica a Gela per 2 persone, vicino al lungomare, con camera da letto, bagno, cucina e terrazza vista mare.";
 }
 
 function getPublicUnitName(unit) {
@@ -542,10 +542,10 @@ export default function App() {
 
         <div className="hero-content">
           <p className="legal-line">CIN: {selectedUnitCin} <span>|</span> CIR: {selectedUnitCir}</p>
-          <h1>Vista mare, terrazza e comfort a due passi dal lungomare di Gela</h1>
+          <h1>Gelone Lungomare: locazione turistica a Gela vicino al mare</h1>
           <div className="gold-rule" />
           <p className="hero-copy">
-            Appartamento accogliente e riservato con ampia terrazza vista mare, ideale per coppie e soggiorni di relax in Sicilia.
+            Alloggio per 2 persone con camera da letto, bagno, cucina e terrazza vista mare. Prenota dal sito, WhatsApp, Booking o Airbnb.
           </p>
         </div>
       </section>
@@ -578,8 +578,8 @@ export default function App() {
           <p className="eyebrow">Alloggi Gelone</p>
           <SectionTitle>{publicUnits.length > 1 ? "SCEGLI IL TUO ALLOGGIO" : "IL TUO ALLOGGIO"}</SectionTitle>
           <p>
-            Foto, tariffe, disponibilità e calendari sono separati per ogni alloggio. Oggi trovi Gelone Lungomare;
-            le nuove unità compariranno qui solo quando saranno attive e visibili dal pannello admin.
+            Oggi trovi Gelone Lungomare, alloggio per 2 persone vicino al lungomare di Gela.
+            Le future unità compariranno qui solo quando saranno attive e visibili dal pannello admin.
           </p>
         </div>
 
@@ -667,7 +667,7 @@ export default function App() {
           <article>
             <i>●</i>
             <h3>POSIZIONE VICINO AL MARE</h3>
-            <p>A pochi passi dal lungomare di Gela, per passeggiate e momenti indimenticabili.</p>
+            <p>A pochi passi dal Lungomare Federico II e dalla spiaggia di Gela, comodo per soggiorni brevi e vacanze in Sicilia.</p>
           </article>
           <article>
             <i>☂</i>
@@ -888,7 +888,7 @@ export default function App() {
           <div className="socials"><span>f</span><span>◎</span><span>☘</span></div>
         </div>
       </footer>
-      <div className="copyright">© 2025 Gelone Lungomare – Locazione Turistica. Tutti i diritti riservati.</div>
+      <div className="copyright">© 2026 Gelone Lungomare – Locazione Turistica. Tutti i diritti riservati.</div>
 
       {activePhotoIndex !== null && (
         <div className="lightbox" role="dialog" aria-modal="true" aria-label="Galleria foto" onClick={closeGallery}>
