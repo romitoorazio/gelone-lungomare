@@ -17,7 +17,7 @@ export const DEFAULT_UNIT = {
 function normalizePhotos(value) {
   if (!Array.isArray(value)) return [];
 
-  return value
+  const cleaned = value
     .filter((photo) => photo && typeof photo === "object" && photo.url)
     .map((photo, index) => ({
       id: String(photo.id || photo.path || `photo-${index + 1}`),
@@ -29,6 +29,15 @@ function normalizePhotos(value) {
       uploadedAt: photo.uploadedAt || "",
     }))
     .sort((a, b) => (a.order || 999) - (b.order || 999));
+
+  if (!cleaned.some((photo) => photo.cover) && cleaned.length > 0) {
+    cleaned[0].cover = true;
+  }
+
+  return cleaned.map((photo, index) => ({
+    ...photo,
+    order: index + 1,
+  }));
 }
 
 export function sanitizeUnitId(value) {
@@ -51,6 +60,10 @@ export function normalizeUnit(raw = {}, fallback = DEFAULT_UNIT) {
     name: String(raw.name || fallback.name || id).trim(),
     publicName: String(raw.publicName || fallback.publicName || raw.name || fallback.name || id).trim(),
     maxGuests: Number.isFinite(maxGuests) && maxGuests > 0 ? maxGuests : 2,
+    cin: String(raw.cin ?? fallback.cin ?? "").trim(),
+    cir: String(raw.cir ?? fallback.cir ?? "").trim(),
+    bookingUrl: String(raw.bookingUrl ?? fallback.bookingUrl ?? "").trim(),
+    airbnbUrl: String(raw.airbnbUrl ?? fallback.airbnbUrl ?? "").trim(),
     active: raw.active ?? fallback.active ?? true,
     publicVisible: raw.publicVisible ?? fallback.publicVisible ?? false,
     welcomateEnabled: raw.welcomateEnabled ?? fallback.welcomateEnabled ?? false,
