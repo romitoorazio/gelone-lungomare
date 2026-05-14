@@ -1,4 +1,4 @@
-﻿{
+{
   "headers": [
     {
       "source": "/reviews/add",
@@ -10,7 +10,7 @@
       ]
     },
     {
-      "source": "/reviews/add/",
+      "source": "/reviews/add/:path*",
       "headers": [
         {
           "key": "X-Robots-Tag",
