@@ -179,6 +179,7 @@ export default function App() {
   const [publicUnits, setPublicUnits] = useState([DEFAULT_UNIT]);
   const [selectedPublicUnitId, setSelectedPublicUnitId] = useState(UNIT_ID);
   const [galleryPhotos, setGalleryPhotos] = useState(fallbackGallery);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
     d.setDate(1);
@@ -257,7 +258,42 @@ export default function App() {
   useEffect(() => {
     const photos = getUnitPhotos(selectedPublicUnit).map((photo) => photo.url);
     setGalleryPhotos(photos.length > 0 ? photos : fallbackGallery);
+    setActivePhotoIndex(null);
   }, [selectedPublicUnit]);
+
+  const openGallery = (index = 0) => {
+    if (!galleryPhotos.length) return;
+    setActivePhotoIndex(Math.max(0, Math.min(index, galleryPhotos.length - 1)));
+  };
+
+  const closeGallery = () => setActivePhotoIndex(null);
+
+  const moveGallery = (direction) => {
+    setActivePhotoIndex((current) => {
+      if (current === null || galleryPhotos.length === 0) return current;
+      return (current + direction + galleryPhotos.length) % galleryPhotos.length;
+    });
+  };
+
+  useEffect(() => {
+    if (activePhotoIndex === null) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") closeGallery();
+      if (event.key === "ArrowLeft") moveGallery(-1);
+      if (event.key === "ArrowRight") moveGallery(1);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [activePhotoIndex, galleryPhotos.length]);
+
+  const galleryPreview = useMemo(() => galleryPhotos.slice(0, 5), [galleryPhotos]);
 
   const calendarDays = useMemo(() => getCalendarDays(calendarMonth), [calendarMonth]);
 
@@ -567,14 +603,34 @@ export default function App() {
 
       <section id="foto" className="gallery-section">
         <SectionTitle>GALLERIA</SectionTitle>
-        <div className="gallery-row">
-          {galleryPhotos.map((src, index) => (
-            <button key={`${src}-${index}`} type="button" className="gallery-thumb">
-              <img src={src} alt={`Foto ${selectedPublicUnit.publicName || selectedPublicUnit.name || "Gelone Lungomare"} ${index + 1}`} />
-            </button>
-          ))}
+        <div className="gallery-layout">
+          <button type="button" className="gallery-feature" onClick={() => openGallery(0)} aria-label="Apri foto principale">
+            <img src={galleryPhotos[0]} alt={`Foto principale ${selectedPublicUnit.publicName || selectedPublicUnit.name || "Gelone Lungomare"}`} />
+            <span>Apri galleria</span>
+          </button>
+
+          <div className="gallery-grid" aria-label="Anteprima foto alloggio">
+            {galleryPreview.slice(1).map((src, index) => {
+              const realIndex = index + 1;
+              const remaining = galleryPhotos.length - galleryPreview.length;
+              const isLastPreview = realIndex === galleryPreview.length - 1 && remaining > 0;
+
+              return (
+                <button
+                  key={`${src}-${realIndex}`}
+                  type="button"
+                  className="gallery-thumb"
+                  onClick={() => openGallery(realIndex)}
+                  aria-label={`Apri foto ${realIndex + 1}`}
+                >
+                  <img src={src} alt={`Foto ${selectedPublicUnit.publicName || selectedPublicUnit.name || "Gelone Lungomare"} ${realIndex + 1}`} />
+                  {isLastPreview && <span className="more-photos">+{remaining}</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <a className="photo-button" href="#foto">VEDI TUTTE LE FOTO <span>▧</span></a>
+        <button className="photo-button" type="button" onClick={() => openGallery(0)}>VEDI TUTTE LE FOTO <span>▧</span></button>
       </section>
 
       <section id="disponibilita" className="availability">
@@ -746,6 +802,41 @@ export default function App() {
         </div>
       </footer>
       <div className="copyright">© 2025 Gelone Lungomare – Locazione Turistica. Tutti i diritti riservati.</div>
+
+      {activePhotoIndex !== null && (
+        <div className="lightbox" role="dialog" aria-modal="true" aria-label="Galleria foto" onClick={closeGallery}>
+          <button type="button" className="lightbox-close" onClick={closeGallery} aria-label="Chiudi galleria">×</button>
+          {galleryPhotos.length > 1 && (
+            <button
+              type="button"
+              className="lightbox-nav prev"
+              onClick={(event) => { event.stopPropagation(); moveGallery(-1); }}
+              aria-label="Foto precedente"
+            >
+              ‹
+            </button>
+          )}
+          <figure className="lightbox-content" onClick={(event) => event.stopPropagation()}>
+            <img
+              src={galleryPhotos[activePhotoIndex]}
+              alt={`Foto ${activePhotoIndex + 1} ${selectedPublicUnit.publicName || selectedPublicUnit.name || "Gelone Lungomare"}`}
+            />
+            <figcaption>
+              {selectedPublicUnit.publicName || selectedPublicUnit.name || "Gelone Lungomare"} · Foto {activePhotoIndex + 1} di {galleryPhotos.length}
+            </figcaption>
+          </figure>
+          {galleryPhotos.length > 1 && (
+            <button
+              type="button"
+              className="lightbox-nav next"
+              onClick={(event) => { event.stopPropagation(); moveGallery(1); }}
+              aria-label="Foto successiva"
+            >
+              ›
+            </button>
+          )}
+        </div>
+      )}
     </main>
   );
 }
@@ -831,10 +922,25 @@ button, input, select { font: inherit; }
 .why-grid p { margin: 0; font-size: 14px; line-height: 1.48; }
 
 .gallery-section { padding-top: 4px; }
-.gallery-row { width: min(1050px, 100%); margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
-.gallery-thumb { border: 0; padding: 0; height: 112px; border-radius: 5px; overflow: hidden; background: #eee; cursor: pointer; box-shadow: 0 0 0 1px rgba(180,134,22,.22); }
-.gallery-thumb img { width: 100%; height: 100%; display: block; object-fit: cover; }
-.photo-button { width: 250px; height: 38px; margin: 12px auto 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--navy); color: #fff; border-radius: 4px; font-size: 14px; font-weight: 800; letter-spacing: .08em; }
+.gallery-layout { width: min(1050px, 100%); margin: 0 auto; display: grid; grid-template-columns: 1.35fr .9fr; gap: 14px; align-items: stretch; }
+.gallery-feature, .gallery-thumb { border: 0; padding: 0; position: relative; overflow: hidden; background: #eee; cursor: pointer; box-shadow: 0 0 0 1px rgba(180,134,22,.22); }
+.gallery-feature { min-height: 360px; border-radius: 9px; }
+.gallery-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.gallery-thumb { min-height: 173px; border-radius: 7px; }
+.gallery-feature img, .gallery-thumb img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .45s ease, filter .45s ease; }
+.gallery-feature:hover img, .gallery-thumb:hover img { transform: scale(1.045); filter: brightness(.92); }
+.gallery-feature span { position: absolute; left: 18px; bottom: 18px; padding: 10px 14px; border-radius: 999px; background: rgba(7,31,61,.88); color: #fff; font-size: 13px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.more-photos { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(7,31,61,.58); color: #fff; font-size: 32px; font-weight: 900; }
+.photo-button { width: 250px; height: 38px; margin: 14px auto 0; border: 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--navy); color: #fff; border-radius: 4px; font-size: 14px; font-weight: 800; letter-spacing: .08em; cursor: pointer; }
+.lightbox { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 28px 76px; background: rgba(3,12,24,.88); backdrop-filter: blur(6px); }
+.lightbox-content { width: min(1120px, 100%); margin: 0; display: grid; gap: 12px; color: #fff; text-align: center; }
+.lightbox-content img { max-width: 100%; max-height: 78vh; margin: 0 auto; object-fit: contain; border-radius: 10px; box-shadow: 0 28px 90px rgba(0,0,0,.42); }
+.lightbox-content figcaption { font-size: 14px; letter-spacing: .04em; color: rgba(255,255,255,.82); }
+.lightbox-close, .lightbox-nav { position: fixed; border: 0; border-radius: 999px; background: rgba(255,255,255,.92); color: var(--navy); cursor: pointer; display: grid; place-items: center; box-shadow: 0 16px 50px rgba(0,0,0,.28); }
+.lightbox-close { top: 20px; right: 22px; width: 44px; height: 44px; font-size: 34px; line-height: 1; }
+.lightbox-nav { top: 50%; width: 52px; height: 52px; transform: translateY(-50%); font-size: 44px; line-height: 1; }
+.lightbox-nav.prev { left: 18px; }
+.lightbox-nav.next { right: 18px; }
 
 .availability-card { width: min(1050px, 100%); margin: 28px auto 0; border: 1px solid rgba(180,134,22,.20); border-radius: 8px; display: grid; grid-template-columns: 1.25fr .9fr; overflow: hidden; background: rgba(255,255,255,.32); }
 .availability-form-wrap { padding: 0 34px 28px; }
@@ -927,10 +1033,15 @@ button, input, select { font: inherit; }
   .amenities { width: calc(100% - 32px); grid-template-columns: 1fr; margin-top: 24px; }
   .amenities div { border-right: 0; border-bottom: 1px solid var(--line); min-height: 58px; }
   .why, .gallery-section, .availability, .position, .units-showcase { padding: 0 16px; }
-  .why-grid, .gallery-row, .unit-showcase-grid, .availability-card, .position-card, .footer { grid-template-columns: 1fr; }
-  .gallery-row { grid-template-columns: 1fr 1fr; }
+  .why-grid, .unit-showcase-grid, .availability-card, .position-card, .footer { grid-template-columns: 1fr; }
+  .gallery-layout { grid-template-columns: 1fr; }
+  .gallery-feature { min-height: 280px; }
+  .gallery-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
   .unit-showcase-card { grid-template-columns: 110px 1fr; }
-  .gallery-thumb { height: 125px; }
+  .gallery-thumb { min-height: 125px; }
+  .lightbox { padding: 72px 14px 24px; }
+  .lightbox-content img { max-height: 70vh; }
+  .lightbox-nav { width: 44px; height: 44px; font-size: 38px; background: rgba(255,255,255,.86); }
   .calendar-box { border-left: 0; border-top: 1px solid rgba(180,134,22,.16); padding: 22px; }
   .date-form, .guest-form { grid-template-columns: 1fr; }
   .map-card { grid-template-columns: 1fr; }
