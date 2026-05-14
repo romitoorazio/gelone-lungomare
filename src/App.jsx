@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, UNIT_ID as DEFAULT_UNIT_ID } from "./firebase";
+import { DEFAULT_UNIT, normalizeUnit } from "./units";
 
 const LOGO_HEADER = "/images/logo-gelone-header-senza-qrcode.png";
 const LOGO_EMBLEMA = "/images/logo-gelone-emblema-senza-qrcode.png";
@@ -17,7 +18,7 @@ const whatsappUrl = "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informaz
 
 const CIN = "IT085007C2TUGEP2SD";
 const CIR = "19085007C264694";
-const UNIT_ID = "lunarossa1";
+const UNIT_ID = DEFAULT_UNIT_ID || "lunarossa1";
 
 const defaultPricing = {
   nightlyRate: 70,
@@ -28,6 +29,42 @@ const defaultPricing = {
 };
 
 const fallbackGallery = [FOTO_TERRAZZA, FOTO_MARE, FOTO_INTERNI, FOTO_TERRAZZA, FOTO_MARE];
+
+function optimizeImageUrl(url, width = 1200) {
+  const value = String(url || "").trim();
+  if (!value) return value;
+
+  if (value.includes("res.cloudinary.com") && value.includes("/upload/")) {
+    return value.replace("/upload/", `/upload/f_auto,q_auto,c_fill,w_${width}/`);
+  }
+
+  return value;
+}
+
+function getUnitPhotos(unit) {
+  const photos = Array.isArray(unit?.photos)
+    ? unit.photos
+        .filter((photo) => photo?.url)
+        .sort((a, b) => {
+          if (Boolean(a.cover) !== Boolean(b.cover)) {
+            return a.cover ? -1 : 1;
+          }
+          return Number(a.order || 999) - Number(b.order || 999);
+        })
+        .map((photo) => ({
+          ...photo,
+          url: optimizeImageUrl(photo.url, 1200),
+          thumbUrl: optimizeImageUrl(photo.url, 520),
+        }))
+    : [];
+
+  return photos;
+}
+
+function getUnitCover(unit) {
+  const photos = getUnitPhotos(unit);
+  return photos[0]?.thumbUrl || FOTO_TERRAZZA;
+}
 
 function pad2(value) {
   return String(value).padStart(2, "0");
@@ -139,6 +176,8 @@ export default function App() {
   const [guestPhone, setGuestPhone] = useState("");
   const [requestStatus, setRequestStatus] = useState(null);
   const [pricing, setPricing] = useState(defaultPricing);
+  const [publicUnits, setPublicUnits] = useState([DEFAULT_UNIT]);
+  const [selectedPublicUnitId, setSelectedPublicUnitId] = useState(UNIT_ID);
   const [galleryPhotos, setGalleryPhotos] = useState(fallbackGallery);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
@@ -150,12 +189,20 @@ export default function App() {
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
 
+  const selectedPublicUnit = useMemo(
+    () => publicUnits.find((unit) => unit.id === selectedPublicUnitId) || publicUnits[0] || DEFAULT_UNIT,
+    [publicUnits, selectedPublicUnitId]
+  );
+
   useEffect(() => {
     let mounted = true;
 
     async function loadPricing() {
+      const settingsDocId = selectedPublicUnitId === UNIT_ID ? "pms" : `pms_${selectedPublicUnitId}`;
+      setPricing(defaultPricing);
+
       try {
-        const snapshot = await getDoc(doc(db, "settings", "pms"));
+        const snapshot = await getDoc(doc(db, "settings", settingsDocId));
         if (!mounted || !snapshot.exists()) return;
 
         const data = snapshot.data();
@@ -173,41 +220,44 @@ export default function App() {
 
     loadPricing();
     return () => { mounted = false; };
-  }, []);
+  }, [selectedPublicUnitId]);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
       doc(db, "settings", "units"),
       (snapshot) => {
         if (!snapshot.exists()) {
-          setGalleryPhotos(fallbackGallery);
+          setPublicUnits([DEFAULT_UNIT]);
+          setSelectedPublicUnitId(UNIT_ID);
           return;
         }
 
         const items = Array.isArray(snapshot.data()?.items) ? snapshot.data().items : [];
-        const unit = items.find((item) => item?.id === UNIT_ID);
-        const photos = Array.isArray(unit?.photos)
-          ? unit.photos
-              .filter((photo) => photo?.url)
-              .sort((a, b) => {
-                if (Boolean(a.cover) !== Boolean(b.cover)) {
-                  return a.cover ? -1 : 1;
-                }
-                return Number(a.order || 999) - Number(b.order || 999);
-              })
-              .map((photo) => photo.url)
-          : [];
+        const normalizedUnits = (items.length > 0 ? items : [DEFAULT_UNIT])
+          .map((item) => normalizeUnit(item))
+          .sort((a, b) => (a.sortOrder || 999) - (b.sortOrder || 999));
+        const visibleUnits = normalizedUnits.filter((unit) => unit.active && unit.publicVisible);
+        const nextPublicUnits = visibleUnits.length > 0 ? visibleUnits : [DEFAULT_UNIT];
 
-        setGalleryPhotos(photos.length > 0 ? photos : fallbackGallery);
+        setPublicUnits(nextPublicUnits);
+        setSelectedPublicUnitId((current) =>
+          nextPublicUnits.some((unit) => unit.id === current) ? current : nextPublicUnits[0].id
+        );
       },
       (error) => {
-        console.warn("Galleria unità non caricata, uso foto predefinite:", error);
-        setGalleryPhotos(fallbackGallery);
+        console.warn("Unità pubbliche non caricate, uso Lunarossa 1:", error);
+        setPublicUnits([DEFAULT_UNIT]);
+        setSelectedPublicUnitId(UNIT_ID);
       }
     );
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const photos = getUnitPhotos(selectedPublicUnit).map((photo) => photo.url);
+    setGalleryPhotos(photos.length > 0 ? photos : fallbackGallery);
+  }, [selectedPublicUnit]);
 
   const calendarDays = useMemo(() => getCalendarDays(calendarMonth), [calendarMonth]);
 
@@ -224,7 +274,7 @@ export default function App() {
         if (!start || !end) return;
 
         const response = await fetch(
-          `/api/public-calendar?unitId=${encodeURIComponent(UNIT_ID)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`
+          `/api/public-calendar?unitId=${encodeURIComponent(selectedPublicUnitId)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`
         );
         const data = await response.json();
 
@@ -256,7 +306,7 @@ export default function App() {
     return () => {
       mounted = false;
     };
-  }, [calendarDays, calendarRefreshKey]);
+  }, [calendarDays, calendarRefreshKey, selectedPublicUnitId]);
 
   const selectedNights = useMemo(() => getNightDates(checkIn, checkOut), [checkIn, checkOut]);
   const priceEstimate = useMemo(() => {
@@ -298,7 +348,7 @@ export default function App() {
       const response = await fetch("/api/check-availability", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ unitId: UNIT_ID, checkIn, checkOut, guests: Number(guests) }),
+        body: JSON.stringify({ unitId: selectedPublicUnitId, checkIn, checkOut, guests: Number(guests) }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.message || "Errore verifica disponibilità");
@@ -332,7 +382,8 @@ export default function App() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          unitId: UNIT_ID,
+          unitId: selectedPublicUnitId,
+          unitName: selectedPublicUnit.publicName || selectedPublicUnit.name || "Gelone Lungomare",
           checkIn,
           checkOut,
           guests: Number(guests),
@@ -437,11 +488,11 @@ export default function App() {
             <em>{pricing.directRateText}</em>
           </span>
         </a>
-        <a className="booking-card portal" href={bookingUrl} target="_blank" rel="noreferrer">
+        <a className="booking-card portal" href={selectedPublicUnit.bookingUrl || bookingUrl} target="_blank" rel="noreferrer">
           <strong className="booking-b">B.</strong>
           <span>Booking.com</span>
         </a>
-        <a className="booking-card portal" href={airbnbUrl} target="_blank" rel="noreferrer">
+        <a className="booking-card portal" href={selectedPublicUnit.airbnbUrl || airbnbUrl} target="_blank" rel="noreferrer">
           <strong className="airbnb-mark">⌂</strong>
           <span>Airbnb</span>
         </a>
@@ -451,11 +502,40 @@ export default function App() {
         </a>
       </section>
 
+      <section id="alloggi" className="units-showcase">
+        <SectionTitle>{publicUnits.length > 1 ? "SCEGLI IL TUO ALLOGGIO" : "IL TUO ALLOGGIO"}</SectionTitle>
+        <div className="unit-showcase-grid">
+          {publicUnits.map((unit) => {
+            const isSelected = unit.id === selectedPublicUnitId;
+            return (
+              <button
+                key={unit.id}
+                type="button"
+                className={`unit-showcase-card ${isSelected ? "active" : ""}`}
+                onClick={() => {
+                  setSelectedPublicUnitId(unit.id);
+                  setAvailability(null);
+                  setRequestStatus(null);
+                  setCalendarRefreshKey((value) => value + 1);
+                }}
+              >
+                <img src={getUnitCover(unit)} alt={unit.publicName || unit.name} />
+                <span>
+                  <em>{isSelected ? "Selezionato" : "Disponibilità separata"}</em>
+                  <strong>{unit.publicName || unit.name}</strong>
+                  <small>{unit.maxGuests || 2} ospiti · {unit.bedrooms || 1} camera · {unit.bathrooms || 1} bagno</small>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       <section id="alloggio" className="amenities">
-        <div><span>♙</span><strong>2 OSPITI</strong></div>
-        <div><span>▭</span><strong>1 CAMERA</strong></div>
-        <div><span>♨</span><strong>1 BAGNO</strong></div>
-        <div><span>◴</span><strong>CUCINA</strong></div>
+        <div><span>♙</span><strong>{selectedPublicUnit.maxGuests || 2} OSPITI</strong></div>
+        <div><span>▭</span><strong>{selectedPublicUnit.bedrooms || 1} CAMERA</strong></div>
+        <div><span>♨</span><strong>{selectedPublicUnit.bathrooms || 1} BAGNO</strong></div>
+        {selectedPublicUnit.hasKitchen !== false && <div><span>◴</span><strong>CUCINA</strong></div>}
         <div><span>≋</span><strong>TERRAZZA VISTA MARE</strong></div>
       </section>
 
@@ -490,7 +570,7 @@ export default function App() {
         <div className="gallery-row">
           {galleryPhotos.map((src, index) => (
             <button key={`${src}-${index}`} type="button" className="gallery-thumb">
-              <img src={src} alt={`Foto Gelone Lungomare ${index + 1}`} />
+              <img src={src} alt={`Foto ${selectedPublicUnit.publicName || selectedPublicUnit.name || "Gelone Lungomare"} ${index + 1}`} />
             </button>
           ))}
         </div>
@@ -522,8 +602,11 @@ export default function App() {
               <label>
                 <span>Ospiti</span>
                 <select value={guests} onChange={(e) => setGuests(e.target.value)}>
-                  <option value="1">1 ospite</option>
-                  <option value="2">2 ospiti</option>
+                  {Array.from({ length: Math.max(1, Number(selectedPublicUnit.maxGuests || 2)) }, (_, index) => index + 1).map((guestCount) => (
+                    <option key={guestCount} value={String(guestCount)}>
+                      {guestCount} {guestCount === 1 ? "ospite" : "ospiti"}
+                    </option>
+                  ))}
                 </select>
               </label>
               <button disabled={loading} type="submit">{loading ? "VERIFICA..." : "VERIFICA DISPONIBILITÀ"} <span>▣</span></button>
@@ -732,7 +815,15 @@ button, input, select { font: inherit; }
 .section-title span { display: block; width: 122px; height: 1px; margin: 13px auto 0; background: var(--gold); position: relative; }
 .section-title span::after { content: ''; position: absolute; left: 50%; top: -4px; width: 9px; height: 9px; background: var(--gold); transform: translateX(-50%) rotate(45deg); }
 
-.why, .gallery-section, .availability, .position { padding: 0 58px; }
+.why, .gallery-section, .availability, .position, .units-showcase { padding: 0 58px; }
+.unit-showcase-grid { width: min(1050px, 100%); margin: 0 auto 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.unit-showcase-card { min-height: 178px; display: grid; grid-template-columns: 145px 1fr; gap: 16px; align-items: stretch; border: 1px solid rgba(180,134,22,.24); border-radius: 8px; overflow: hidden; background: #fffaf1; text-align: left; cursor: pointer; box-shadow: 0 18px 45px rgba(10,29,53,.08); transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.unit-showcase-card:hover, .unit-showcase-card.active { transform: translateY(-2px); border-color: rgba(180,134,22,.65); box-shadow: 0 24px 60px rgba(10,29,53,.13); }
+.unit-showcase-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.unit-showcase-card span { padding: 18px 18px 18px 0; display: flex; flex-direction: column; justify-content: center; gap: 7px; }
+.unit-showcase-card em { color: #b48616; font-size: .72rem; font-style: normal; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+.unit-showcase-card strong { color: #0a1d35; font-family: Georgia, 'Times New Roman', serif; font-size: 1.42rem; line-height: 1.1; }
+.unit-showcase-card small { color: #5f5548; font-size: .92rem; line-height: 1.5; }
 .why-grid { width: min(1050px, 100%); margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
 .why-grid article { background: rgba(255,255,255,.45); border: 1px solid rgba(180,134,22,.22); border-radius: 7px; padding: 25px 28px 24px; text-align: center; min-height: 175px; }
 .why-grid i { width: 58px; height: 58px; margin: 0 auto 14px; border-radius: 50%; background: rgba(180,134,22,.08); border: 1px solid rgba(180,134,22,.16); display: grid; place-items: center; color: var(--gold); font-style: normal; font-size: 22px; }
@@ -835,9 +926,10 @@ button, input, select { font: inherit; }
   .booking-card.direct em { font-size: 12px; }
   .amenities { width: calc(100% - 32px); grid-template-columns: 1fr; margin-top: 24px; }
   .amenities div { border-right: 0; border-bottom: 1px solid var(--line); min-height: 58px; }
-  .why, .gallery-section, .availability, .position { padding: 0 16px; }
-  .why-grid, .gallery-row, .availability-card, .position-card, .footer { grid-template-columns: 1fr; }
+  .why, .gallery-section, .availability, .position, .units-showcase { padding: 0 16px; }
+  .why-grid, .gallery-row, .unit-showcase-grid, .availability-card, .position-card, .footer { grid-template-columns: 1fr; }
   .gallery-row { grid-template-columns: 1fr 1fr; }
+  .unit-showcase-card { grid-template-columns: 110px 1fr; }
   .gallery-thumb { height: 125px; }
   .calendar-box { border-left: 0; border-top: 1px solid rgba(180,134,22,.16); padding: 22px; }
   .date-form, .guest-form { grid-template-columns: 1fr; }

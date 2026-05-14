@@ -19,7 +19,6 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
-import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import {
   Building2,
   CalendarDays,
@@ -39,7 +38,7 @@ import {
   ShieldCheck,
   Wifi,
 } from "lucide-react";
-import { auth, db, storage, ADMIN_EMAILS, UNIT_ID } from "./firebase";
+import { auth, db, ADMIN_EMAILS, UNIT_ID } from "./firebase";
 import { DEFAULT_UNIT, DEFAULT_UNITS, normalizeUnit, sanitizeUnitId } from "./units";
 
 const defaultSettings = {
@@ -59,6 +58,45 @@ const defaultSettings = {
   depositPercent: 30,
   directRateText: "Miglior tariffa prenotando dal sito",
 };
+
+const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dnpbz05pr";
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "gelone_units";
+const CLOUDINARY_WIDGET_SCRIPT_ID = "cloudinary-upload-widget-script";
+const CLOUDINARY_WIDGET_SCRIPT_URL = "https://upload-widget.cloudinary.com/latest/global/all.js";
+
+function loadCloudinaryWidgetScript() {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Browser non disponibile."));
+  }
+
+  if (window.cloudinary?.createUploadWidget) {
+    return Promise.resolve(window.cloudinary);
+  }
+
+  return new Promise((resolve, reject) => {
+    const existingScript = document.getElementById(CLOUDINARY_WIDGET_SCRIPT_ID);
+
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(window.cloudinary), { once: true });
+      existingScript.addEventListener("error", () => reject(new Error("Widget Cloudinary non caricato.")), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = CLOUDINARY_WIDGET_SCRIPT_ID;
+    script.src = CLOUDINARY_WIDGET_SCRIPT_URL;
+    script.async = true;
+    script.onload = () => {
+      if (window.cloudinary?.createUploadWidget) {
+        resolve(window.cloudinary);
+      } else {
+        reject(new Error("Widget Cloudinary non disponibile dopo il caricamento."));
+      }
+    };
+    script.onerror = () => reject(new Error("Impossibile caricare il widget Cloudinary."));
+    document.body.appendChild(script);
+  });
+}
 
 const sourceOptions = [
   { value: "manual", label: "Manuale" },
@@ -1357,10 +1395,21 @@ export default function Admin() {
     return list
       .filter((photo) => photo?.url)
       .map((photo, index) => ({
-        id: String(photo.id || photo.path || `photo-${index + 1}`),
+        id: String(photo.id || photo.assetId || photo.publicId || photo.path || `photo-${index + 1}`),
         url: String(photo.url || "").trim(),
+        secureUrl: String(photo.secureUrl || photo.url || "").trim(),
         path: String(photo.path || "").trim(),
-        name: String(photo.name || `Foto ${index + 1}`).trim(),
+        publicId: String(photo.publicId || "").trim(),
+        assetId: String(photo.assetId || "").trim(),
+        source: String(photo.source || (photo.publicId ? "cloudinary" : "external")).trim(),
+        name: String(photo.name || photo.displayName || `Foto ${index + 1}`).trim(),
+        displayName: String(photo.displayName || photo.name || `Foto ${index + 1}`).trim(),
+        caption: String(photo.caption || "").trim(),
+        room: String(photo.room || "").trim(),
+        width: Number(photo.width || 0),
+        height: Number(photo.height || 0),
+        format: String(photo.format || "").trim(),
+        bytes: Number(photo.bytes || 0),
         cover: hasCover ? Boolean(photo.cover) : index === 0,
         order: index + 1,
         uploadedAt: photo.uploadedAt || "",
@@ -1422,87 +1471,131 @@ export default function Admin() {
     setMessage(successMessage || "Foto salvate. La galleria dell'unità è aggiornata.");
   }
 
-  async function handleUnitPhotoUpload(event) {
-    const files = Array.from(event.target.files || []);
-    event.target.value = "";
-
-    if (files.length === 0) return;
-
+  async function handleCloudinaryPhotoUpload() {
     clearMessages();
 
-    const id = sanitizeUnitId(unitForm.id);
+    const id = sanitizeUnitId(unitForm.id || selectedUnitId);
     if (!id) {
       setError("Prima inserisci un ID tecnico valido per l'unità.");
       return;
     }
 
-    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-    if (imageFiles.length === 0) {
-      setError("Seleziona solo immagini: JPG, PNG, HEIC convertito o WebP.");
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+      setError("Cloudinary non è configurato. Controlla cloud name e upload preset.");
       return;
     }
 
     try {
       setPhotoUploading(true);
-      const existingPhotos = Array.isArray(unitForm.photos) ? unitForm.photos : [];
+      const cloudinary = await loadCloudinaryWidgetScript();
+      const existingPhotos = normalizePhotoList(unitForm.photos || []);
       const uploadedPhotos = [];
+      let persisted = false;
 
-      for (const [index, file] of imageFiles.entries()) {
-        const extension = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-        const safeName = file.name
-          .replace(/\.[^/.]+$/, "")
-          .toLowerCase()
-          .replace(/[^a-z0-9_-]+/g, "-")
-          .replace(/^-+|-+$/g, "")
-          .slice(0, 40) || "foto";
-        const filePath = `units/${id}/photos/${Date.now()}-${index}-${safeName}.${extension}`;
-        const storageReference = ref(storage, filePath);
+      const persistUploadedPhotos = async () => {
+        if (persisted || uploadedPhotos.length === 0) return;
+        persisted = true;
 
-        await uploadBytes(storageReference, file, {
-          contentType: file.type || "image/jpeg",
-          customMetadata: {
-            unitId: id,
-            originalName: file.name,
+        const nextPhotos = normalizePhotoList([...existingPhotos, ...uploadedPhotos]);
+        setUnitPhotos(nextPhotos);
+        await persistUnitPhotos(
+          id,
+          nextPhotos,
+          `${uploadedPhotos.length} foto caricata/e con Cloudinary e salvata/e nella scheda unità.`
+        );
+      };
+
+      const widget = cloudinary.createUploadWidget(
+        {
+          cloudName: CLOUDINARY_CLOUD_NAME,
+          uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+          sources: ["local", "camera", "url"],
+          multiple: true,
+          maxFiles: 30,
+          maxImageFileSize: 12000000,
+          clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "heic", "heif"],
+          tags: ["gelone", "unita", id],
+          context: {
+            unit_id: id,
+            unit_name: unitForm.name || id,
           },
-        });
+          showAdvancedOptions: false,
+          cropping: false,
+          folder: `gelone/units/${id}`,
+          styles: {
+            palette: {
+              window: "#fffaf1",
+              sourceBg: "#faf6ee",
+              windowBorder: "#d7c49f",
+              tabIcon: "#9b6b25",
+              inactiveTabIcon: "#8d8375",
+              menuIcons: "#0a1d35",
+              link: "#9b6b25",
+              action: "#0a1d35",
+              inProgress: "#9b6b25",
+              complete: "#1f7a4d",
+              error: "#b3261e",
+              textDark: "#0a1d35",
+              textLight: "#ffffff",
+            },
+          },
+        },
+        async (uploadError, result) => {
+          if (uploadError) {
+            console.error(uploadError);
+            setError("Cloudinary non ha completato il caricamento. Riprova o controlla il preset gelone_units.");
+            setPhotoUploading(false);
+            return;
+          }
 
-        const url = await getDownloadURL(storageReference);
-        uploadedPhotos.push({
-          id: filePath,
-          url,
-          path: filePath,
-          name: file.name,
-          cover: existingPhotos.length === 0 && uploadedPhotos.length === 0,
-          order: existingPhotos.length + uploadedPhotos.length + 1,
-          uploadedAt: new Date().toISOString(),
-        });
-      }
+          if (result?.event === "success" && result.info?.secure_url) {
+            const info = result.info;
+            uploadedPhotos.push({
+              id: String(info.asset_id || info.public_id || info.secure_url),
+              assetId: String(info.asset_id || ""),
+              publicId: String(info.public_id || ""),
+              url: String(info.secure_url || info.url || ""),
+              secureUrl: String(info.secure_url || info.url || ""),
+              name: String(info.original_filename || info.display_name || `Foto ${existingPhotos.length + uploadedPhotos.length + 1}`),
+              displayName: String(info.display_name || info.original_filename || ""),
+              source: "cloudinary",
+              cover: existingPhotos.length === 0 && uploadedPhotos.length === 1,
+              order: existingPhotos.length + uploadedPhotos.length,
+              uploadedAt: info.created_at || new Date().toISOString(),
+              width: Number(info.width || 0),
+              height: Number(info.height || 0),
+              format: String(info.format || ""),
+              bytes: Number(info.bytes || 0),
+            });
+          }
 
-      const nextPhotos = normalizePhotoList([...existingPhotos, ...uploadedPhotos]);
-      setUnitPhotos(nextPhotos);
-      await persistUnitPhotos(
-        id,
-        nextPhotos,
-        `${uploadedPhotos.length} foto caricata/e e salvata/e. La galleria dell'unità è aggiornata.`
+          if (result?.event === "queues-end") {
+            try {
+              await persistUploadedPhotos();
+            } catch (persistError) {
+              console.error(persistError);
+              setError("Foto caricate su Cloudinary, ma non riesco a salvarle nella scheda unità. Riprova.");
+            } finally {
+              setPhotoUploading(false);
+            }
+          }
+
+          if (["abort", "close"].includes(result?.event) && uploadedPhotos.length === 0) {
+            setPhotoUploading(false);
+          }
+        }
       );
+
+      widget.open();
     } catch (err) {
       console.error(err);
-      setError("Non riesco a completare il caricamento/salvataggio della foto. Controlla Firebase Storage, le regole e riprova.");
-    } finally {
       setPhotoUploading(false);
+      setError("Non riesco ad aprire il caricatore Cloudinary. Controlla connessione, preset e browser.");
     }
   }
 
   async function removeUnitPhoto(photo) {
     clearMessages();
-
-    try {
-      if (photo?.path) {
-        await deleteObject(ref(storage, photo.path));
-      }
-    } catch (err) {
-      console.warn("Foto non eliminata da Storage, la rimuovo comunque dalla scheda:", err);
-    }
 
     const id = sanitizeUnitId(unitForm.id || selectedUnitId);
     const nextPhotos = normalizePhotoList(
@@ -2719,21 +2812,18 @@ export default function Admin() {
                     <div>
                       <h4 className="font-serif text-2xl">Foto unità</h4>
                       <p className="mt-1 text-sm leading-6 text-[#666]">
-                        Carica le foto da computer o telefono. Ora vengono salvate subito nella scheda unità: per Lunarossa 1 aggiornano la galleria pubblica, per Lunarossa 2 restano pronte finché è in bozza.
+                        Carica foto da computer o telefono con Cloudinary. La foto viene ottimizzata per il sito e collegata alla singola unità: Lunarossa 1 aggiorna la galleria pubblica, Lunarossa 2 resta pronta finché è in bozza.
                       </p>
                     </div>
-                    <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white">
+                    <button
+                      type="button"
+                      onClick={handleCloudinaryPhotoUpload}
+                      disabled={photoUploading}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white transition hover:bg-[#132f52] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
                       <ImagePlus size={18} />
-                      {photoUploading ? "Caricamento..." : "Carica foto"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        disabled={photoUploading}
-                        onChange={handleUnitPhotoUpload}
-                        className="hidden"
-                      />
-                    </label>
+                      {photoUploading ? "Caricamento..." : "Carica foto con Cloudinary"}
+                    </button>
                   </div>
 
                   {(unitForm.photos || []).length > 0 ? (
@@ -2786,12 +2876,12 @@ export default function Admin() {
                     </div>
                   ) : (
                     <div className="mt-5 rounded-2xl border border-dashed border-[#d7c49f] bg-white p-5 text-sm leading-6 text-[#666]">
-                      Nessuna foto caricata per questa unità. Lunarossa 1 continuerà a usare le foto attuali del sito finché non carichi e salvi nuove foto.
+                      Nessuna foto Cloudinary collegata a questa unità. Lunarossa 1 continua a usare le foto attuali del sito finché non carichi nuove foto.
                     </div>
                   )}
 
                   <p className="mt-4 rounded-2xl bg-white p-4 text-sm font-semibold text-[#0a1d35]">
-                    Dopo upload, eliminazione, copertina o ordine foto il sistema salva subito la galleria. Usa <strong>Salva unità</strong> solo se hai modificato anche testi, CIN/CIR o altri dati.
+                    Dopo upload Cloudinary, eliminazione, copertina o ordine foto il sistema salva subito la galleria. Usa <strong>Salva unità</strong> solo se hai modificato anche testi, CIN/CIR o altri dati.
                   </p>
                 </div>
 
