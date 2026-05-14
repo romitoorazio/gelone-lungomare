@@ -66,6 +66,28 @@ function getUnitCover(unit) {
   return photos[0]?.thumbUrl || FOTO_TERRAZZA;
 }
 
+function getUnitDescription(unit) {
+  const text = String(unit?.description || "").trim();
+  if (text && !text.toLowerCase().includes("unità attuale") && !text.toLowerCase().includes("nuova unità")) {
+    return text;
+  }
+
+  return "Alloggio riservato e curato, ideale per soggiorni vicino al lungomare con prenotazione diretta e disponibilità aggiornata.";
+}
+
+function getUnitStats(unit) {
+  const guests = Number(unit?.maxGuests || 2);
+  const bedrooms = Number(unit?.bedrooms || 1);
+  const bathrooms = Number(unit?.bathrooms || 1);
+
+  return [
+    `${guests} ${guests === 1 ? "ospite" : "ospiti"}`,
+    `${bedrooms} ${bedrooms === 1 ? "camera" : "camere"}`,
+    `${bathrooms} ${bathrooms === 1 ? "bagno" : "bagni"}`,
+    unit?.hasKitchen === false ? null : "cucina",
+  ].filter(Boolean);
+}
+
 function pad2(value) {
   return String(value).padStart(2, "0");
 }
@@ -194,6 +216,9 @@ export default function App() {
     () => publicUnits.find((unit) => unit.id === selectedPublicUnitId) || publicUnits[0] || DEFAULT_UNIT,
     [publicUnits, selectedPublicUnitId]
   );
+  const selectedUnitName = selectedPublicUnit.publicName || selectedPublicUnit.name || "Gelone Lungomare";
+  const selectedUnitCin = selectedPublicUnit.cin || CIN;
+  const selectedUnitCir = selectedPublicUnit.cir || CIR;
 
   useEffect(() => {
     let mounted = true;
@@ -480,7 +505,7 @@ export default function App() {
 
         <nav className="navlinks" aria-label="Navigazione principale">
           <a className="active" href="#home">Home</a>
-          <a href="#alloggio">Alloggio</a>
+          <a href="#alloggi">Alloggi</a>
           <a href="#foto">Foto</a>
           <a href="#disponibilita">Disponibilità</a>
           <a href="#contatti">Contatti</a>
@@ -506,7 +531,7 @@ export default function App() {
         <div className="hero-bottom-fade" />
 
         <div className="hero-content">
-          <p className="legal-line">CIN: {CIN} <span>|</span> CIR: {CIR}</p>
+          <p className="legal-line">CIN: {selectedUnitCin} <span>|</span> CIR: {selectedUnitCir}</p>
           <h1>Vista mare, terrazza e comfort a due passi dal lungomare di Gela</h1>
           <div className="gold-rule" />
           <p className="hero-copy">
@@ -539,29 +564,79 @@ export default function App() {
       </section>
 
       <section id="alloggi" className="units-showcase">
-        <SectionTitle>{publicUnits.length > 1 ? "SCEGLI IL TUO ALLOGGIO" : "IL TUO ALLOGGIO"}</SectionTitle>
-        <div className="unit-showcase-grid">
+        <div className="units-intro">
+          <p className="eyebrow">Alloggi Gelone</p>
+          <SectionTitle>{publicUnits.length > 1 ? "SCEGLI IL TUO ALLOGGIO" : "IL TUO ALLOGGIO"}</SectionTitle>
+          <p>
+            Foto, tariffe, disponibilità e calendari sono separati per ogni unità. Oggi trovi Lunarossa 1;
+            le nuove unità compariranno qui solo quando saranno attive e visibili dal pannello admin.
+          </p>
+        </div>
+
+        <div className={`unit-showcase-grid ${publicUnits.length === 1 ? "single" : ""}`}>
           {publicUnits.map((unit) => {
             const isSelected = unit.id === selectedPublicUnitId;
+            const stats = getUnitStats(unit);
+            const photoCount = getUnitPhotos(unit).length;
+
             return (
-              <button
-                key={unit.id}
-                type="button"
-                className={`unit-showcase-card ${isSelected ? "active" : ""}`}
-                onClick={() => {
-                  setSelectedPublicUnitId(unit.id);
-                  setAvailability(null);
-                  setRequestStatus(null);
-                  setCalendarRefreshKey((value) => value + 1);
-                }}
-              >
-                <img src={getUnitCover(unit)} alt={unit.publicName || unit.name} />
-                <span>
-                  <em>{isSelected ? "Selezionato" : "Disponibilità separata"}</em>
-                  <strong>{unit.publicName || unit.name}</strong>
-                  <small>{unit.maxGuests || 2} ospiti · {unit.bedrooms || 1} camera · {unit.bathrooms || 1} bagno</small>
-                </span>
-              </button>
+              <article key={unit.id} className={`unit-showcase-card ${isSelected ? "active" : ""}`}>
+                <button
+                  type="button"
+                  className="unit-photo-button"
+                  onClick={() => {
+                    setSelectedPublicUnitId(unit.id);
+                    setAvailability(null);
+                    setRequestStatus(null);
+                    setCalendarRefreshKey((value) => value + 1);
+                    window.setTimeout(() => document.getElementById("foto")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+                  }}
+                  aria-label={`Guarda le foto di ${unit.publicName || unit.name}`}
+                >
+                  <img src={getUnitCover(unit)} alt={unit.publicName || unit.name} />
+                  <span>{photoCount > 0 ? `${photoCount} foto` : "Galleria"}</span>
+                </button>
+
+                <div className="unit-card-body">
+                  <div className="unit-card-topline">
+                    <em>{isSelected ? "Alloggio selezionato" : "Disponibilità separata"}</em>
+                    <b>{unit.id}</b>
+                  </div>
+                  <h3>{unit.publicName || unit.name}</h3>
+                  <p>{getUnitDescription(unit)}</p>
+                  <div className="unit-stat-list">
+                    {stats.map((stat) => <span key={stat}>{stat}</span>)}
+                  </div>
+                  <div className="unit-card-actions">
+                    <button
+                      type="button"
+                      className="unit-primary-action"
+                      onClick={() => {
+                        setSelectedPublicUnitId(unit.id);
+                        setAvailability(null);
+                        setRequestStatus(null);
+                        setCalendarRefreshKey((value) => value + 1);
+                        window.setTimeout(() => document.getElementById("disponibilita")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+                      }}
+                    >
+                      Verifica date
+                    </button>
+                    <button
+                      type="button"
+                      className="unit-secondary-action"
+                      onClick={() => {
+                        setSelectedPublicUnitId(unit.id);
+                        setAvailability(null);
+                        setRequestStatus(null);
+                        setCalendarRefreshKey((value) => value + 1);
+                        window.setTimeout(() => document.getElementById("foto")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+                      }}
+                    >
+                      Vedi foto
+                    </button>
+                  </div>
+                </div>
+              </article>
             );
           })}
         </div>
@@ -637,6 +712,7 @@ export default function App() {
         <div className="availability-card">
           <div className="availability-form-wrap">
             <SectionTitle>DISPONIBILITÀ E PRENOTAZIONE</SectionTitle>
+            <p className="selected-unit-strip">Alloggio selezionato: <strong>{selectedUnitName}</strong></p>
             <form className="date-form" onSubmit={checkAvailability}>
               <label>
                 <span>Check-in</span>
@@ -907,14 +983,29 @@ button, input, select { font: inherit; }
 .section-title span::after { content: ''; position: absolute; left: 50%; top: -4px; width: 9px; height: 9px; background: var(--gold); transform: translateX(-50%) rotate(45deg); }
 
 .why, .gallery-section, .availability, .position, .units-showcase { padding: 0 58px; }
-.unit-showcase-grid { width: min(1050px, 100%); margin: 0 auto 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
-.unit-showcase-card { min-height: 178px; display: grid; grid-template-columns: 145px 1fr; gap: 16px; align-items: stretch; border: 1px solid rgba(180,134,22,.24); border-radius: 8px; overflow: hidden; background: #fffaf1; text-align: left; cursor: pointer; box-shadow: 0 18px 45px rgba(10,29,53,.08); transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
-.unit-showcase-card:hover, .unit-showcase-card.active { transform: translateY(-2px); border-color: rgba(180,134,22,.65); box-shadow: 0 24px 60px rgba(10,29,53,.13); }
-.unit-showcase-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.unit-showcase-card span { padding: 18px 18px 18px 0; display: flex; flex-direction: column; justify-content: center; gap: 7px; }
-.unit-showcase-card em { color: #b48616; font-size: .72rem; font-style: normal; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
-.unit-showcase-card strong { color: #0a1d35; font-family: Georgia, 'Times New Roman', serif; font-size: 1.42rem; line-height: 1.1; }
-.unit-showcase-card small { color: #5f5548; font-size: .92rem; line-height: 1.5; }
+.units-intro { width: min(880px, 100%); margin: 0 auto 20px; text-align: center; }
+.eyebrow { margin: 26px 0 -18px; color: var(--gold); font-size: 12px; font-weight: 900; letter-spacing: .22em; text-transform: uppercase; }
+.units-intro p:not(.eyebrow) { margin: -4px auto 0; max-width: 720px; color: rgba(7,31,61,.76); font-size: 15px; line-height: 1.55; }
+.unit-showcase-grid { width: min(1050px, 100%); margin: 0 auto 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 20px; }
+.unit-showcase-grid.single { grid-template-columns: minmax(0, 820px); justify-content: center; }
+.unit-showcase-card { min-height: 270px; display: grid; grid-template-columns: minmax(240px, .85fr) minmax(0, 1fr); gap: 0; align-items: stretch; border: 1px solid rgba(180,134,22,.24); border-radius: 12px; overflow: hidden; background: rgba(255,250,241,.96); text-align: left; box-shadow: 0 20px 55px rgba(10,29,53,.09); transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.unit-showcase-card:hover, .unit-showcase-card.active { transform: translateY(-2px); border-color: rgba(180,134,22,.65); box-shadow: 0 26px 68px rgba(10,29,53,.14); }
+.unit-photo-button { position: relative; width: 100%; min-height: 100%; border: 0; padding: 0; background: #eadfce; cursor: pointer; overflow: hidden; }
+.unit-photo-button img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .45s ease, filter .45s ease; }
+.unit-photo-button:hover img { transform: scale(1.045); filter: brightness(.92); }
+.unit-photo-button span { position: absolute; left: 16px; bottom: 16px; padding: 8px 12px; border-radius: 999px; background: rgba(7,31,61,.88); color: #fff; font-size: 12px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.unit-card-body { padding: 28px 28px 24px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.unit-card-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.unit-card-topline em { color: #b48616; font-size: .72rem; font-style: normal; font-weight: 900; letter-spacing: .15em; text-transform: uppercase; }
+.unit-card-topline b { color: rgba(7,31,61,.48); font-size: .70rem; letter-spacing: .10em; text-transform: uppercase; }
+.unit-card-body h3 { margin: 0; color: #0a1d35; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(1.75rem, 3vw, 2.35rem); line-height: 1.02; }
+.unit-card-body p { margin: 0; color: #5f5548; font-size: .98rem; line-height: 1.55; }
+.unit-stat-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.unit-stat-list span { padding: 7px 10px; border-radius: 999px; background: rgba(180,134,22,.10); border: 1px solid rgba(180,134,22,.18); color: var(--navy); font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.unit-card-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.unit-card-actions button { min-height: 40px; border-radius: 999px; padding: 0 16px; cursor: pointer; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; font-size: 12px; }
+.unit-primary-action { border: 0; background: var(--navy); color: #fff; }
+.unit-secondary-action { border: 1px solid rgba(7,31,61,.18); background: rgba(255,255,255,.55); color: var(--navy); }
 .why-grid { width: min(1050px, 100%); margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
 .why-grid article { background: rgba(255,255,255,.45); border: 1px solid rgba(180,134,22,.22); border-radius: 7px; padding: 25px 28px 24px; text-align: center; min-height: 175px; }
 .why-grid i { width: 58px; height: 58px; margin: 0 auto 14px; border-radius: 50%; background: rgba(180,134,22,.08); border: 1px solid rgba(180,134,22,.16); display: grid; place-items: center; color: var(--gold); font-style: normal; font-size: 22px; }
@@ -944,6 +1035,8 @@ button, input, select { font: inherit; }
 
 .availability-card { width: min(1050px, 100%); margin: 28px auto 0; border: 1px solid rgba(180,134,22,.20); border-radius: 8px; display: grid; grid-template-columns: 1.25fr .9fr; overflow: hidden; background: rgba(255,255,255,.32); }
 .availability-form-wrap { padding: 0 34px 28px; }
+.selected-unit-strip { margin: -7px 0 18px; padding: 10px 14px; border-radius: 999px; background: rgba(180,134,22,.10); border: 1px solid rgba(180,134,22,.18); text-align: center; font-size: 14px; color: rgba(7,31,61,.76); }
+.selected-unit-strip strong { color: var(--navy); }
 .date-form { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .date-form label { display: grid; gap: 7px; padding: 13px 14px; background: rgba(255,255,255,.55); border: 1px solid rgba(180,134,22,.18); border-radius: 6px; }
 .date-form label span { font-size: 13px; font-weight: 800; }
@@ -1034,10 +1127,16 @@ button, input, select { font: inherit; }
   .amenities div { border-right: 0; border-bottom: 1px solid var(--line); min-height: 58px; }
   .why, .gallery-section, .availability, .position, .units-showcase { padding: 0 16px; }
   .why-grid, .unit-showcase-grid, .availability-card, .position-card, .footer { grid-template-columns: 1fr; }
+  .unit-showcase-grid.single { grid-template-columns: 1fr; }
+  .unit-showcase-card { grid-template-columns: 1fr; min-height: 0; }
+  .unit-photo-button { min-height: 240px; }
+  .unit-card-body { padding: 22px 20px 20px; }
+  .unit-card-topline { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .unit-card-actions { flex-direction: column; }
+  .unit-card-actions button { width: 100%; }
   .gallery-layout { grid-template-columns: 1fr; }
   .gallery-feature { min-height: 280px; }
   .gallery-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .unit-showcase-card { grid-template-columns: 110px 1fr; }
   .gallery-thumb { min-height: 125px; }
   .lightbox { padding: 72px 14px 24px; }
   .lightbox-content img { max-height: 70vh; }
