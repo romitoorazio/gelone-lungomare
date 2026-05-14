@@ -52,7 +52,15 @@ function moneyToCents(value) {
 
 function isInactiveBooking(status) {
   const value = String(status || "").toLowerCase();
-  return ["cancelled", "canceled", "deleted", "available", "rejected", "declined"].includes(value);
+
+  return [
+    "cancelled",
+    "canceled",
+    "deleted",
+    "available",
+    "rejected",
+    "declined",
+  ].includes(value);
 }
 
 export default async function handler(req, res) {
@@ -109,7 +117,14 @@ export default async function handler(req, res) {
 
     const totalPrice = Number(booking.totalPrice || 0);
     const depositAmount = Number(booking.depositAmount || 0);
-    const amount = paymentType === "full" ? totalPrice : depositAmount > 0 ? depositAmount : totalPrice;
+
+    const amount =
+      paymentType === "full"
+        ? totalPrice
+        : depositAmount > 0
+          ? depositAmount
+          : totalPrice;
+
     const amountCents = moneyToCents(amount);
 
     if (amountCents < 50) {
@@ -134,9 +149,10 @@ export default async function handler(req, res) {
             currency: "eur",
             unit_amount: amountCents,
             product_data: {
-              name: paymentType === "full"
-                ? `Pagamento soggiorno ${unitName}`
-                : `Caparra prenotazione ${unitName}`,
+              name:
+                paymentType === "full"
+                  ? `Pagamento soggiorno ${unitName}`
+                  : `Caparra prenotazione ${unitName}`,
               description: `${booking.checkIn || "-"} / ${booking.checkOut || "-"}`,
             },
           },
