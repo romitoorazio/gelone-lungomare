@@ -36,7 +36,7 @@ export function normalizeUnit(raw = {}, fallback = DEFAULT_UNIT) {
     active: raw.active ?? fallback.active ?? true,
     publicVisible: raw.publicVisible ?? fallback.publicVisible ?? false,
     welcomateEnabled: raw.welcomateEnabled ?? fallback.welcomateEnabled ?? false,
-    notificationEmail: String(raw.notificationEmail || fallback.notificationEmail || "info@gelone.it").trim(),
+    notificationEmail: String(raw.notificationEmail ?? fallback.notificationEmail ?? "info@gelone.it").trim(),
     icalPath: String(raw.icalPath || fallback.icalPath || `/api/ical/${id}.ics`).trim(),
   };
 }
