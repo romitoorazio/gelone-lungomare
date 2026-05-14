@@ -27,7 +27,7 @@ const defaultPricing = {
   directRateText: "Miglior tariffa prenotando dal sito",
 };
 
-const gallery = [FOTO_TERRAZZA, FOTO_MARE, FOTO_INTERNI, FOTO_TERRAZZA, FOTO_MARE];
+const fallbackGallery = [FOTO_TERRAZZA, FOTO_MARE, FOTO_INTERNI, FOTO_TERRAZZA, FOTO_MARE];
 
 function pad2(value) {
   return String(value).padStart(2, "0");
@@ -139,6 +139,7 @@ export default function App() {
   const [guestPhone, setGuestPhone] = useState("");
   const [requestStatus, setRequestStatus] = useState(null);
   const [pricing, setPricing] = useState(defaultPricing);
+  const [galleryPhotos, setGalleryPhotos] = useState(fallbackGallery);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
     d.setDate(1);
@@ -171,6 +172,35 @@ export default function App() {
     }
 
     loadPricing();
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadUnitGallery() {
+      try {
+        const snapshot = await getDoc(doc(db, "settings", "units"));
+        if (!mounted || !snapshot.exists()) return;
+
+        const items = Array.isArray(snapshot.data()?.items) ? snapshot.data().items : [];
+        const unit = items.find((item) => item?.id === UNIT_ID);
+        const photos = Array.isArray(unit?.photos)
+          ? unit.photos
+              .filter((photo) => photo?.url)
+              .sort((a, b) => Number(a.order || 999) - Number(b.order || 999))
+              .map((photo) => photo.url)
+          : [];
+
+        if (photos.length > 0) {
+          setGalleryPhotos(photos);
+        }
+      } catch (error) {
+        console.warn("Galleria unità non caricata, uso foto predefinite:", error);
+      }
+    }
+
+    loadUnitGallery();
     return () => { mounted = false; };
   }, []);
 
@@ -453,7 +483,7 @@ export default function App() {
       <section id="foto" className="gallery-section">
         <SectionTitle>GALLERIA</SectionTitle>
         <div className="gallery-row">
-          {gallery.map((src, index) => (
+          {galleryPhotos.map((src, index) => (
             <button key={`${src}-${index}`} type="button" className="gallery-thumb">
               <img src={src} alt={`Foto Gelone Lungomare ${index + 1}`} />
             </button>

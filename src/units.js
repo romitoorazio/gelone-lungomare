@@ -20,9 +20,27 @@ export const DEFAULT_UNIT = {
   airbnbUrl: "https://www.airbnb.it/rooms/1267419022190887817",
   icalPath: "/api/ical/lunarossa1.ics",
   sortOrder: 1,
+  photos: [],
 };
 
 export const DEFAULT_UNITS = [DEFAULT_UNIT];
+
+function normalizePhotos(value) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((photo) => photo && typeof photo === "object" && photo.url)
+    .map((photo, index) => ({
+      id: String(photo.id || photo.path || `photo-${index + 1}`),
+      url: String(photo.url || "").trim(),
+      path: String(photo.path || "").trim(),
+      name: String(photo.name || `Foto ${index + 1}`).trim(),
+      cover: Boolean(photo.cover),
+      order: Number.isFinite(Number(photo.order)) ? Number(photo.order) : index + 1,
+      uploadedAt: photo.uploadedAt || "",
+    }))
+    .sort((a, b) => (a.order || 999) - (b.order || 999));
+}
 
 export function sanitizeUnitId(value) {
   return String(value || "")
@@ -59,5 +77,6 @@ export function normalizeUnit(raw = {}, fallback = DEFAULT_UNIT) {
     airbnbUrl: String(raw.airbnbUrl ?? fallback.airbnbUrl ?? "").trim(),
     icalPath: String(raw.icalPath || fallback.icalPath || `/api/ical/${id}.ics`).trim(),
     sortOrder: Number(raw.sortOrder ?? fallback.sortOrder ?? 999),
+    photos: normalizePhotos(raw.photos ?? fallback.photos ?? []),
   };
 }

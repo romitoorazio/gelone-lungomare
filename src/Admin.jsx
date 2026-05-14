@@ -19,10 +19,12 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
+import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import {
   Building2,
   CalendarDays,
   Copy,
+  ImagePlus,
   CreditCard,
   Lock,
   LogOut,
@@ -32,10 +34,12 @@ import {
   RefreshCcw,
   Save,
   Search,
+  Star,
+  Trash2,
   ShieldCheck,
   Wifi,
 } from "lucide-react";
-import { auth, db, ADMIN_EMAILS, UNIT_ID } from "./firebase";
+import { auth, db, storage, ADMIN_EMAILS, UNIT_ID } from "./firebase";
 import { DEFAULT_UNIT, DEFAULT_UNITS, normalizeUnit, sanitizeUnitId } from "./units";
 
 const defaultSettings = {
@@ -324,6 +328,7 @@ function createUnitForm(unit = DEFAULT_UNIT) {
     airbnbUrl: normalized.airbnbUrl || "",
     icalPath: normalized.icalPath || `/api/ical/${normalized.id}.ics`,
     sortOrder: String(normalized.sortOrder || 999),
+    photos: Array.isArray(normalized.photos) ? normalized.photos : [],
   };
 }
 
@@ -493,6 +498,7 @@ export default function Admin() {
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [manualCopy, setManualCopy] = useState({ title: "", text: "" });
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const [detailForm, setDetailForm] = useState({
     guestName: "",
@@ -1278,6 +1284,7 @@ export default function Admin() {
         airbnbUrl: "",
         icalPath: `/api/ical/${nextId}.ics`,
         sortOrder: index,
+        photos: [],
       })
     );
 
@@ -1313,6 +1320,7 @@ export default function Admin() {
         publicVisible: Boolean(unitForm.publicVisible),
         welcomateEnabled: Boolean(unitForm.welcomateEnabled),
         icalPath: unitForm.icalPath || `/api/ical/${id}.ics`,
+        photos: Array.isArray(unitForm.photos) ? unitForm.photos : [],
       });
 
       const nextUnits = [
@@ -1340,6 +1348,134 @@ export default function Admin() {
       console.error(err);
       setError("Errore durante il salvataggio dell'unità.");
     }
+  }
+
+  function normalizePhotoList(photos = []) {
+    const list = Array.isArray(photos) ? photos : [];
+    const hasCover = list.some((photo) => photo.cover);
+
+    return list
+      .filter((photo) => photo?.url)
+      .map((photo, index) => ({
+        id: String(photo.id || photo.path || `photo-${index + 1}`),
+        url: String(photo.url || "").trim(),
+        path: String(photo.path || "").trim(),
+        name: String(photo.name || `Foto ${index + 1}`).trim(),
+        cover: hasCover ? Boolean(photo.cover) : index === 0,
+        order: index + 1,
+        uploadedAt: photo.uploadedAt || "",
+      }));
+  }
+
+  function setUnitPhotos(nextPhotos) {
+    setUnitForm((current) => ({
+      ...current,
+      photos: normalizePhotoList(nextPhotos),
+    }));
+  }
+
+  async function handleUnitPhotoUpload(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+
+    if (files.length === 0) return;
+
+    clearMessages();
+
+    const id = sanitizeUnitId(unitForm.id);
+    if (!id) {
+      setError("Prima inserisci un ID tecnico valido per l'unità.");
+      return;
+    }
+
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    if (imageFiles.length === 0) {
+      setError("Seleziona solo immagini: JPG, PNG, HEIC convertito o WebP.");
+      return;
+    }
+
+    try {
+      setPhotoUploading(true);
+      const existingPhotos = Array.isArray(unitForm.photos) ? unitForm.photos : [];
+      const uploadedPhotos = [];
+
+      for (const [index, file] of imageFiles.entries()) {
+        const extension = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+        const safeName = file.name
+          .replace(/\.[^/.]+$/, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 40) || "foto";
+        const filePath = `units/${id}/photos/${Date.now()}-${index}-${safeName}.${extension}`;
+        const storageReference = ref(storage, filePath);
+
+        await uploadBytes(storageReference, file, {
+          contentType: file.type || "image/jpeg",
+          customMetadata: {
+            unitId: id,
+            originalName: file.name,
+          },
+        });
+
+        const url = await getDownloadURL(storageReference);
+        uploadedPhotos.push({
+          id: filePath,
+          url,
+          path: filePath,
+          name: file.name,
+          cover: existingPhotos.length === 0 && uploadedPhotos.length === 0,
+          order: existingPhotos.length + uploadedPhotos.length + 1,
+          uploadedAt: new Date().toISOString(),
+        });
+      }
+
+      setUnitPhotos([...existingPhotos, ...uploadedPhotos]);
+      setMessage(`${uploadedPhotos.length} foto caricata/e. Premi Salva unità per pubblicarle nella galleria.`);
+    } catch (err) {
+      console.error(err);
+      setError("Non riesco a caricare la foto. Controlla che Firebase Storage sia attivo e che le regole permettano l'upload agli admin.");
+    } finally {
+      setPhotoUploading(false);
+    }
+  }
+
+  async function removeUnitPhoto(photo) {
+    clearMessages();
+
+    try {
+      if (photo?.path) {
+        await deleteObject(ref(storage, photo.path));
+      }
+    } catch (err) {
+      console.warn("Foto non eliminata da Storage, la rimuovo comunque dalla scheda:", err);
+    }
+
+    const nextPhotos = (unitForm.photos || []).filter((item) => item.id !== photo.id && item.path !== photo.path);
+    setUnitPhotos(nextPhotos);
+    setMessage("Foto rimossa dalla scheda. Premi Salva unità per confermare la modifica.");
+  }
+
+  function setPhotoAsCover(photo) {
+    const nextPhotos = (unitForm.photos || []).map((item) => ({
+      ...item,
+      cover: item.id === photo.id,
+    }));
+    setUnitPhotos(nextPhotos);
+    setMessage("Copertina aggiornata. Premi Salva unità per confermare.");
+  }
+
+  function movePhoto(photo, direction) {
+    const currentPhotos = normalizePhotoList(unitForm.photos || []);
+    const currentIndex = currentPhotos.findIndex((item) => item.id === photo.id);
+    const nextIndex = currentIndex + direction;
+
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= currentPhotos.length) return;
+
+    const nextPhotos = [...currentPhotos];
+    [nextPhotos[currentIndex], nextPhotos[nextIndex]] = [nextPhotos[nextIndex], nextPhotos[currentIndex]];
+    setUnitPhotos(nextPhotos);
+    setMessage("Ordine foto aggiornato. Premi Salva unità per confermare.");
   }
 
   async function copyText(text, successMessage) {
@@ -2494,6 +2630,87 @@ export default function Admin() {
                   </div>
                   <p className="mt-3 text-sm leading-6 text-[#666]">
                     Consiglio: lascia le nuove unità in bozza finché non prepariamo foto, tariffe, iCal in ingresso e pagina pubblica multi-alloggio.
+                  </p>
+                </div>
+
+                <div className="rounded-[2rem] border border-[#eadbbf] bg-[#faf6ee] p-5 lg:col-span-2">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h4 className="font-serif text-2xl">Foto unità</h4>
+                      <p className="mt-1 text-sm leading-6 text-[#666]">
+                        Carica le foto da computer o telefono. Per Lunarossa 1 sostituiscono la galleria pubblica; per Lunarossa 2 restano pronte finché è in bozza.
+                      </p>
+                    </div>
+                    <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white">
+                      <ImagePlus size={18} />
+                      {photoUploading ? "Caricamento..." : "Carica foto"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        disabled={photoUploading}
+                        onChange={handleUnitPhotoUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+
+                  {(unitForm.photos || []).length > 0 ? (
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {(unitForm.photos || []).map((photo, index) => (
+                        <div key={photo.id || photo.url} className="overflow-hidden rounded-2xl border border-[#e4d8c2] bg-white shadow-sm">
+                          <div className="relative h-40 bg-[#eee]">
+                            <img src={photo.url} alt={photo.name || `Foto ${index + 1}`} className="h-full w-full object-cover" />
+                            {photo.cover && (
+                              <span className="absolute left-3 top-3 rounded-full bg-[#0a1d35] px-3 py-1 text-xs font-bold text-white">
+                                Copertina
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-3 p-4">
+                            <p className="truncate text-sm font-semibold text-[#0a1d35]">{photo.name || `Foto ${index + 1}`}</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <SmallButton
+                                onClick={() => setPhotoAsCover(photo)}
+                                className="border border-[#d7c49f] bg-white text-[#0a1d35]"
+                              >
+                                <span className="inline-flex items-center gap-1"><Star size={14} /> Copertina</span>
+                              </SmallButton>
+                              <SmallButton
+                                onClick={() => removeUnitPhoto(photo)}
+                                className="border border-red-200 bg-red-50 text-red-800"
+                              >
+                                <span className="inline-flex items-center gap-1"><Trash2 size={14} /> Elimina</span>
+                              </SmallButton>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <SmallButton
+                                onClick={() => movePhoto(photo, -1)}
+                                disabled={index === 0}
+                                className="border border-[#d7c49f] bg-white text-[#0a1d35]"
+                              >
+                                ↑ Prima
+                              </SmallButton>
+                              <SmallButton
+                                onClick={() => movePhoto(photo, 1)}
+                                disabled={index === (unitForm.photos || []).length - 1}
+                                className="border border-[#d7c49f] bg-white text-[#0a1d35]"
+                              >
+                                ↓ Dopo
+                              </SmallButton>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-5 rounded-2xl border border-dashed border-[#d7c49f] bg-white p-5 text-sm leading-6 text-[#666]">
+                      Nessuna foto caricata per questa unità. Lunarossa 1 continuerà a usare le foto attuali del sito finché non carichi e salvi nuove foto.
+                    </div>
+                  )}
+
+                  <p className="mt-4 rounded-2xl bg-white p-4 text-sm font-semibold text-[#0a1d35]">
+                    Dopo upload, eliminazione, copertina o ordine foto, premi sempre <strong>Salva unità</strong>.
                   </p>
                 </div>
 

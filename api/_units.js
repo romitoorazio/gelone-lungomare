@@ -11,7 +11,25 @@ export const DEFAULT_UNIT = {
   welcomateEnabled: true,
   notificationEmail: "info@gelone.it",
   icalPath: "/api/ical/lunarossa1.ics",
+  photos: [],
 };
+
+function normalizePhotos(value) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((photo) => photo && typeof photo === "object" && photo.url)
+    .map((photo, index) => ({
+      id: String(photo.id || photo.path || `photo-${index + 1}`),
+      url: String(photo.url || "").trim(),
+      path: String(photo.path || "").trim(),
+      name: String(photo.name || `Foto ${index + 1}`).trim(),
+      cover: Boolean(photo.cover),
+      order: Number.isFinite(Number(photo.order)) ? Number(photo.order) : index + 1,
+      uploadedAt: photo.uploadedAt || "",
+    }))
+    .sort((a, b) => (a.order || 999) - (b.order || 999));
+}
 
 export function sanitizeUnitId(value) {
   return String(value || "")
@@ -38,6 +56,7 @@ export function normalizeUnit(raw = {}, fallback = DEFAULT_UNIT) {
     welcomateEnabled: raw.welcomateEnabled ?? fallback.welcomateEnabled ?? false,
     notificationEmail: String(raw.notificationEmail ?? fallback.notificationEmail ?? "info@gelone.it").trim(),
     icalPath: String(raw.icalPath || fallback.icalPath || `/api/ical/${id}.ics`).trim(),
+    photos: normalizePhotos(raw.photos ?? fallback.photos ?? []),
   };
 }
 
