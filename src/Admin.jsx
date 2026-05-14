@@ -1909,14 +1909,28 @@ export default function Admin() {
                       collegato.
                     </p>
                     <div className="mt-4 rounded-2xl bg-white p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-[#9b6b25]">
-                        Unità selezionata
-                      </p>
-                      <p className="mt-1 font-bold text-[#0a1d35]">
-                        {selectedUnit.publicName || selectedUnit.name}{" "}
-                        <span className="text-sm font-semibold text-[#777]">
-                          ({selectedUnit.id})
+                      <label className="block">
+                        <span className="text-xs uppercase tracking-[0.18em] text-[#9b6b25]">
+                          Scegli unità da pulire
                         </span>
+                        <select
+                          value={selectedUnitId}
+                          onChange={(event) => setSelectedUnitId(event.target.value)}
+                          className="mt-3 w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 font-bold text-[#0a1d35]"
+                        >
+                          {units.map((unit) => (
+                            <option key={unit.id} value={unit.id}>
+                              {(unit.publicName || unit.name || unit.id)}
+                              {unit.name && unit.publicName && unit.publicName !== unit.name
+                                ? " — " + unit.name
+                                : ""}{" "}
+                              ({unit.id})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <p className="mt-3 text-sm leading-6 text-[#555]">
+                        La pulizia verrà eseguita solo sull'unità selezionata qui sopra.
                       </p>
                     </div>
                   </div>
