@@ -75,6 +75,16 @@ function getUnitDescription(unit) {
   return "Alloggio riservato e curato, ideale per soggiorni vicino al lungomare con prenotazione diretta e disponibilità aggiornata.";
 }
 
+function getPublicUnitName(unit) {
+  return String(unit?.publicName || unit?.name || "Gelone Lungomare").trim() || "Gelone Lungomare";
+}
+
+function getUnitCardBadge(unit) {
+  const name = getPublicUnitName(unit).toLowerCase();
+  if (name.includes("lungomare")) return "Vista lungomare";
+  return "Alloggio Gelone";
+}
+
 function getUnitStats(unit) {
   const guests = Number(unit?.maxGuests || 2);
   const bedrooms = Number(unit?.bedrooms || 1);
@@ -216,7 +226,7 @@ export default function App() {
     () => publicUnits.find((unit) => unit.id === selectedPublicUnitId) || publicUnits[0] || DEFAULT_UNIT,
     [publicUnits, selectedPublicUnitId]
   );
-  const selectedUnitName = selectedPublicUnit.publicName || selectedPublicUnit.name || "Gelone Lungomare";
+  const selectedUnitName = getPublicUnitName(selectedPublicUnit);
   const selectedUnitCin = selectedPublicUnit.cin || CIN;
   const selectedUnitCir = selectedPublicUnit.cir || CIR;
 
@@ -568,7 +578,7 @@ export default function App() {
           <p className="eyebrow">Alloggi Gelone</p>
           <SectionTitle>{publicUnits.length > 1 ? "SCEGLI IL TUO ALLOGGIO" : "IL TUO ALLOGGIO"}</SectionTitle>
           <p>
-            Foto, tariffe, disponibilità e calendari sono separati per ogni unità. Oggi trovi Lunarossa 1;
+            Foto, tariffe, disponibilità e calendari sono separati per ogni alloggio. Oggi trovi Gelone Lungomare;
             le nuove unità compariranno qui solo quando saranno attive e visibili dal pannello admin.
           </p>
         </div>
@@ -578,6 +588,7 @@ export default function App() {
             const isSelected = unit.id === selectedPublicUnitId;
             const stats = getUnitStats(unit);
             const photoCount = getUnitPhotos(unit).length;
+            const publicUnitName = getPublicUnitName(unit);
 
             return (
               <article key={unit.id} className={`unit-showcase-card ${isSelected ? "active" : ""}`}>
@@ -591,18 +602,18 @@ export default function App() {
                     setCalendarRefreshKey((value) => value + 1);
                     window.setTimeout(() => document.getElementById("foto")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
                   }}
-                  aria-label={`Guarda le foto di ${unit.publicName || unit.name}`}
+                  aria-label={`Guarda le foto di ${publicUnitName}`}
                 >
-                  <img src={getUnitCover(unit)} alt={unit.publicName || unit.name} />
+                  <img src={getUnitCover(unit)} alt={publicUnitName} />
                   <span>{photoCount > 0 ? `${photoCount} foto` : "Galleria"}</span>
                 </button>
 
                 <div className="unit-card-body">
                   <div className="unit-card-topline">
                     <em>{isSelected ? "Alloggio selezionato" : "Disponibilità separata"}</em>
-                    <b>{unit.id}</b>
+                    <b>{getUnitCardBadge(unit)}</b>
                   </div>
-                  <h3>{unit.publicName || unit.name}</h3>
+                  <h3>{publicUnitName}</h3>
                   <p>{getUnitDescription(unit)}</p>
                   <div className="unit-stat-list">
                     {stats.map((stat) => <span key={stat}>{stat}</span>)}
