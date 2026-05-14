@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase";
 
 const LOGO_HEADER = "/images/logo-gelone-header-senza-qrcode.png";
@@ -176,32 +176,37 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-
-    async function loadUnitGallery() {
-      try {
-        const snapshot = await getDoc(doc(db, "settings", "units"));
-        if (!mounted || !snapshot.exists()) return;
+    const unsubscribe = onSnapshot(
+      doc(db, "settings", "units"),
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setGalleryPhotos(fallbackGallery);
+          return;
+        }
 
         const items = Array.isArray(snapshot.data()?.items) ? snapshot.data().items : [];
         const unit = items.find((item) => item?.id === UNIT_ID);
         const photos = Array.isArray(unit?.photos)
           ? unit.photos
               .filter((photo) => photo?.url)
-              .sort((a, b) => Number(a.order || 999) - Number(b.order || 999))
+              .sort((a, b) => {
+                if (Boolean(a.cover) !== Boolean(b.cover)) {
+                  return a.cover ? -1 : 1;
+                }
+                return Number(a.order || 999) - Number(b.order || 999);
+              })
               .map((photo) => photo.url)
           : [];
 
-        if (photos.length > 0) {
-          setGalleryPhotos(photos);
-        }
-      } catch (error) {
+        setGalleryPhotos(photos.length > 0 ? photos : fallbackGallery);
+      },
+      (error) => {
         console.warn("Galleria unità non caricata, uso foto predefinite:", error);
+        setGalleryPhotos(fallbackGallery);
       }
-    }
+    );
 
-    loadUnitGallery();
-    return () => { mounted = false; };
+    return () => unsubscribe();
   }, []);
 
   const calendarDays = useMemo(() => getCalendarDays(calendarMonth), [calendarMonth]);

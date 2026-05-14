@@ -1374,6 +1374,54 @@ export default function Admin() {
     }));
   }
 
+  function buildUnitFromForm(id, photosOverride) {
+    return normalizeUnit({
+      ...unitForm,
+      id,
+      maxGuests: Number(unitForm.maxGuests || 1),
+      bedrooms: Number(unitForm.bedrooms || 0),
+      bathrooms: Number(unitForm.bathrooms || 0),
+      sortOrder: Number(unitForm.sortOrder || 999),
+      hasKitchen: Boolean(unitForm.hasKitchen),
+      active: Boolean(unitForm.active),
+      publicVisible: Boolean(unitForm.publicVisible),
+      welcomateEnabled: Boolean(unitForm.welcomateEnabled),
+      icalPath: unitForm.icalPath || `/api/ical/${id}.ics`,
+      photos: normalizePhotoList(photosOverride ?? unitForm.photos ?? []),
+    });
+  }
+
+  function sortUnitList(list) {
+    return [...list].sort((a, b) => {
+      if ((a.sortOrder || 999) === (b.sortOrder || 999)) {
+        return a.name.localeCompare(b.name);
+      }
+      return (a.sortOrder || 999) - (b.sortOrder || 999);
+    });
+  }
+
+  async function persistUnitPhotos(id, nextPhotos, successMessage) {
+    const normalizedUnit = buildUnitFromForm(id, nextPhotos);
+    const nextUnits = sortUnitList([
+      ...units.filter((unit) => unit.id !== id),
+      normalizedUnit,
+    ]);
+
+    await setDoc(
+      doc(db, "settings", "units"),
+      {
+        items: nextUnits,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    setUnits(nextUnits);
+    setSelectedUnitId(id);
+    setUnitForm(createUnitForm(normalizedUnit));
+    setMessage(successMessage || "Foto salvate. La galleria dell'unità è aggiornata.");
+  }
+
   async function handleUnitPhotoUpload(event) {
     const files = Array.from(event.target.files || []);
     event.target.value = "";
@@ -1430,11 +1478,16 @@ export default function Admin() {
         });
       }
 
-      setUnitPhotos([...existingPhotos, ...uploadedPhotos]);
-      setMessage(`${uploadedPhotos.length} foto caricata/e. Premi Salva unità per pubblicarle nella galleria.`);
+      const nextPhotos = normalizePhotoList([...existingPhotos, ...uploadedPhotos]);
+      setUnitPhotos(nextPhotos);
+      await persistUnitPhotos(
+        id,
+        nextPhotos,
+        `${uploadedPhotos.length} foto caricata/e e salvata/e. La galleria dell'unità è aggiornata.`
+      );
     } catch (err) {
       console.error(err);
-      setError("Non riesco a caricare la foto. Controlla che Firebase Storage sia attivo e che le regole permettano l'upload agli admin.");
+      setError("Non riesco a completare il caricamento/salvataggio della foto. Controlla Firebase Storage, le regole e riprova.");
     } finally {
       setPhotoUploading(false);
     }
@@ -1451,21 +1504,41 @@ export default function Admin() {
       console.warn("Foto non eliminata da Storage, la rimuovo comunque dalla scheda:", err);
     }
 
-    const nextPhotos = (unitForm.photos || []).filter((item) => item.id !== photo.id && item.path !== photo.path);
+    const id = sanitizeUnitId(unitForm.id || selectedUnitId);
+    const nextPhotos = normalizePhotoList(
+      (unitForm.photos || []).filter((item) => item.id !== photo.id && item.path !== photo.path)
+    );
+
     setUnitPhotos(nextPhotos);
-    setMessage("Foto rimossa dalla scheda. Premi Salva unità per confermare la modifica.");
+
+    try {
+      await persistUnitPhotos(id, nextPhotos, "Foto rimossa e galleria salvata.");
+    } catch (err) {
+      console.error(err);
+      setError("Foto rimossa dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unità.");
+    }
   }
 
-  function setPhotoAsCover(photo) {
-    const nextPhotos = (unitForm.photos || []).map((item) => ({
-      ...item,
-      cover: item.id === photo.id,
-    }));
+  async function setPhotoAsCover(photo) {
+    const id = sanitizeUnitId(unitForm.id || selectedUnitId);
+    const nextPhotos = normalizePhotoList(
+      (unitForm.photos || []).map((item) => ({
+        ...item,
+        cover: item.id === photo.id,
+      }))
+    );
+
     setUnitPhotos(nextPhotos);
-    setMessage("Copertina aggiornata. Premi Salva unità per confermare.");
+
+    try {
+      await persistUnitPhotos(id, nextPhotos, "Copertina aggiornata e salvata.");
+    } catch (err) {
+      console.error(err);
+      setError("Copertina aggiornata dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unità.");
+    }
   }
 
-  function movePhoto(photo, direction) {
+  async function movePhoto(photo, direction) {
     const currentPhotos = normalizePhotoList(unitForm.photos || []);
     const currentIndex = currentPhotos.findIndex((item) => item.id === photo.id);
     const nextIndex = currentIndex + direction;
@@ -1474,8 +1547,16 @@ export default function Admin() {
 
     const nextPhotos = [...currentPhotos];
     [nextPhotos[currentIndex], nextPhotos[nextIndex]] = [nextPhotos[nextIndex], nextPhotos[currentIndex]];
-    setUnitPhotos(nextPhotos);
-    setMessage("Ordine foto aggiornato. Premi Salva unità per confermare.");
+
+    const normalizedPhotos = normalizePhotoList(nextPhotos);
+    setUnitPhotos(normalizedPhotos);
+
+    try {
+      await persistUnitPhotos(sanitizeUnitId(unitForm.id || selectedUnitId), normalizedPhotos, "Ordine foto aggiornato e salvato.");
+    } catch (err) {
+      console.error(err);
+      setError("Ordine foto aggiornato dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unità.");
+    }
   }
 
   async function copyText(text, successMessage) {
@@ -2638,7 +2719,7 @@ export default function Admin() {
                     <div>
                       <h4 className="font-serif text-2xl">Foto unità</h4>
                       <p className="mt-1 text-sm leading-6 text-[#666]">
-                        Carica le foto da computer o telefono. Per Lunarossa 1 sostituiscono la galleria pubblica; per Lunarossa 2 restano pronte finché è in bozza.
+                        Carica le foto da computer o telefono. Ora vengono salvate subito nella scheda unità: per Lunarossa 1 aggiornano la galleria pubblica, per Lunarossa 2 restano pronte finché è in bozza.
                       </p>
                     </div>
                     <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white">
@@ -2710,7 +2791,7 @@ export default function Admin() {
                   )}
 
                   <p className="mt-4 rounded-2xl bg-white p-4 text-sm font-semibold text-[#0a1d35]">
-                    Dopo upload, eliminazione, copertina o ordine foto, premi sempre <strong>Salva unità</strong>.
+                    Dopo upload, eliminazione, copertina o ordine foto il sistema salva subito la galleria. Usa <strong>Salva unità</strong> solo se hai modificato anche testi, CIN/CIR o altri dati.
                   </p>
                 </div>
 
