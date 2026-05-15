@@ -1,7 +1,18 @@
 import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import { doc, getFirestore, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
 const ADMIN_EMAILS = ["romitoorazio@gmail.com", "romitofrancesco1@gmail.com"];
+const DEFAULT_UNITS = [
+  {
+    id: "lunarossa1",
+    name: "Lunarossa 1",
+    publicName: "Gelone Lungomare",
+    active: true,
+    publicVisible: true,
+  },
+];
+
 const firebaseConfig = {
   apiKey: "AIzaSyCdz5rPl--09OneuaVDUz36qfmcuvMYu0M",
   authDomain: "gelone-lungomare-pms.firebaseapp.com",
@@ -12,9 +23,65 @@ const firebaseConfig = {
   measurementId: "G-CPTBWHN86V",
 };
 
+let firestoreDb = null;
+let unsubscribeUnits = null;
+
 function isAdminEmail(email) {
   const value = String(email || "").trim().toLowerCase();
   return ADMIN_EMAILS.some((adminEmail) => adminEmail.toLowerCase() === value);
+}
+
+function cleanText(value) {
+  return String(value || "").trim();
+}
+
+function sanitizeUnitId(value) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+function normalizeUnit(raw = {}, fallback = DEFAULT_UNITS[0]) {
+  const id = sanitizeUnitId(raw.id || fallback.id || "lunarossa1") || "lunarossa1";
+  return {
+    ...fallback,
+    ...raw,
+    id,
+    name: cleanText(raw.name || fallback.name || id),
+    publicName: cleanText(raw.publicName || raw.name || fallback.publicName || fallback.name || id),
+    active: raw.active ?? fallback.active ?? true,
+    publicVisible: raw.publicVisible ?? fallback.publicVisible ?? false,
+    sortOrder: Number(raw.sortOrder || fallback.sortOrder || 999),
+  };
+}
+
+function getUnitLabel(unit) {
+  const publicName = cleanText(unit.publicName || unit.name || unit.id);
+  const internalName = cleanText(unit.name || unit.id);
+  const status = unit.active && unit.publicVisible ? "pubblica" : "bozza/non visibile";
+
+  if (publicName && publicName !== internalName) {
+    return `${publicName} — ${internalName} (${status})`;
+  }
+
+  return `${publicName} (${status})`;
+}
+
+function getUnitListFromSnapshot(snapshot) {
+  const items = Array.isArray(snapshot.data()?.items) ? snapshot.data().items : [];
+  const normalized = items
+    .map((item) => normalizeUnit(item))
+    .filter((unit) => unit.id)
+    .sort((a, b) => {
+      if ((a.sortOrder || 999) === (b.sortOrder || 999)) {
+        return getUnitLabel(a).localeCompare(getUnitLabel(b));
+      }
+      return (a.sortOrder || 999) - (b.sortOrder || 999);
+    });
+
+  return normalized.length > 0 ? normalized : DEFAULT_UNITS;
 }
 
 function createPanel() {
@@ -32,7 +99,10 @@ function createPanel() {
       </div>
       <label class="gelone-maintenance-label">
         Unità
-        <input id="gelone-maintenance-unit" value="lunarossa1" />
+        <select id="gelone-maintenance-unit">
+          <option value="lunarossa1">Gelone Lungomare — Lunarossa 1</option>
+        </select>
+        <small id="gelone-maintenance-unit-help">ID interno usato solo dal PMS.</small>
       </label>
       <button id="gelone-maintenance-clean" type="button">Pulisci ora</button>
       <pre id="gelone-maintenance-result" aria-live="polite"></pre>
@@ -46,7 +116,7 @@ function createPanel() {
       right: 16px;
       bottom: 16px;
       z-index: 9999;
-      max-width: min(360px, calc(100vw - 32px));
+      max-width: min(380px, calc(100vw - 32px));
       font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     .gelone-maintenance-card {
@@ -85,13 +155,20 @@ function createPanel() {
       color: #0a1d35;
     }
     #gelone-maintenance-unit {
+      width: 100%;
       border: 1px solid #d7c49f;
       border-radius: 14px;
       background: #faf6ee;
-      padding: 10px 12px;
+      padding: 11px 12px;
       color: #0a1d35;
-      font-weight: 700;
+      font-weight: 800;
       outline: none;
+    }
+    #gelone-maintenance-unit-help {
+      color: #6b7280;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.4;
     }
     #gelone-maintenance-clean {
       width: 100%;
@@ -145,17 +222,63 @@ function showResult(text) {
   result.textContent = text;
 }
 
+function renderUnits(units) {
+  const select = document.getElementById("gelone-maintenance-unit");
+  if (!select) return;
+
+  const current = select.value || "lunarossa1";
+  const safeUnits = Array.isArray(units) && units.length > 0 ? units : DEFAULT_UNITS;
+
+  select.innerHTML = safeUnits
+    .map((unit) => `<option value="${unit.id}">${getUnitLabel(unit)}</option>`)
+    .join("");
+
+  if (safeUnits.some((unit) => unit.id === current)) {
+    select.value = current;
+  } else {
+    select.value = safeUnits[0]?.id || "lunarossa1";
+  }
+}
+
+function loadUnitsForPanel() {
+  renderUnits(DEFAULT_UNITS);
+
+  if (!firestoreDb || unsubscribeUnits) return;
+
+  unsubscribeUnits = onSnapshot(
+    doc(firestoreDb, "settings", "units"),
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        renderUnits(DEFAULT_UNITS);
+        return;
+      }
+
+      renderUnits(getUnitListFromSnapshot(snapshot));
+    },
+    (error) => {
+      console.warn("Unità manutenzione non caricate:", error);
+      renderUnits(DEFAULT_UNITS);
+    }
+  );
+}
+
 function setupMaintenance(user) {
   if (!location.pathname.startsWith("/admin")) return;
   if (!user || !isAdminEmail(user.email)) return;
 
   const panel = createPanel();
   const button = panel.querySelector("#gelone-maintenance-clean");
-  const unitInput = panel.querySelector("#gelone-maintenance-unit");
+  const unitSelect = panel.querySelector("#gelone-maintenance-unit");
+
+  loadUnitsForPanel();
+
+  if (button.dataset.geloneBound === "true") return;
+  button.dataset.geloneBound = "true";
 
   button.addEventListener("click", async () => {
+    const selectedLabel = unitSelect.options[unitSelect.selectedIndex]?.textContent || unitSelect.value || "lunarossa1";
     const confirmed = window.confirm(
-      "Vuoi controllare e cancellare le notti fantasma per questa unità? Le prenotazioni e i blocchi attivi non vengono toccati."
+      `Vuoi controllare e cancellare le notti fantasma per:\n\n${selectedLabel}\n\nLe prenotazioni e i blocchi attivi non vengono toccati.`
     );
     if (!confirmed) return;
 
@@ -171,7 +294,7 @@ function setupMaintenance(user) {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ unitId: unitInput.value || "lunarossa1" }),
+        body: JSON.stringify({ unitId: unitSelect.value || "lunarossa1" }),
       });
       const data = await response.json().catch(() => null);
 
@@ -180,7 +303,7 @@ function setupMaintenance(user) {
       }
 
       showResult(
-        `Pulizia completata\n\nUnità: ${data.unitName || data.unitId}\nControllate: ${data.scannedCount || 0}\nEliminate: ${data.deletedCount || 0}\nProtette: ${data.keptCount || 0}`
+        `Pulizia completata\n\nUnità: ${data.unitName || data.unitId}\nID interno: ${data.unitId || unitSelect.value}\nControllate: ${data.scannedCount || 0}\nEliminate: ${data.deletedCount || 0}\nProtette: ${data.keptCount || 0}`
       );
     } catch (error) {
       showResult(`Errore: ${error.message || "pulizia non riuscita"}`);
@@ -194,5 +317,6 @@ function setupMaintenance(user) {
 if (location.pathname.startsWith("/admin")) {
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   const auth = getAuth(app);
+  firestoreDb = getFirestore(app);
   onAuthStateChanged(auth, setupMaintenance);
 }
