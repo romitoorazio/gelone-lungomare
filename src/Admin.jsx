@@ -1301,8 +1301,19 @@ export default function Admin() {
       return;
     }
 
-    if (["deposit_paid", "paid"].includes(String(booking.paymentStatus || ""))) {
-      setError("Questa prenotazione risulta già pagata.");
+    const currentPaymentStatus = String(booking.paymentStatus || "").toLowerCase();
+    const effectivePaymentType =
+      currentPaymentStatus === "deposit_paid" && paymentType === "full"
+        ? "balance"
+        : paymentType;
+
+    if (currentPaymentStatus === "paid") {
+      setError("Questa prenotazione risulta già saldata.");
+      return;
+    }
+
+    if (currentPaymentStatus === "deposit_paid" && effectivePaymentType === "deposit") {
+      setError("La caparra risulta già pagata. Usa il pulsante saldo residuo.");
       return;
     }
 
@@ -1314,7 +1325,7 @@ export default function Admin() {
         },
         body: JSON.stringify({
           bookingId: booking.id,
-          paymentType,
+          paymentType: effectivePaymentType,
         }),
       });
 
@@ -2289,13 +2300,23 @@ export default function Admin() {
                         Pagamento online Stripe
                       </p>
                       <p className="mt-2 text-sm leading-6 text-[#555]">
-                        Crea un link pagamento sicuro per caparra o saldo totale. Al momento Stripe è in modalità test.
+                        Crea un link pagamento sicuro per caparra o saldo residuo. Al momento Stripe è in modalità test.
                       </p>
 
                       <div className="mt-3 grid gap-3 md:grid-cols-3">
                         <DetailRow label="Stato pagamento" value={getPaymentLabel(selectedBooking.paymentStatus)} />
                         <DetailRow label="Caparra" value={formatEuro(selectedBooking.depositAmount)} />
                         <DetailRow label="Totale" value={formatEuro(selectedBooking.totalPrice)} />
+                        <DetailRow
+                          label="Saldo residuo"
+                          value={formatEuro(
+                            Math.max(
+                              Number(selectedBooking.totalPrice || 0) -
+                                Number(selectedBooking.depositAmount || 0),
+                              0
+                            )
+                          )}
+                        />
                       </div>
 
                       {selectedBooking.paymentCheckoutUrl && (
@@ -2314,10 +2335,10 @@ export default function Admin() {
                       </SmallButton>
 
                       <SmallButton
-                        onClick={() => createStripePaymentLink(selectedBooking, "full")}
+                        onClick={() => createStripePaymentLink(selectedBooking, "balance")}
                         className="bg-green-700 px-5 py-3 text-white"
                       >
-                        Crea link saldo totale
+                        Crea link saldo residuo
                       </SmallButton>
 
                       {selectedBooking.paymentCheckoutUrl && (

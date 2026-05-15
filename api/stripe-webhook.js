@@ -255,7 +255,7 @@ async function markBookingPaid(adminDb, session, event) {
     const unitId = cleanText(session.metadata?.unitId || booking.unitId || "");
     const nights = getNightDates(booking.checkIn, booking.checkOut);
 
-    const nextPaymentStatus = paymentType === "full" ? "paid" : "deposit_paid";
+    const nextPaymentStatus = ["full", "balance"].includes(paymentType) ? "paid" : "deposit_paid";
     const currentStatus = cleanText(booking.status || "pending_direct");
     const nextStatus = ["pending_direct", "pending", "pending_payment"].includes(currentStatus)
       ? "confirmed_direct"

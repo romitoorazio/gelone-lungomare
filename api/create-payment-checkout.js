@@ -80,7 +80,10 @@ export default async function handler(req, res) {
     const body = getBody(req);
 
     const bookingId = cleanText(body.bookingId);
-    const paymentType = body.paymentType === "full" ? "full" : "deposit";
+    const requestedPaymentType = cleanText(body.paymentType || "deposit");
+    let paymentType = ["deposit", "full", "balance"].includes(requestedPaymentType)
+      ? requestedPaymentType
+      : "deposit";
 
     if (!bookingId) {
       return res.status(400).json({
@@ -108,22 +111,37 @@ export default async function handler(req, res) {
       });
     }
 
-    if (["deposit_paid", "paid"].includes(String(booking.paymentStatus || ""))) {
+    const currentPaymentStatus = String(booking.paymentStatus || "").toLowerCase();
+
+    if (currentPaymentStatus === "paid") {
       return res.status(400).json({
         ok: false,
-        message: "Questa prenotazione risulta già pagata.",
+        message: "Questa prenotazione risulta già saldata.",
       });
+    }
+
+    if (currentPaymentStatus === "deposit_paid" && paymentType === "deposit") {
+      return res.status(400).json({
+        ok: false,
+        message: "La caparra risulta già pagata. Crea il link per il saldo residuo.",
+      });
+    }
+
+    if (currentPaymentStatus === "deposit_paid" && paymentType === "full") {
+      paymentType = "balance";
     }
 
     const totalPrice = Number(booking.totalPrice || 0);
     const depositAmount = Number(booking.depositAmount || 0);
 
     const amount =
-      paymentType === "full"
-        ? totalPrice
-        : depositAmount > 0
-          ? depositAmount
-          : totalPrice;
+      paymentType === "balance"
+        ? Math.max(totalPrice - depositAmount, 0)
+        : paymentType === "full"
+          ? totalPrice
+          : depositAmount > 0
+            ? depositAmount
+            : totalPrice;
 
     const amountCents = moneyToCents(amount);
 
@@ -150,9 +168,11 @@ export default async function handler(req, res) {
             unit_amount: amountCents,
             product_data: {
               name:
-                paymentType === "full"
-                  ? `Pagamento soggiorno ${unitName}`
-                  : `Caparra prenotazione ${unitName}`,
+                paymentType === "balance"
+                  ? `Saldo restante ${unitName}`
+                  : paymentType === "full"
+                    ? `Pagamento soggiorno ${unitName}`
+                    : `Caparra prenotazione ${unitName}`,
               description: `${booking.checkIn || "-"} / ${booking.checkOut || "-"}`,
             },
           },
