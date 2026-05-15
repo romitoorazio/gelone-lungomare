@@ -57,6 +57,7 @@ const defaultSettings = {
   minimumNights: 1,
   depositPercent: 30,
   directRateText: "Miglior tariffa prenotando dal sito",
+  directPaymentEnabled: false,
 };
 
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dnpbz05pr";
@@ -851,7 +852,9 @@ export default function Admin() {
         minimumNights: Number(settings.minimumNights || defaultSettings.minimumNights),
         depositPercent: Number(settings.depositPercent || defaultSettings.depositPercent),
         directRateText: settings.directRateText || defaultSettings.directRateText,
-        wifiName: settings.wifiName || "",
+        
+        directPaymentEnabled: Boolean(settings.directPaymentEnabled),
+wifiName: settings.wifiName || "",
         wifiPassword: settings.wifiPassword || "",
         unitId: selectedUnitId,
         unitName: selectedUnit.name,
@@ -3296,6 +3299,44 @@ export default function Admin() {
                   <p className="mt-2 text-sm leading-6 text-[#666]">
                     Queste tariffe compaiono nella home e vengono usate per il totale stimato delle richieste dal sito.
                   </p>
+                  <div
+                    className={`mt-4 rounded-2xl border p-5 ${
+                      settings.directPaymentEnabled
+                        ? "border-green-200 bg-green-50"
+                        : "border-red-200 bg-red-50"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#9b6b25]">
+                          Pagamento diretto dal sito
+                        </p>
+                        <h3 className="mt-1 font-serif text-2xl text-[#0a1d35]">
+                          {settings.directPaymentEnabled ? "Pagamento ON" : "Pagamento OFF"}
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-[#555]">
+                          ON mostra all'ospite il pulsante per pagare subito la caparra con Stripe.
+                          OFF lascia solo la richiesta senza pagamento.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSettings({
+                            ...settings,
+                            directPaymentEnabled: !Boolean(settings.directPaymentEnabled),
+                          })
+                        }
+                        className={`rounded-full px-6 py-4 font-bold text-white ${
+                          settings.directPaymentEnabled ? "bg-green-700" : "bg-red-800"
+                        }`}
+                      >
+                        {settings.directPaymentEnabled ? "Pagamento ON" : "Pagamento OFF"}
+                      </button>
+                    </div>
+                  </div>
+
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <FormField label="Prezzo diretto per notte (â‚¬)">

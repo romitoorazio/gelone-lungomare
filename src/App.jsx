@@ -26,6 +26,7 @@ const defaultPricing = {
   minimumNights: 1,
   depositPercent: 30,
   directRateText: "Miglior tariffa prenotando dal sito",
+  directPaymentEnabled: false,
 };
 
 const fallbackGallery = [FOTO_TERRAZZA, FOTO_MARE, FOTO_INTERNI, FOTO_TERRAZZA, FOTO_MARE];
@@ -279,7 +280,9 @@ export default function App() {
           minimumNights: Number(data.minimumNights || defaultPricing.minimumNights),
           depositPercent: Number(data.depositPercent || defaultPricing.depositPercent),
           directRateText: data.directRateText || defaultPricing.directRateText,
-        });
+        
+          directPaymentEnabled: Boolean(data.directPaymentEnabled),
+});
       } catch (error) {
         console.warn("Tariffe non caricate, uso valori predefiniti:", error);
       }
@@ -495,6 +498,14 @@ export default function App() {
       return;
     }
 
+    if (payNow && !pricing.directPaymentEnabled) {
+      setRequestStatus({
+        ok: false,
+        message: "Il pagamento online è disattivato. Invia la richiesta senza pagamento.",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -536,7 +547,9 @@ export default function App() {
           body: JSON.stringify({
             bookingId: data.bookingId,
             paymentType: "deposit",
-          }),
+          
+            publicDirectPayment: true,
+}),
         });
 
         const paymentData = await paymentResponse.json().catch(() => null);
@@ -899,14 +912,20 @@ export default function App() {
                 <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Nome e cognome" />
                 <input value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email" type="email" />
                 <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="Telefono" />
-                <button
-                  disabled={loading}
-                  type="button"
-                  className="pay-now-button"
-                  onClick={createBookingAndPay}
-                >
-                  {loading ? "ATTENDI..." : `PRENOTA E PAGA CAPARRA ${formatEuro(priceEstimate.depositAmount || priceEstimate.total)}`}
-                </button>
+                {pricing.directPaymentEnabled ? (
+                  <button
+                    disabled={loading}
+                    type="button"
+                    className="pay-now-button"
+                    onClick={createBookingAndPay}
+                  >
+                    {loading ? "ATTENDI..." : `PRENOTA E PAGA CAPARRA ${formatEuro(priceEstimate.depositAmount || priceEstimate.total)}`}
+                  </button>
+                ) : (
+                  <div className="payment-disabled-note">
+                    Pagamento online disattivato dall'admin. L'ospite può inviare solo una richiesta.
+                  </div>
+                )}
                 <button disabled={loading} type="submit" className="request-only-button">
                   INVIA RICHIESTA SENZA PAGAMENTO
                 </button>
@@ -1236,6 +1255,16 @@ button, input, select { font: inherit; }
 .guest-form button { grid-column: 1 / -1; border: 0; border-radius: 5px; background: var(--navy); color: #fff; padding: 13px; font-weight: 800; letter-spacing: .06em; cursor: pointer; }
 .guest-form .pay-now-button { background: linear-gradient(180deg, #c39726, #a5790e); color: #fff; }
 .guest-form .request-only-button { background: rgba(255,255,255,.74); color: var(--navy); border: 1px solid rgba(7,31,61,.18); }
+.payment-disabled-note {
+  grid-column: 1 / -1;
+  border: 1px solid rgba(154,72,47,.18);
+  background: rgba(154,72,47,.08);
+  color: #8a351e;
+  border-radius: 6px;
+  padding: 12px;
+  text-align: center;
+  font-size: 14px;
+}
 .calendar-box { border-left: 1px solid rgba(180,134,22,.16); padding: 32px 42px; background: rgba(255,255,255,.32); }
 .calendar-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
 .calendar-top strong { letter-spacing: .06em; text-align: center; }

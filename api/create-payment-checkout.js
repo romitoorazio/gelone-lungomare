@@ -78,6 +78,7 @@ export default async function handler(req, res) {
     const adminDb = getFirebaseAdminDb();
     const stripe = getStripe();
     const body = getBody(req);
+    const publicDirectPayment = body.publicDirectPayment === true;
 
     const bookingId = cleanText(body.bookingId);
     const requestedPaymentType = cleanText(body.paymentType || "deposit");
@@ -103,6 +104,22 @@ export default async function handler(req, res) {
     }
 
     const booking = bookingSnapshot.data();
+
+    if (publicDirectPayment) {
+      const unitIdForPayment = String(booking.unitId || "lunarossa1");
+      const settingsDocId =
+        unitIdForPayment === "lunarossa1" ? "pms" : `pms_${unitIdForPayment}`;
+      const settingsSnapshot = await adminDb.collection("settings").doc(settingsDocId).get();
+      const directPaymentEnabled =
+        settingsSnapshot.exists && settingsSnapshot.data()?.directPaymentEnabled === true;
+
+      if (!directPaymentEnabled) {
+        return res.status(403).json({
+          ok: false,
+          message: "Pagamento online disattivato dalla struttura.",
+        });
+      }
+    }
 
     if (isInactiveBooking(booking.status)) {
       return res.status(400).json({
