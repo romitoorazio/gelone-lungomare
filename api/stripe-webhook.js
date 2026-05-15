@@ -252,10 +252,17 @@ async function markBookingPaid(adminDb, session, event) {
     const booking = bookingSnapshot.data();
     const paymentType = cleanText(session.metadata?.paymentType || booking.paymentType || "deposit");
     const paidAmount = centsToEuro(session.amount_total);
+    const totalPrice = Number(booking.totalPrice || 0);
     const unitId = cleanText(session.metadata?.unitId || booking.unitId || "");
     const nights = getNightDates(booking.checkIn, booking.checkOut);
 
-    const nextPaymentStatus = ["full", "balance"].includes(paymentType) ? "paid" : "deposit_paid";
+    const paymentCoversTotal =
+      totalPrice > 0 && paidAmount >= Math.max(totalPrice - 0.01, 0);
+
+    const nextPaymentStatus =
+      ["full", "balance"].includes(paymentType) || paymentCoversTotal
+        ? "paid"
+        : "deposit_paid";
     const currentStatus = cleanText(booking.status || "pending_direct");
     const nextStatus = ["pending_direct", "pending", "pending_payment"].includes(currentStatus)
       ? "confirmed_direct"

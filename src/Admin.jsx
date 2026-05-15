@@ -1316,7 +1316,7 @@ wifiName: settings.wifiName || "",
     }
 
     if (currentPaymentStatus === "deposit_paid" && effectivePaymentType === "deposit") {
-      setError("La caparra risulta giÃ  pagata. Usa il pulsante saldo residuo.");
+      setError("La caparra risulta giÃ  pagata. Usa il pulsante saldo da pagare.");
       return;
     }
 
@@ -2303,7 +2303,7 @@ wifiName: settings.wifiName || "",
                         Pagamento online Stripe
                       </p>
                       <p className="mt-2 text-sm leading-6 text-[#555]">
-                        Crea un link pagamento sicuro per caparra o saldo residuo. Al momento Stripe Ã¨ in modalitÃ  test.
+                        Crea un link pagamento sicuro con Stripe per caparra o saldo da pagare.
                       </p>
 
                       <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -2341,7 +2341,7 @@ wifiName: settings.wifiName || "",
                         onClick={() => createStripePaymentLink(selectedBooking, "balance")}
                         className="bg-green-700 px-5 py-3 text-white"
                       >
-                        Crea link saldo residuo
+                        Crea link saldo da pagare
                       </SmallButton>
 
                       {selectedBooking.paymentCheckoutUrl && (
