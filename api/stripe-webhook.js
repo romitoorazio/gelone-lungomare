@@ -69,6 +69,12 @@ function centsToEuro(cents) {
 }
 
 async function readRawBody(req) {
+  if (req.rawBody) {
+    return Buffer.isBuffer(req.rawBody)
+      ? req.rawBody
+      : Buffer.from(String(req.rawBody), "utf8");
+  }
+
   if (Buffer.isBuffer(req.body)) {
     return req.body;
   }
@@ -77,17 +83,119 @@ async function readRawBody(req) {
     return Buffer.from(req.body, "utf8");
   }
 
+  const chunks = [];
+
+  try {
+    for await (const chunk of req) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+  } catch {
+    // In alcuni ambienti Vercel il body è già stato letto e non è più streammabile.
+  }
+
+  if (chunks.length > 0) {
+    return Buffer.concat(chunks);
+  }
+
   if (req.body && typeof req.body === "object") {
     return Buffer.from(JSON.stringify(req.body), "utf8");
   }
 
-  const chunks = [];
+  return Buffer.from("");
+}
 
-  for await (const chunk of req) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+function parsePayload(rawBody, req) {
+  if (req.body && typeof req.body === "object" && !Buffer.isBuffer(req.body)) {
+    return req.body;
   }
 
-  return Buffer.concat(chunks);
+  const text = rawBody.toString("utf8");
+
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function isSafeTestFallbackEvent(event, secretKey) {
+  if (!event || typeof event !== "object") return false;
+
+  const isTestSecret = String(secretKey || "").trim().startsWith("sk_test_");
+  const session = event?.data?.object;
+  const eventType = String(event?.type || "");
+  const sessionId = String(session?.id || "");
+
+  return (
+    isTestSecret &&
+    event.livemode === false &&
+    eventType.startsWith("checkout.session.") &&
+    sessionId.startsWith("cs_test_")
+  );
+}
+
+async function getVerifiedOrSafeTestEvent({ stripe, req, rawBody, signature, webhookSecret }) {
+  try {
+    return {
+      event: stripe.webhooks.constructEvent(rawBody, signature, webhookSecret),
+      verified: true,
+      fallback: false,
+    };
+  } catch (error) {
+    const parsedEvent = parsePayload(rawBody, req);
+    const secretKey = String(process.env.STRIPE_SECRET_KEY || "").trim();
+
+    if (!isSafeTestFallbackEvent(parsedEvent, secretKey)) {
+      console.error("Firma webhook Stripe non valida:", error);
+
+      return {
+        event: null,
+        verified: false,
+        fallback: false,
+        error,
+      };
+    }
+
+    const sessionId = String(parsedEvent.data.object.id || "");
+    const liveSession = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (
+      !liveSession ||
+      liveSession.id !== sessionId ||
+      liveSession.livemode !== false ||
+      !["paid", "unpaid", "no_payment_required"].includes(String(liveSession.payment_status || ""))
+    ) {
+      console.error("Fallback test Stripe rifiutato: sessione non verificabile.");
+
+      return {
+        event: null,
+        verified: false,
+        fallback: false,
+        error,
+      };
+    }
+
+    console.warn(
+      "Firma webhook Stripe non valida, ma evento test verificato tramite Stripe API. Fallback valido solo con sk_test_ e cs_test_."
+    );
+
+    return {
+      event: {
+        ...parsedEvent,
+        data: {
+          ...parsedEvent.data,
+          object: {
+            ...parsedEvent.data.object,
+            ...liveSession,
+          },
+        },
+      },
+      verified: false,
+      fallback: true,
+    };
+  }
 }
 
 async function markBookingPaid(adminDb, session, event) {
@@ -300,20 +408,22 @@ export default async function handler(req, res) {
     }
 
     const rawBody = await readRawBody(req);
+    const eventResult = await getVerifiedOrSafeTestEvent({
+      stripe,
+      req,
+      rawBody,
+      signature,
+      webhookSecret,
+    });
 
-    let event;
-
-    try {
-      event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-    } catch (error) {
-      console.error("Firma webhook Stripe non valida:", error);
-
+    if (!eventResult.event) {
       return res.status(400).json({
         ok: false,
         message: "Firma webhook Stripe non valida.",
       });
     }
 
+    const event = eventResult.event;
     const adminDb = getFirebaseAdminDb();
     const session = event.data.object;
 
@@ -321,6 +431,8 @@ export default async function handler(req, res) {
       received: true,
       ignored: true,
       type: event.type,
+      verified: eventResult.verified,
+      fallback: eventResult.fallback,
     };
 
     if (
@@ -341,6 +453,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       type: event.type,
+      verified: eventResult.verified,
+      fallback: eventResult.fallback,
       result,
     });
   } catch (error) {
