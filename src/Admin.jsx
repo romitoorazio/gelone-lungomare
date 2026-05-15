@@ -785,7 +785,9 @@ export default function Admin() {
     const pending = active.filter((item) =>
       ["pending_direct", "pending"].includes(item.status)
     );
-    const paid = active.filter((item) => item.paymentStatus === "paid");
+    const paid = active.filter((item) =>
+      ["deposit_paid", "paid"].includes(item.paymentStatus)
+    );
     const welcomateToCheck = active.filter((item) =>
       ["to_send", "sent", "missing", undefined, null, ""].includes(
         item.welcomateStatus
@@ -1280,6 +1282,68 @@ export default function Admin() {
     } catch (err) {
       console.error(err);
       setError("Errore durante l'aggiornamento del pagamento.");
+    }
+  }
+
+  async function createStripePaymentLink(booking, paymentType = "deposit") {
+    clearMessages();
+
+    if (!booking?.id) {
+      setError("Seleziona una prenotazione valida.");
+      return;
+    }
+
+    if (booking.status === "blocked" || booking.status === "cancelled") {
+      setError("Non puoi creare un pagamento per una prenotazione bloccata o annullata.");
+      return;
+    }
+
+    if (["deposit_paid", "paid"].includes(String(booking.paymentStatus || ""))) {
+      setError("Questa prenotazione risulta già pagata.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/create-payment-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          paymentType,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.ok || !data.checkoutUrl) {
+        setError(data?.message || "Non riesco a creare il link pagamento Stripe.");
+        return;
+      }
+
+      const copied = await copyToClipboard(data.checkoutUrl);
+
+      if (!copied) {
+        setManualCopy({
+          title: "Link pagamento Stripe",
+          text: data.checkoutUrl,
+        });
+        setError("Link creato, ma il browser non ha permesso la copia automatica. Copialo dal riquadro.");
+        return;
+      }
+
+      setManualCopy({
+        title: "Link pagamento Stripe copiato",
+        text: data.checkoutUrl,
+      });
+
+      setMessage(
+        `Link pagamento ${paymentType === "full" ? "saldo totale" : "caparra"} creato e copiato. Importo: ${formatEuro(data.amount)}.`
+      );
+    } catch (err) {
+      console.error(err);
+      setError("Errore tecnico durante la creazione del link pagamento Stripe.");
     }
   }
 
