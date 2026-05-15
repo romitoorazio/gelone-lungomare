@@ -1,4 +1,4 @@
-﻿import Stripe from "stripe";
+import Stripe from "stripe";
 import { getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
 
 function getStripe() {
