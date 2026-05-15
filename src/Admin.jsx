@@ -119,8 +119,11 @@ const statusOptions = [
 
 const paymentOptions = [
   { value: "unpaid", label: "Non pagato" },
+  { value: "pending", label: "Pagamento in corso" },
   { value: "deposit_paid", label: "Caparra pagata" },
   { value: "paid", label: "Pagato" },
+  { value: "failed", label: "Pagamento fallito" },
+  { value: "expired", label: "Link scaduto" },
   { value: "refunded", label: "Rimborsato" },
 ];
 
@@ -2276,6 +2279,73 @@ export default function Admin() {
                   <DetailRow label="Invio WelcoMate" value={formatDateTime(selectedBooking.welcomateSentAt)} />
                   <DetailRow label="Creata" value={formatDateTime(selectedBooking.createdAt)} />
                   <DetailRow label="Aggiornata" value={formatDateTime(selectedBooking.updatedAt)} />
+                </div>
+
+
+                <div className="mt-6 rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#9b6b25]">
+                        Pagamento online Stripe
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-[#555]">
+                        Crea un link pagamento sicuro per caparra o saldo totale. Al momento Stripe è in modalità test.
+                      </p>
+
+                      <div className="mt-3 grid gap-3 md:grid-cols-3">
+                        <DetailRow label="Stato pagamento" value={getPaymentLabel(selectedBooking.paymentStatus)} />
+                        <DetailRow label="Caparra" value={formatEuro(selectedBooking.depositAmount)} />
+                        <DetailRow label="Totale" value={formatEuro(selectedBooking.totalPrice)} />
+                      </div>
+
+                      {selectedBooking.paymentCheckoutUrl && (
+                        <p className="mt-3 break-all rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-[#0a1d35]">
+                          {selectedBooking.paymentCheckoutUrl}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <SmallButton
+                        onClick={() => createStripePaymentLink(selectedBooking, "deposit")}
+                        className="bg-[#0a1d35] px-5 py-3 text-white"
+                      >
+                        Crea link caparra
+                      </SmallButton>
+
+                      <SmallButton
+                        onClick={() => createStripePaymentLink(selectedBooking, "full")}
+                        className="bg-green-700 px-5 py-3 text-white"
+                      >
+                        Crea link saldo totale
+                      </SmallButton>
+
+                      {selectedBooking.paymentCheckoutUrl && (
+                        <SmallButton
+                          onClick={() =>
+                            copyText(
+                              selectedBooking.paymentCheckoutUrl,
+                              "Ultimo link pagamento copiato negli appunti."
+                            )
+                          }
+                          className="bg-[#9b6b25] px-5 py-3 text-white"
+                        >
+                          Copia ultimo link
+                        </SmallButton>
+                      )}
+
+                      {selectedBooking.paymentCheckoutUrl && (
+                        <a
+                          href={selectedBooking.paymentCheckoutUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full border border-[#0a1d35] bg-white px-5 py-3 text-sm font-bold text-[#0a1d35]"
+                        >
+                          Apri ultimo link
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-6 rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
