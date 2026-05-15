@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import {
   getIdToken,
   onAuthStateChanged,
@@ -622,7 +622,7 @@ export default function Admin() {
         );
       },
       (err) => {
-        console.error("Errore lettura unità:", err);
+        console.error("Errore lettura unitÃ :", err);
         setUnits(DEFAULT_UNITS);
       }
     );
@@ -1008,7 +1008,7 @@ export default function Admin() {
 
       if (occupied.length > 0) {
         setError(
-          `Almeno una notte risulta già occupata: ${occupied.map(formatDate).join(", ")}.`
+          `Almeno una notte risulta giÃ  occupata: ${occupied.map(formatDate).join(", ")}.`
         );
         return;
       }
@@ -1096,7 +1096,7 @@ export default function Admin() {
 
       if (occupied.length > 0) {
         setError(
-          `Non posso bloccare: alcune notti risultano già occupate (${occupied
+          `Non posso bloccare: alcune notti risultano giÃ  occupate (${occupied
             .map(formatDate)
             .join(", ")}).`
         );
@@ -1308,12 +1308,12 @@ export default function Admin() {
         : paymentType;
 
     if (currentPaymentStatus === "paid") {
-      setError("Questa prenotazione risulta già saldata.");
+      setError("Questa prenotazione risulta giÃ  saldata.");
       return;
     }
 
     if (currentPaymentStatus === "deposit_paid" && effectivePaymentType === "deposit") {
-      setError("La caparra risulta già pagata. Usa il pulsante saldo residuo.");
+      setError("La caparra risulta giÃ  pagata. Usa il pulsante saldo residuo.");
       return;
     }
 
@@ -1443,7 +1443,7 @@ export default function Admin() {
         id: nextId,
         name: `Lunarossa ${index}`,
         publicName: `Gelone Lungomare - Lunarossa ${index}`,
-        description: "Nuova unità da completare",
+        description: "Nuova unitÃ  da completare",
         cin: "",
         cir: "",
         active: false,
@@ -1457,7 +1457,7 @@ export default function Admin() {
       })
     );
 
-    setMessage("Scheda nuova unità pronta. Completa i dati e premi Salva unità.");
+    setMessage("Scheda nuova unitÃ  pronta. Completa i dati e premi Salva unitÃ .");
   }
 
   async function saveUnit(event) {
@@ -1472,7 +1472,7 @@ export default function Admin() {
     }
 
     if (!unitForm.name.trim()) {
-      setError("Inserisci il nome dell'unità.");
+      setError("Inserisci il nome dell'unitÃ .");
       return;
     }
 
@@ -1512,10 +1512,10 @@ export default function Admin() {
       );
 
       setSelectedUnitId(id);
-      setMessage("Unità salvata. Lunarossa 1 resta invariata e le future unità avranno calendari separati.");
+      setMessage("UnitÃ  salvata. Lunarossa 1 resta invariata e le future unitÃ  avranno calendari separati.");
     } catch (err) {
       console.error(err);
-      setError("Errore durante il salvataggio dell'unità.");
+      setError("Errore durante il salvataggio dell'unitÃ .");
     }
   }
 
@@ -1599,7 +1599,7 @@ export default function Admin() {
     setUnits(nextUnits);
     setSelectedUnitId(id);
     setUnitForm(createUnitForm(normalizedUnit));
-    setMessage(successMessage || "Foto salvate. La galleria dell'unità è aggiornata.");
+    setMessage(successMessage || "Foto salvate. La galleria dell'unitÃ  Ã¨ aggiornata.");
   }
 
   async function handleCloudinaryPhotoUpload() {
@@ -1607,12 +1607,12 @@ export default function Admin() {
 
     const id = sanitizeUnitId(unitForm.id || selectedUnitId);
     if (!id) {
-      setError("Prima inserisci un ID tecnico valido per l'unità.");
+      setError("Prima inserisci un ID tecnico valido per l'unitÃ .");
       return;
     }
 
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-      setError("Cloudinary non è configurato. Controlla cloud name e upload preset.");
+      setError("Cloudinary non Ã¨ configurato. Controlla cloud name e upload preset.");
       return;
     }
 
@@ -1632,7 +1632,7 @@ export default function Admin() {
         await persistUnitPhotos(
           id,
           nextPhotos,
-          `${uploadedPhotos.length} foto caricata/e con Cloudinary e salvata/e nella scheda unità.`
+          `${uploadedPhotos.length} foto caricata/e con Cloudinary e salvata/e nella scheda unitÃ .`
         );
       };
 
@@ -1705,7 +1705,7 @@ export default function Admin() {
               await persistUploadedPhotos();
             } catch (persistError) {
               console.error(persistError);
-              setError("Foto caricate su Cloudinary, ma non riesco a salvarle nella scheda unità. Riprova.");
+              setError("Foto caricate su Cloudinary, ma non riesco a salvarle nella scheda unitÃ . Riprova.");
             } finally {
               setPhotoUploading(false);
             }
@@ -1739,7 +1739,7 @@ export default function Admin() {
       await persistUnitPhotos(id, nextPhotos, "Foto rimossa e galleria salvata.");
     } catch (err) {
       console.error(err);
-      setError("Foto rimossa dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unità.");
+      setError("Foto rimossa dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unitÃ .");
     }
   }
 
@@ -1758,7 +1758,7 @@ export default function Admin() {
       await persistUnitPhotos(id, nextPhotos, "Copertina aggiornata e salvata.");
     } catch (err) {
       console.error(err);
-      setError("Copertina aggiornata dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unità.");
+      setError("Copertina aggiornata dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unitÃ .");
     }
   }
 
@@ -1779,7 +1779,7 @@ export default function Admin() {
       await persistUnitPhotos(sanitizeUnitId(unitForm.id || selectedUnitId), normalizedPhotos, "Ordine foto aggiornato e salvato.");
     } catch (err) {
       console.error(err);
-      setError("Ordine foto aggiornato dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unità.");
+      setError("Ordine foto aggiornato dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unitÃ .");
     }
   }
 
@@ -1829,7 +1829,7 @@ export default function Admin() {
         <div className="mx-auto max-w-xl rounded-[2rem] border border-red-200 bg-red-50 p-8 text-red-900">
           <h1 className="font-serif text-3xl">Accesso non autorizzato</h1>
           <p className="mt-3">
-            L'email collegata non è autorizzata come amministratore.
+            L'email collegata non Ã¨ autorizzata come amministratore.
           </p>
           <button
             onClick={() => signOut(auth)}
@@ -1852,7 +1852,7 @@ export default function Admin() {
             </p>
             <h1 className="font-serif text-3xl">Gelone Lungomare</h1>
             <p className="text-sm text-[#555]">
-              Admin: {user.email} · Unità: {selectedUnit.name}
+              Admin: {user.email} Â· UnitÃ : {selectedUnit.name}
             </p>
           </div>
 
@@ -1912,7 +1912,7 @@ export default function Admin() {
             Blocca date
           </TabButton>
           <TabButton active={activeTab === "units"} onClick={() => setActiveTab("units")}>
-            Unità alloggiative
+            UnitÃ  alloggiative
           </TabButton>
           <TabButton active={activeTab === "settings"} onClick={() => setActiveTab("settings")}>
             Impostazioni
@@ -1982,14 +1982,14 @@ export default function Admin() {
                       Pulisci notti fantasma
                     </h3>
                     <p className="mt-2 leading-7 text-[#555]">
-                      Controlla la disponibilità dell'unità selezionata e cancella solo
+                      Controlla la disponibilitÃ  dell'unitÃ  selezionata e cancella solo
                       le notti isolate che non hanno una prenotazione o un blocco attivo
                       collegato.
                     </p>
                     <div className="mt-4 rounded-2xl bg-white p-4">
                       <label className="block">
                         <span className="text-xs uppercase tracking-[0.18em] text-[#9b6b25]">
-                          Scegli unità da pulire
+                          Scegli unitÃ  da pulire
                         </span>
                         <select
                           value={selectedUnitId}
@@ -2000,7 +2000,7 @@ export default function Admin() {
                             <option key={unit.id} value={unit.id}>
                               {(unit.publicName || unit.name || unit.id)}
                               {unit.name && unit.publicName && unit.publicName !== unit.name
-                                ? " — " + unit.name
+                                ? " â€” " + unit.name
                                 : ""}{" "}
                               ({unit.id})
                             </option>
@@ -2008,7 +2008,7 @@ export default function Admin() {
                         </select>
                       </label>
                       <p className="mt-3 text-sm leading-6 text-[#555]">
-                        La pulizia verrà eseguita solo sull'unità selezionata qui sopra.
+                        La pulizia verrÃ  eseguita solo sull'unitÃ  selezionata qui sopra.
                       </p>
                     </div>
                   </div>
@@ -2029,7 +2029,7 @@ export default function Admin() {
                       Risultato pulizia
                     </p>
                     <div className="mt-4 grid gap-3 md:grid-cols-4">
-                      <DetailRow label="Unità" value={cleanupResult.unitName || cleanupResult.unitId} />
+                      <DetailRow label="UnitÃ " value={cleanupResult.unitName || cleanupResult.unitId} />
                       <DetailRow label="Controllate" value={cleanupResult.scannedCount ?? 0} />
                       <DetailRow label="Eliminate" value={cleanupResult.deletedCount ?? 0} />
                       <DetailRow label="Protette" value={cleanupResult.keptCount ?? 0} />
@@ -2047,7 +2047,7 @@ export default function Admin() {
                                 key={night.id}
                                 className="rounded-xl bg-white px-3 py-2"
                               >
-                                {formatDate(night.date)} · {night.status || "-"} ·{" "}
+                                {formatDate(night.date)} Â· {night.status || "-"} Â·{" "}
                                 {night.source || "-"}
                               </div>
                             ))}
@@ -2300,7 +2300,7 @@ export default function Admin() {
                         Pagamento online Stripe
                       </p>
                       <p className="mt-2 text-sm leading-6 text-[#555]">
-                        Crea un link pagamento sicuro per caparra o saldo residuo. Al momento Stripe è in modalità test.
+                        Crea un link pagamento sicuro per caparra o saldo residuo. Al momento Stripe Ã¨ in modalitÃ  test.
                       </p>
 
                       <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -2308,7 +2308,7 @@ export default function Admin() {
                         <DetailRow label="Caparra" value={formatEuro(selectedBooking.depositAmount)} />
                         <DetailRow label="Totale" value={formatEuro(selectedBooking.totalPrice)} />
                         <DetailRow
-                          label="Saldo residuo"
+                          label={selectedBooking.paymentStatus === "paid" ? "Saldo finale pagato" : selectedBooking.paymentStatus === "deposit_paid" ? "Saldo da pagare" : "Saldo dopo caparra"}
                           value={formatEuro(
                             Math.max(
                               Number(selectedBooking.totalPrice || 0) -
@@ -2379,7 +2379,7 @@ export default function Admin() {
                         {settings?.welcomateUrl || defaultSettings.welcomateUrl}
                       </p>
                       <p className="mt-2 text-sm text-[#555]">
-                        Questo è il link dati ospiti che puoi copiare, aprire o mandare direttamente su WhatsApp/email.
+                        Questo Ã¨ il link dati ospiti che puoi copiare, aprire o mandare direttamente su WhatsApp/email.
                       </p>
                     </div>
 
@@ -2639,7 +2639,7 @@ export default function Admin() {
           <section className="mt-8 rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
             <h2 className="font-serif text-3xl">Nuova prenotazione</h2>
             <p className="mt-2 text-[#555]">
-              Inserisci manualmente una prenotazione già confermata, oppure una
+              Inserisci manualmente una prenotazione giÃ  confermata, oppure una
               richiesta ricevuta fuori dal sito.
             </p>
 
@@ -2893,9 +2893,9 @@ export default function Admin() {
             <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <h2 className="font-serif text-3xl">Unità alloggiative</h2>
+                  <h2 className="font-serif text-3xl">UnitÃ  alloggiative</h2>
                   <p className="mt-2 leading-7 text-[#555]">
-                    Base multi-unità: Lunarossa 1 resta funzionante, ma da qui puoi preparare nuove unità con ID, dati, iCal e visibilità separati.
+                    Base multi-unitÃ : Lunarossa 1 resta funzionante, ma da qui puoi preparare nuove unitÃ  con ID, dati, iCal e visibilitÃ  separati.
                   </p>
                 </div>
                 <button
@@ -2904,7 +2904,7 @@ export default function Admin() {
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-[#9b6b25] px-6 py-4 font-bold text-white"
                 >
                   <Plus size={18} />
-                  Prepara nuova unità
+                  Prepara nuova unitÃ 
                 </button>
               </div>
 
@@ -2929,7 +2929,7 @@ export default function Admin() {
                     <h3 className="mt-4 font-serif text-2xl">{unit.name}</h3>
                     <p className="mt-1 text-sm text-[#666]">ID: {unit.id}</p>
                     <p className="mt-3 text-sm leading-6 text-[#555]">
-                      {unit.maxGuests} ospiti · {unit.bedrooms || 0} camera/e · {unit.bathrooms || 0} bagno/i
+                      {unit.maxGuests} ospiti Â· {unit.bedrooms || 0} camera/e Â· {unit.bathrooms || 0} bagno/i
                     </p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Pill className={unit.publicVisible ? "border-blue-200 bg-blue-50 text-blue-900" : "border-slate-200 bg-slate-100 text-slate-900"}>
@@ -2945,13 +2945,13 @@ export default function Admin() {
             </div>
 
             <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
-              <h3 className="font-serif text-3xl">Scheda unità</h3>
+              <h3 className="font-serif text-3xl">Scheda unitÃ </h3>
               <p className="mt-2 leading-7 text-[#555]">
-                Per ora il sito pubblico continua a vendere Lunarossa 1. Le nuove unità possono essere preparate qui e attivate nel prossimo step senza mischiare prenotazioni e calendari.
+                Per ora il sito pubblico continua a vendere Lunarossa 1. Le nuove unitÃ  possono essere preparate qui e attivate nel prossimo step senza mischiare prenotazioni e calendari.
               </p>
 
               <form onSubmit={saveUnit} className="mt-6 grid gap-4 lg:grid-cols-2">
-                <FormField label="ID tecnico unità">
+                <FormField label="ID tecnico unitÃ ">
                   <input
                     value={unitForm.id}
                     onChange={(event) =>
@@ -3030,7 +3030,7 @@ export default function Admin() {
                     onChange={(event) => setUnitForm({ ...unitForm, hasKitchen: event.target.value === "yes" })}
                     className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                   >
-                    <option value="yes">Sì</option>
+                    <option value="yes">SÃ¬</option>
                     <option value="no">No</option>
                   </select>
                 </FormField>
@@ -3079,7 +3079,7 @@ export default function Admin() {
                       onClick={() =>
                         copyText(
                           `https://www.gelone.it${unitForm.icalPath || `/api/ical/${unitForm.id}.ics`}`,
-                          "Link iCal unità copiato."
+                          "Link iCal unitÃ  copiato."
                         )
                       }
                       className="rounded-2xl bg-[#0a1d35] px-5 font-bold text-white"
@@ -3097,7 +3097,7 @@ export default function Admin() {
                         checked={unitForm.active}
                         onChange={(event) => setUnitForm({ ...unitForm, active: event.target.checked })}
                       />
-                      Unità attiva
+                      UnitÃ  attiva
                     </label>
                     <label className="flex items-center gap-3 font-semibold">
                       <input
@@ -3117,16 +3117,16 @@ export default function Admin() {
                     </label>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-[#666]">
-                    Consiglio: lascia le nuove unità in bozza finché non prepariamo foto, tariffe, iCal in ingresso e pagina pubblica multi-alloggio.
+                    Consiglio: lascia le nuove unitÃ  in bozza finchÃ© non prepariamo foto, tariffe, iCal in ingresso e pagina pubblica multi-alloggio.
                   </p>
                 </div>
 
                 <div className="rounded-[2rem] border border-[#eadbbf] bg-[#faf6ee] p-5 lg:col-span-2">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <h4 className="font-serif text-2xl">Foto unità</h4>
+                      <h4 className="font-serif text-2xl">Foto unitÃ </h4>
                       <p className="mt-1 text-sm leading-6 text-[#666]">
-                        Carica foto da computer o telefono con Cloudinary. La foto viene ottimizzata per il sito e collegata alla singola unità: Lunarossa 1 aggiorna la galleria pubblica, Lunarossa 2 resta pronta finché è in bozza.
+                        Carica foto da computer o telefono con Cloudinary. La foto viene ottimizzata per il sito e collegata alla singola unitÃ : Lunarossa 1 aggiorna la galleria pubblica, Lunarossa 2 resta pronta finchÃ© Ã¨ in bozza.
                       </p>
                     </div>
                     <button
@@ -3174,14 +3174,14 @@ export default function Admin() {
                                 disabled={index === 0}
                                 className="border border-[#d7c49f] bg-white text-[#0a1d35]"
                               >
-                                ↑ Prima
+                                â†‘ Prima
                               </SmallButton>
                               <SmallButton
                                 onClick={() => movePhoto(photo, 1)}
                                 disabled={index === (unitForm.photos || []).length - 1}
                                 className="border border-[#d7c49f] bg-white text-[#0a1d35]"
                               >
-                                ↓ Dopo
+                                â†“ Dopo
                               </SmallButton>
                             </div>
                           </div>
@@ -3190,12 +3190,12 @@ export default function Admin() {
                     </div>
                   ) : (
                     <div className="mt-5 rounded-2xl border border-dashed border-[#d7c49f] bg-white p-5 text-sm leading-6 text-[#666]">
-                      Nessuna foto Cloudinary collegata a questa unità. Lunarossa 1 continua a usare le foto attuali del sito finché non carichi nuove foto.
+                      Nessuna foto Cloudinary collegata a questa unitÃ . Lunarossa 1 continua a usare le foto attuali del sito finchÃ© non carichi nuove foto.
                     </div>
                   )}
 
                   <p className="mt-4 rounded-2xl bg-white p-4 text-sm font-semibold text-[#0a1d35]">
-                    Dopo upload Cloudinary, eliminazione, copertina o ordine foto il sistema salva subito la galleria. Usa <strong>Salva unità</strong> solo se hai modificato anche testi, CIN/CIR o altri dati.
+                    Dopo upload Cloudinary, eliminazione, copertina o ordine foto il sistema salva subito la galleria. Usa <strong>Salva unitÃ </strong> solo se hai modificato anche testi, CIN/CIR o altri dati.
                   </p>
                 </div>
 
@@ -3213,7 +3213,7 @@ export default function Admin() {
                     className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white"
                   >
                     <Save size={18} />
-                    Salva unità
+                    Salva unitÃ 
                   </button>
                   <button
                     type="button"
@@ -3233,15 +3233,15 @@ export default function Admin() {
             <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
               <div className="flex items-center gap-3">
                 <Building2 className="text-[#9b6b25]" />
-                <h2 className="font-serif text-3xl">Unità abitativa</h2>
+                <h2 className="font-serif text-3xl">UnitÃ  abitativa</h2>
               </div>
 
               <div className="mt-6 grid gap-4">
-                <DetailRow label="Unità attuale" value={selectedUnit.name} />
+                <DetailRow label="UnitÃ  attuale" value={selectedUnit.name} />
                 <DetailRow label="ID tecnico" value={selectedUnit.id} />
                 <p className="rounded-2xl bg-[#faf6ee] p-4 text-sm leading-7 text-[#555]">
-                  La struttura è già preparata con <strong>unitId</strong>. In
-                  futuro potremo aggiungere altre unità senza rifare il PMS da
+                  La struttura Ã¨ giÃ  preparata con <strong>unitId</strong>. In
+                  futuro potremo aggiungere altre unitÃ  senza rifare il PMS da
                   zero.
                 </p>
               </div>
@@ -3298,7 +3298,7 @@ export default function Admin() {
                   </p>
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <FormField label="Prezzo diretto per notte (€)">
+                    <FormField label="Prezzo diretto per notte (â‚¬)">
                       <input
                         type="number"
                         min="0"
@@ -3311,7 +3311,7 @@ export default function Admin() {
                       />
                     </FormField>
 
-                    <FormField label="Pulizie finali (€)">
+                    <FormField label="Pulizie finali (â‚¬)">
                       <input
                         type="number"
                         min="0"
@@ -3519,3 +3519,4 @@ export default function Admin() {
     </main>
   );
 }
+
