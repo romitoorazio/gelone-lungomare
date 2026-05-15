@@ -207,6 +207,7 @@ export default function App() {
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [requestStatus, setRequestStatus] = useState(null);
+  const [paymentReturnStatus, setPaymentReturnStatus] = useState(null);
   const [pricing, setPricing] = useState(defaultPricing);
   const [publicUnits, setPublicUnits] = useState([DEFAULT_UNIT]);
   const [selectedPublicUnitId, setSelectedPublicUnitId] = useState(UNIT_ID);
@@ -229,6 +230,36 @@ export default function App() {
   const selectedUnitName = getPublicUnitName(selectedPublicUnit);
   const selectedUnitCin = selectedPublicUnit.cin || CIN;
   const selectedUnitCir = selectedPublicUnit.cir || CIR;
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    const sessionId = params.get("session_id");
+
+    if (payment === "success") {
+      setPaymentReturnStatus({
+        ok: true,
+        title: "Pagamento ricevuto",
+        message:
+          "Grazie, il pagamento è stato ricevuto. La prenotazione è stata aggiornata automaticamente nel nostro sistema. Ti invieremo le informazioni per il check-in.",
+        sessionId,
+      });
+    }
+
+    if (payment === "cancelled") {
+      setPaymentReturnStatus({
+        ok: false,
+        title: "Pagamento non completato",
+        message:
+          "Il pagamento non è stato completato. Puoi riprovare oppure contattarci direttamente su WhatsApp.",
+        sessionId: "",
+      });
+    }
+
+    if (payment) {
+      window.history.replaceState({}, "", window.location.pathname + window.location.hash);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -523,6 +554,21 @@ export default function App() {
 
         <a className="top-cta" href="#disponibilita">Prenota diretto <span>▣</span></a>
       </header>
+
+      {paymentReturnStatus && (
+        <section className={`payment-return-banner ${paymentReturnStatus.ok ? "ok" : "no"}`} role="status">
+          <div>
+            <strong>{paymentReturnStatus.title}</strong>
+            <p>{paymentReturnStatus.message}</p>
+            {paymentReturnStatus.sessionId && (
+              <small>Riferimento pagamento: {paymentReturnStatus.sessionId}</small>
+            )}
+          </div>
+          <button type="button" onClick={() => setPaymentReturnStatus(null)}>
+            Chiudi
+          </button>
+        </section>
+      )}
 
       <section id="home" className="hero">
         <video
@@ -955,6 +1001,52 @@ button, input, select { font: inherit; }
 .navlinks a.active::after, .navlinks a:hover::after { content: ''; position: absolute; left: 0; right: 0; bottom: 4px; height: 2px; background: var(--gold); }
 .top-cta { justify-self: end; background: linear-gradient(180deg, #c29523, #a77a0e); color: #fff; border-radius: 5px; padding: 17px 24px; min-width: 205px; text-align: center; font-weight: 800; font-size: 17px; letter-spacing: .02em; box-shadow: 0 12px 24px rgba(130, 92, 5, .18); }
 .top-cta span { margin-left: 8px; font-size: 15px; }
+
+.payment-return-banner {
+  margin: 18px auto 0;
+  width: min(1050px, calc(100% - 80px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 22px;
+  border-radius: 10px;
+  border: 1px solid rgba(47, 125, 78, .22);
+  background: rgba(47, 125, 78, .10);
+  color: #1e623b;
+  box-shadow: 0 14px 34px rgba(13,25,43,.08);
+}
+.payment-return-banner.no {
+  border-color: rgba(154, 72, 47, .22);
+  background: rgba(154, 72, 47, .10);
+  color: #8a351e;
+}
+.payment-return-banner strong {
+  display: block;
+  font-size: 18px;
+  letter-spacing: .04em;
+}
+.payment-return-banner p {
+  margin: 5px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.payment-return-banner small {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: .78;
+  word-break: break-all;
+}
+.payment-return-banner button {
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--navy);
+  padding: 10px 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
 
 .hero { position: relative; min-height: 430px; overflow: hidden; isolation: isolate; background: #d7d4c7; }
 .hero-video { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; object-fit: cover; object-position: center center; transform: scale(1.006); }
