@@ -459,7 +459,7 @@ export default function App() {
       setAvailability({
         ok: available,
         message: available
-          ? "Periodo disponibile. Puoi inviare la richiesta diretta."
+          ? "Periodo disponibile. Puoi prenotare subito pagando la caparra oppure inviare una richiesta senza pagamento."
           : "Periodo non disponibile. Prova altre date oppure contattaci su WhatsApp.",
       });
     } catch (error) {
@@ -469,16 +469,34 @@ export default function App() {
     }
   };
 
-  const createBookingRequest = async (event) => {
-    event.preventDefault();
-    setRequestStatus(null);
-
+  function validateGuestForm() {
     if (!guestName.trim() || !guestEmail.trim() || !guestPhone.trim()) {
       setRequestStatus({ ok: false, message: "Compila nome, email e telefono." });
+      return false;
+    }
+
+    if (!checkIn || !checkOut || checkOut <= checkIn) {
+      setRequestStatus({ ok: false, message: "Seleziona date valide prima di prenotare." });
+      return false;
+    }
+
+    if (!availability?.ok) {
+      setRequestStatus({ ok: false, message: "Verifica prima la disponibilità delle date." });
+      return false;
+    }
+
+    return true;
+  }
+
+  async function submitBookingRequest({ payNow = false } = {}) {
+    setRequestStatus(null);
+
+    if (!validateGuestForm()) {
       return;
     }
 
     setLoading(true);
+
     try {
       const response = await fetch("/api/create-booking", {
         method: "POST",
@@ -500,15 +518,64 @@ export default function App() {
           depositAmount: priceEstimate.depositAmount,
         }),
       });
+
       const data = await response.json();
       if (!response.ok) throw new Error(data?.message || "Errore invio richiesta");
-      setRequestStatus({ ok: true, message: "Richiesta inviata. Ti contatteremo per confermare." });
+
       setCalendarRefreshKey((value) => value + 1);
+
+      if (payNow) {
+        setRequestStatus({
+          ok: true,
+          message: "Prenotazione creata. Ti stiamo portando al pagamento sicuro Stripe...",
+        });
+
+        const paymentResponse = await fetch("/api/create-payment-checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            bookingId: data.bookingId,
+            paymentType: "deposit",
+          }),
+        });
+
+        const paymentData = await paymentResponse.json().catch(() => null);
+
+        if (!paymentResponse.ok || !paymentData?.ok || !paymentData.checkoutUrl) {
+          setRequestStatus({
+            ok: false,
+            message:
+              paymentData?.message ||
+              "Richiesta creata, ma non riesco ad aprire il pagamento. Ti contatteremo per completare la conferma.",
+          });
+          return;
+        }
+
+        window.location.href = paymentData.checkoutUrl;
+        return;
+      }
+
+      setRequestStatus({
+        ok: true,
+        message: "Richiesta inviata. Ti contatteremo per confermare oppure per inviarti il link caparra.",
+      });
     } catch (error) {
-      setRequestStatus({ ok: false, message: error.message || "Errore durante l'invio." });
+      setRequestStatus({
+        ok: false,
+        message: error.message || "Errore durante l'invio.",
+      });
     } finally {
       setLoading(false);
     }
+  }
+
+  const createBookingRequest = async (event) => {
+    event.preventDefault();
+    await submitBookingRequest({ payNow: false });
+  };
+
+  const createBookingAndPay = async () => {
+    await submitBookingRequest({ payNow: true });
   };
 
   function changeCalendarMonth(direction) {
@@ -832,7 +899,17 @@ export default function App() {
                 <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Nome e cognome" />
                 <input value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email" type="email" />
                 <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="Telefono" />
-                <button disabled={loading} type="submit">INVIA RICHIESTA DIRETTA</button>
+                <button
+                  disabled={loading}
+                  type="button"
+                  className="pay-now-button"
+                  onClick={createBookingAndPay}
+                >
+                  {loading ? "ATTENDI..." : `PRENOTA E PAGA CAPARRA ${formatEuro(priceEstimate.depositAmount || priceEstimate.total)}`}
+                </button>
+                <button disabled={loading} type="submit" className="request-only-button">
+                  INVIA RICHIESTA SENZA PAGAMENTO
+                </button>
               </form>
             )}
 
@@ -1157,6 +1234,8 @@ button, input, select { font: inherit; }
 .guest-form { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .guest-form input { background: rgba(255,255,255,.7); border: 1px solid rgba(180,134,22,.18); border-radius: 6px; padding: 12px; }
 .guest-form button { grid-column: 1 / -1; border: 0; border-radius: 5px; background: var(--navy); color: #fff; padding: 13px; font-weight: 800; letter-spacing: .06em; cursor: pointer; }
+.guest-form .pay-now-button { background: linear-gradient(180deg, #c39726, #a5790e); color: #fff; }
+.guest-form .request-only-button { background: rgba(255,255,255,.74); color: var(--navy); border: 1px solid rgba(7,31,61,.18); }
 .calendar-box { border-left: 1px solid rgba(180,134,22,.16); padding: 32px 42px; background: rgba(255,255,255,.32); }
 .calendar-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
 .calendar-top strong { letter-spacing: .06em; text-align: center; }
