@@ -1779,7 +1779,14 @@ button, input, select { font: inherit; }
   .lightbox-content img { max-height: 70vh; }
   .lightbox-nav { width: 44px; height: 44px; font-size: 38px; background: rgba(255,255,255,.86); }
   .calendar-box { border-left: 0; border-top: 1px solid rgba(180,134,22,.16); padding: 22px; }
+  /* mobile privacy payment fix */
   .date-form, .guest-form { grid-template-columns: 1fr; }
+  .guest-form { gap: 12px; }
+  .guest-form input { font-size: 16px; padding: 14px; }
+  .guest-form button { min-height: 52px; font-size: 14px; line-height: 1.25; }
+  .privacy-consent { font-size: 14px; padding: 14px; }
+  .privacy-consent input { width: 24px; height: 24px; margin-top: 1px; }
+  .inline-legal { font-size: 14px; padding: 0 4px; }
   .guest-form { gap: 12px; }
   .guest-form input { font-size: 16px; padding: 14px; }
   .guest-form button { min-height: 52px; font-size: 14px; line-height: 1.25; }
