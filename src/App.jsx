@@ -19,7 +19,7 @@ const whatsappUrl = "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informaz
 const CIN = "IT085007C2TUGEP2SD";
 const CIR = "19085007C264694";
 const UNIT_ID = DEFAULT_UNIT_ID || "lunarossa1";
-const LEGAL_VERSION = "2026-05-16";
+const LEGAL_VERSION = "2026-05-16-rimborsi";
 
 const defaultPricing = {
   nightlyRate: 70,
@@ -324,18 +324,47 @@ function LegalPage({ page, onClose }) {
               richiesto tramite link sicuro Stripe, secondo quanto indicato nella comunicazione inviata all'ospite.
             </p>
 
-            <h3>Prezzi e pagamenti</h3>
+            <h3>Prezzi, caparra e pagamenti</h3>
             <p>
               I prezzi mostrati nel sito sono indicativi e possono variare in base a date, disponibilità, durata del soggiorno
-              e accordi diretti. I pagamenti online sono gestiti tramite Stripe. Gelone Lungomare non conserva i dati completi
-              della carta di pagamento.
+              e accordi diretti. La prenotazione diretta può richiedere il pagamento di una caparra confirmatoria, normalmente
+              pari al 30% del totale, salvo diverso accordo scritto con l'ospite.
+            </p>
+            <p>
+              Il saldo, quando dovuto, viene pagato secondo le modalità comunicate dalla struttura prima dell'arrivo
+              o al momento del check-in. I pagamenti online sono gestiti tramite Stripe. Gelone Lungomare non conserva
+              i dati completi della carta di pagamento.
             </p>
 
             <h3>Cancellazioni e rimborsi</h3>
             <p>
-              Le condizioni di cancellazione, eventuale caparra, saldo e rimborso vengono comunicate all'ospite prima
-              della conferma definitiva o insieme al link di pagamento. In caso di dubbi, l'ospite può contattare la struttura
-              prima di procedere al pagamento.
+              Salvo diverso accordo scritto tra le parti, per le prenotazioni dirette effettuate tramite il sito si applicano
+              le seguenti condizioni di cancellazione.
+            </p>
+            <p>
+              <strong>Cancellazione fino a 14 giorni prima del check-in:</strong> rimborso totale degli importi già pagati.
+            </p>
+            <p>
+              <strong>Cancellazione da 13 a 7 giorni prima del check-in:</strong> la caparra confirmatoria viene trattenuta
+              dalla struttura; l'eventuale saldo non è dovuto se non ancora pagato.
+            </p>
+            <p>
+              <strong>Cancellazione negli ultimi 6 giorni prima del check-in, mancata presentazione o no-show:</strong>
+              la caparra confirmatoria viene trattenuta. Eventuali importi già versati a saldo non sono rimborsabili,
+              salvo diverso accordo scritto con la struttura.
+            </p>
+            <p>
+              <strong>Partenza anticipata:</strong> le notti non usufruite non sono rimborsabili, salvo diverso accordo scritto.
+            </p>
+            <p>
+              <strong>Cancellazione da parte della struttura:</strong> se Gelone Lungomare non potesse ospitare il cliente
+              per cause imputabili alla struttura, verrà rimborsato integralmente quanto già pagato oppure verrà proposta,
+              se possibile, una soluzione alternativa accettata dall'ospite.
+            </p>
+            <p>
+              I rimborsi, quando dovuti, vengono effettuati sullo stesso metodo di pagamento usato dall'ospite, di norma
+              entro 7 giorni lavorativi dall'accordo di cancellazione. I tempi effettivi di riaccredito possono dipendere
+              dalla banca o dal circuito di pagamento.
             </p>
 
             <h3>Regole della casa</h3>
@@ -1101,6 +1130,11 @@ export default function App() {
                 <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Nome e cognome" />
                 <input value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email" type="email" />
                 <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="Telefono" />
+                <div className="cancellation-summary">
+                  <strong>Condizioni cancellazione:</strong>
+                  rimborso totale fino a 14 giorni prima del check-in; da 13 a 7 giorni prima viene trattenuta la caparra;
+                  negli ultimi 6 giorni, no-show o partenza anticipata gli importi versati non sono rimborsabili salvo diverso accordo scritto.
+                </div>
                 <label className="privacy-consent">
                   <input
                     type="checkbox"
@@ -1112,7 +1146,7 @@ export default function App() {
                     <button type="button" className="inline-legal" onClick={() => setLegalPage("privacy")}>Privacy Policy</button>,
                     <button type="button" className="inline-legal" onClick={() => setLegalPage("cookie")}>Cookie Policy</button>
                     e
-                    <button type="button" className="inline-legal" onClick={() => setLegalPage("terms")}>Termini e condizioni</button>.
+                    <button type="button" className="inline-legal" onClick={() => setLegalPage("terms")}>Termini e condizioni, incluse cancellazioni e rimborsi</button>.
                   </span>
                 </label>
                 {pricing.directPaymentEnabled ? (
@@ -1474,6 +1508,20 @@ button, input, select { font: inherit; }
   text-align: center;
   font-size: 14px;
 }
+.cancellation-summary {
+  grid-column: 1 / -1;
+  border: 1px solid rgba(180,134,22,.28);
+  background: rgba(180,134,22,.10);
+  color: #0a1d35;
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.48;
+}
+.cancellation-summary strong {
+  color: var(--gold);
+}
+
 .privacy-consent {
   grid-column: 1 / -1;
   display: flex;
