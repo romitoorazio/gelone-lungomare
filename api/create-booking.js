@@ -210,6 +210,30 @@ async function hasBookingConflict(adminDb, unitId, checkIn, checkOut) {
   return conflict;
 }
 
+function formatEuroForEmail(value) {
+  const number = Number(value || 0);
+
+  if (!Number.isFinite(number) || number <= 0) {
+    return "-";
+  }
+
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
+  }).format(number);
+}
+
+function formatDateForEmail(value) {
+  const text = String(value || "").trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return text || "-";
+  }
+
+  const [year, month, day] = text.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 async function sendNotificationEmail(booking, unit) {
   const resendApiKey = process.env.RESEND_API_KEY;
   const emailFrom =
@@ -262,6 +286,100 @@ https://www.gelone.it/admin
     return {
       sent: false,
       reason: "Errore invio email.",
+    };
+  }
+
+  return {
+    sent: true,
+  };
+}
+
+async function sendGuestRequestEmail(booking, unit) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const emailFrom =
+    process.env.EMAIL_FROM || "Gelone Lungomare <onboarding@resend.dev>";
+
+  if (!resendApiKey) {
+    return {
+      sent: false,
+      reason: "RESEND_API_KEY non configurata.",
+    };
+  }
+
+  if (!booking.guestEmail) {
+    return {
+      sent: false,
+      reason: "Email ospite mancante.",
+    };
+  }
+
+  const unitName = unit.publicName || unit.name || "Gelone Lungomare";
+  const nightsCount = Number(booking.nightsCount || 0);
+  const nightsText = nightsCount === 1 ? "1 notte" : `${nightsCount} notti`;
+  const holdExpiresAt = booking.holdExpiresAt
+    ? new Date(booking.holdExpiresAt).toLocaleString("it-IT", {
+        timeZone: "Europe/Rome",
+        dateStyle: "short",
+        timeStyle: "short",
+      })
+    : "entro 24 ore";
+
+  const subject = `Richiesta ricevuta - ${unitName}`;
+
+  const text = `
+Ciao ${booking.guestName},
+
+abbiamo ricevuto la tua richiesta di prenotazione per ${unitName}.
+
+Riepilogo richiesta:
+- Arrivo: ${formatDateForEmail(booking.checkIn)}
+- Partenza: ${formatDateForEmail(booking.checkOut)}
+- Durata: ${nightsText}
+- Ospiti: ${booking.guests}
+- Totale stimato: ${formatEuroForEmail(booking.totalPrice)}
+- Caparra indicativa: ${formatEuroForEmail(booking.depositAmount)}
+
+Stato della richiesta:
+La richiesta è stata ricevuta ed è in attesa di conferma da parte della struttura.
+Le date possono restare bloccate temporaneamente fino a: ${holdExpiresAt}.
+
+Condizioni cancellazione prenotazioni dirette:
+- Rimborso totale fino a 14 giorni prima del check-in.
+- Da 13 a 7 giorni prima del check-in viene trattenuta la caparra confirmatoria.
+- Negli ultimi 6 giorni, in caso di no-show o partenza anticipata, gli importi versati non sono rimborsabili salvo diverso accordo scritto.
+
+Privacy e condizioni:
+Hai dichiarato di aver letto e accettato Privacy Policy, Cookie Policy e Termini e condizioni, incluse cancellazioni e rimborsi.
+
+Contatti:
+Telefono / WhatsApp: 3476308456
+Telefono: 3479461999
+Email: info@gelone.it
+Sito: https://www.gelone.it
+
+Grazie,
+Gelone Lungomare
+`.trim();
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: emailFrom,
+      to: [booking.guestEmail],
+      subject,
+      text,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    return {
+      sent: false,
+      reason: errorText || "Errore invio email ospite.",
     };
   }
 
@@ -501,10 +619,13 @@ export default async function handler(req, res) {
       });
     });
 
-    const emailResult = await sendNotificationEmail({
+    const savedBooking = {
       ...bookingData,
       bookingId: bookingRef.id,
-    }, unit);
+    };
+
+    const emailResult = await sendNotificationEmail(savedBooking, unit);
+    const guestEmailResult = await sendGuestRequestEmail(savedBooking, unit);
 
     return res.status(201).json({
       ok: true,
@@ -518,6 +639,7 @@ export default async function handler(req, res) {
       message:
         `Richiesta ricevuta. Le date sono state bloccate nel sistema ${unitName} in attesa di conferma della struttura.`,
       emailNotification: emailResult,
+      guestEmailNotification: guestEmailResult,
     });
   } catch (error) {
     console.error("Errore create-booking:", error);
