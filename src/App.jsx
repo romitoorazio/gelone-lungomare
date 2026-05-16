@@ -395,6 +395,7 @@ export default function App() {
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
+  const [botTrap, setBotTrap] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [legalPage, setLegalPage] = useState("");
   const [requestStatus, setRequestStatus] = useState(null);
@@ -742,6 +743,7 @@ export default function App() {
           privacyVersion: LEGAL_VERSION,
           termsVersion: LEGAL_VERSION,
           cookieVersion: LEGAL_VERSION,
+          website: botTrap,
         }),
       });
 
@@ -1130,6 +1132,15 @@ export default function App() {
                 <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Nome e cognome" />
                 <input value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email" type="email" />
                 <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="Telefono" />
+                <input
+                  className="bot-trap"
+                  value={botTrap}
+                  onChange={(e) => setBotTrap(e.target.value)}
+                  tabIndex="-1"
+                  autoComplete="off"
+                  aria-hidden="true"
+                  placeholder="Sito web"
+                />
                 <div className="cancellation-summary">
                   <strong>Condizioni cancellazione:</strong>
                   rimborso totale fino a 14 giorni prima del check-in; da 13 a 7 giorni prima viene trattenuta la caparra;
@@ -1508,6 +1519,15 @@ button, input, select { font: inherit; }
   text-align: center;
   font-size: 14px;
 }
+.bot-trap {
+  position: absolute !important;
+  left: -9999px !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 .cancellation-summary {
   grid-column: 1 / -1;
   border: 1px solid rgba(180,134,22,.28);

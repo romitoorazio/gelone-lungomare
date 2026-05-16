@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
 import { DEFAULT_UNIT_ID, bookingUnitId, getPublicUnitConfig } from "./_units.js";
 
@@ -58,6 +59,72 @@ function cleanIntegerValue(value) {
 function getClientIp(req) {
   const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
   return forwarded || String(req.headers["x-real-ip"] || req.socket?.remoteAddress || "").trim();
+}
+
+function hashRateLimitKey(value) {
+  return crypto
+    .createHash("sha256")
+    .update(String(value || ""))
+    .digest("hex")
+    .slice(0, 32);
+}
+
+function normalizePhoneKey(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function enforceBookingRateLimit(adminDb, req, { guestEmail, guestPhone }) {
+  const day = getTodayKey();
+  const ip = getClientIp(req);
+
+  const entries = [
+    { kind: "ip", key: ip, limit: 8 },
+    { kind: "email", key: cleanText(guestEmail).toLowerCase(), limit: 3 },
+    { kind: "phone", key: normalizePhoneKey(guestPhone), limit: 3 },
+  ].filter((entry) => entry.key);
+
+  await adminDb.runTransaction(async (transaction) => {
+    const rows = [];
+
+    for (const entry of entries) {
+      const ref = adminDb
+        .collection("bookingRateLimits")
+        .doc(`${day}_${entry.kind}_${hashRateLimitKey(entry.key)}`);
+
+      const snapshot = await transaction.get(ref);
+      const count = Number(snapshot.data()?.count || 0);
+
+      if (count >= entry.limit) {
+        throw new Error("TOO_MANY_BOOKING_REQUESTS");
+      }
+
+      rows.push({
+        ref,
+        entry,
+        count,
+        exists: snapshot.exists,
+      });
+    }
+
+    rows.forEach(({ ref, entry, count, exists }) => {
+      transaction.set(
+        ref,
+        {
+          day,
+          kind: entry.kind,
+          count: count + 1,
+          limit: entry.limit,
+          updatedAt: FieldValue.serverTimestamp(),
+          ...(exists ? {} : { createdAt: FieldValue.serverTimestamp() }),
+        },
+        { merge: true }
+      );
+    });
+  });
 }
 
 function getBody(req) {
@@ -212,6 +279,7 @@ export default async function handler(req, res) {
     const cleaningFee = cleanMoneyValue(body.cleaningFee);
     const depositAmount = cleanMoneyValue(body.depositAmount);
     const nightsCountFromClient = cleanIntegerValue(body.nightsCount);
+    const botTrap = cleanText(body.website || body.company || body.url);
     const privacyAccepted = body.privacyAccepted === true;
     const termsAccepted = body.termsAccepted === true;
     const cookiePolicyAccepted = body.cookiePolicyAccepted === true;
@@ -219,6 +287,13 @@ export default async function handler(req, res) {
     const privacyVersion = cleanText(body.privacyVersion || "2026-05-16");
     const termsVersion = cleanText(body.termsVersion || "2026-05-16");
     const cookieVersion = cleanText(body.cookieVersion || "2026-05-16");
+
+    if (botTrap) {
+      return res.status(400).json({
+        ok: false,
+        message: "Richiesta non valida.",
+      });
+    }
 
     if (!privacyAccepted || !termsAccepted || !cookiePolicyAccepted) {
       return res.status(400).json({
@@ -261,6 +336,11 @@ export default async function handler(req, res) {
         message: "Inserisci un numero di telefono valido.",
       });
     }
+
+    await enforceBookingRateLimit(adminDb, req, {
+      guestEmail,
+      guestPhone,
+    });
 
     if (!isValidDate(checkIn) || !isValidDate(checkOut)) {
       return res.status(400).json({
@@ -406,6 +486,14 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error("Errore create-booking:", error);
+
+    if (error?.message === "TOO_MANY_BOOKING_REQUESTS") {
+      return res.status(429).json({
+        ok: false,
+        message:
+          "Troppe richieste inviate. Contattaci direttamente su WhatsApp o riprova più tardi.",
+      });
+    }
 
     if (error?.message === "DATES_NOT_AVAILABLE") {
       return res.status(409).json({
