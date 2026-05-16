@@ -650,12 +650,25 @@ export default function App() {
       if (!response.ok) throw new Error(data?.message || "Errore verifica disponibilità");
 
       const available = data.available !== false;
+      const availabilityMessage = available
+        ? pricing.directPaymentEnabled
+          ? "Periodo disponibile. Scorri sotto per pagare la caparra oppure inviare una richiesta senza pagamento."
+          : "Periodo disponibile. Il pagamento online è spento: puoi inviare una richiesta senza pagamento."
+        : "Periodo non disponibile. Prova altre date oppure contattaci su WhatsApp.";
+
       setAvailability({
         ok: available,
-        message: available
-          ? "Periodo disponibile. Puoi prenotare subito pagando la caparra oppure inviare una richiesta senza pagamento."
-          : "Periodo non disponibile. Prova altre date oppure contattaci su WhatsApp.",
+        message: availabilityMessage,
       });
+
+      if (available) {
+        window.setTimeout(() => {
+          document.getElementById("prenota-diretta")?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }, 180);
+      }
     } catch (error) {
       setAvailability({ ok: false, message: error.message || "Errore durante la verifica." });
     } finally {
@@ -1122,13 +1135,22 @@ export default function App() {
               )}
             </div>
             <p className="best-rate">♡ {pricing.directRateText}</p>
+            <p className={pricing.directPaymentEnabled ? "payment-mode-banner on" : "payment-mode-banner off"}>
+              {pricing.directPaymentEnabled
+                ? "Pagamento online attivo: dopo la verifica disponibilità puoi pagare la caparra con Stripe."
+                : "Pagamento online non attivo: l'ospite può inviare solo una richiesta senza pagamento."}
+            </p>
 
             {availability && (
               <div className={availability.ok ? "notice ok" : "notice no"}>{availability.message}</div>
             )}
 
             {availability?.ok && (
-              <form className="guest-form" onSubmit={createBookingRequest}>
+              <form id="prenota-diretta" className="guest-form" onSubmit={createBookingRequest}>
+                <div className="guest-form-title">
+                  <strong>Completa la prenotazione</strong>
+                  <span>Inserisci i dati, accetta privacy e condizioni, poi scegli se pagare la caparra o inviare solo richiesta.</span>
+                </div>
                 <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Nome e cognome" />
                 <input value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email" type="email" />
                 <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="Telefono" />
@@ -1501,10 +1523,48 @@ button, input, select { font: inherit; }
 .price-box strong { font-size: 20px; color: var(--navy); }
 .price-box small { font-size: 12px; line-height: 1.35; color: rgba(7,31,61,.72); }
 .best-rate { text-align: center; margin: 13px 0 0; font-size: 15px; }
+.payment-mode-banner {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 800;
+}
+.payment-mode-banner.on {
+  background: rgba(47,125,78,.10);
+  color: #1e623b;
+  border: 1px solid rgba(47,125,78,.20);
+}
+.payment-mode-banner.off {
+  background: rgba(154,72,47,.08);
+  color: #8a351e;
+  border: 1px solid rgba(154,72,47,.18);
+}
 .notice { margin: 14px 0 0; padding: 12px 14px; border-radius: 6px; font-size: 14px; text-align: center; }
 .notice.ok { background: rgba(47, 125, 78, .10); color: #1e623b; border: 1px solid rgba(47, 125, 78, .18); }
 .notice.no { background: rgba(154, 72, 47, .10); color: #8a351e; border: 1px solid rgba(154, 72, 47, .18); }
-.guest-form { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.guest-form { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; scroll-margin-top: 110px; }
+.guest-form-title {
+  grid-column: 1 / -1;
+  border: 1px solid rgba(7,31,61,.12);
+  background: rgba(255,255,255,.72);
+  border-radius: 8px;
+  padding: 13px 14px;
+  color: var(--navy);
+}
+.guest-form-title strong {
+  display: block;
+  font-size: 17px;
+  margin-bottom: 5px;
+}
+.guest-form-title span {
+  display: block;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(7,31,61,.74);
+}
 .guest-form input { background: rgba(255,255,255,.7); border: 1px solid rgba(180,134,22,.18); border-radius: 6px; padding: 12px; }
 .guest-form button { grid-column: 1 / -1; border: 0; border-radius: 5px; background: var(--navy); color: #fff; padding: 13px; font-weight: 800; letter-spacing: .06em; cursor: pointer; }
 .guest-form .pay-now-button { background: linear-gradient(180deg, #c39726, #a5790e); color: #fff; }
@@ -1720,6 +1780,12 @@ button, input, select { font: inherit; }
   .lightbox-nav { width: 44px; height: 44px; font-size: 38px; background: rgba(255,255,255,.86); }
   .calendar-box { border-left: 0; border-top: 1px solid rgba(180,134,22,.16); padding: 22px; }
   .date-form, .guest-form { grid-template-columns: 1fr; }
+  .guest-form { gap: 12px; }
+  .guest-form input { font-size: 16px; padding: 14px; }
+  .guest-form button { min-height: 52px; font-size: 14px; line-height: 1.25; }
+  .privacy-consent { font-size: 14px; padding: 14px; }
+  .privacy-consent input { width: 24px; height: 24px; margin-top: 1px; }
+  .inline-legal { font-size: 14px; padding: 0 4px; }
   .map-card { grid-template-columns: 1fr; }
   .map-bg { min-height: 145px; }
   .footer { padding: 22px 26px; text-align: center; }
