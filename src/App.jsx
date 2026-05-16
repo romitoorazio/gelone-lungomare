@@ -197,6 +197,155 @@ function SectionTitle({ children }) {
   );
 }
 
+function LegalPage({ page, onClose }) {
+  const title =
+    page === "privacy"
+      ? "Privacy Policy"
+      : page === "cookie"
+        ? "Cookie Policy"
+        : "Termini e condizioni";
+
+  return (
+    <div className="legal-modal" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="legal-card">
+        <div className="legal-head">
+          <div>
+            <p>Gelone Lungomare</p>
+            <h2>{title}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Chiudi">
+            ×
+          </button>
+        </div>
+
+        {page === "privacy" && (
+          <div className="legal-page-content">
+            <p><strong>Ultimo aggiornamento:</strong> 16/05/2026</p>
+            <p>
+              La presente informativa descrive come vengono trattati i dati personali raccolti tramite il sito www.gelone.it
+              per richieste di disponibilità, prenotazioni dirette, contatti telefonici, WhatsApp, email e pagamenti online.
+            </p>
+
+            <h3>Titolare del trattamento</h3>
+            <p>
+              Il titolare del trattamento è Orazio Romito, riferimento per Gelone Lungomare, Via Pascoli 1, 93012 Gela (CL).
+              Email di contatto: info@gelone.it.
+            </p>
+
+            <h3>Dati trattati</h3>
+            <p>
+              Possiamo trattare nome e cognome, email, numero di telefono, date di soggiorno, numero ospiti, messaggi inviati,
+              dati relativi alla prenotazione, stato del pagamento e dati tecnici necessari al funzionamento del sito.
+              I dati della carta non vengono salvati da Gelone Lungomare: il pagamento è gestito da Stripe.
+            </p>
+
+            <h3>Finalità e basi giuridiche</h3>
+            <p>
+              I dati sono usati per rispondere alle richieste, verificare disponibilità, gestire prenotazioni, pagamenti,
+              comunicazioni prima e dopo il soggiorno, obblighi amministrativi e fiscali, sicurezza del sito e tutela dei diritti.
+              Le basi giuridiche sono misure precontrattuali, esecuzione del contratto, obblighi di legge e legittimo interesse.
+            </p>
+
+            <h3>Destinatari e strumenti usati</h3>
+            <p>
+              I dati possono essere trattati tramite servizi tecnici necessari al funzionamento del sito e della prenotazione,
+              tra cui Firebase/Google Cloud, Vercel, Stripe, Cloudinary, email, telefono e WhatsApp.
+              I dati possono essere comunicati ad autorità o consulenti quando previsto dalla legge.
+            </p>
+
+            <h3>Tempi di conservazione</h3>
+            <p>
+              Le richieste non confermate sono conservate per il tempo necessario alla gestione del contatto.
+              Le prenotazioni e i dati amministrativi sono conservati per il tempo richiesto dalla normativa applicabile
+              e per la tutela dei diritti del titolare.
+            </p>
+
+            <h3>Diritti dell'interessato</h3>
+            <p>
+              Puoi chiedere accesso, rettifica, cancellazione, limitazione, opposizione al trattamento e portabilità dei dati,
+              nei casi previsti dal GDPR. Puoi scrivere a info@gelone.it. Resta salvo il diritto di proporre reclamo
+              all'autorità competente per la protezione dei dati personali.
+            </p>
+          </div>
+        )}
+
+        {page === "cookie" && (
+          <div className="legal-page-content">
+            <p><strong>Ultimo aggiornamento:</strong> 16/05/2026</p>
+            <p>
+              Il sito www.gelone.it utilizza solo strumenti necessari al funzionamento tecnico della navigazione,
+              della disponibilità, della prenotazione e dell'area amministrativa.
+            </p>
+
+            <h3>Cookie tecnici</h3>
+            <p>
+              I cookie o strumenti tecnici possono servire per sicurezza, sessione, preferenze essenziali e funzionamento
+              del sito. Questi strumenti non richiedono consenso preventivo.
+            </p>
+
+            <h3>Cookie di profilazione e marketing</h3>
+            <p>
+              Al momento il sito pubblico non utilizza cookie di marketing o profilazione inseriti direttamente da Gelone Lungomare.
+              Se in futuro verranno aggiunti Google Analytics, Meta Pixel, mappe incorporate o altri strumenti di tracciamento,
+              la presente policy sarà aggiornata e verrà mostrato un banner per la gestione del consenso.
+            </p>
+
+            <h3>Servizi esterni</h3>
+            <p>
+              Il sito può contenere link verso servizi esterni come Google Maps, WhatsApp, Booking, Airbnb e Stripe.
+              Cliccando tali link l'utente esce dal sito Gelone Lungomare e si applicano le informative privacy/cookie
+              dei rispettivi fornitori.
+            </p>
+          </div>
+        )}
+
+        {page === "terms" && (
+          <div className="legal-page-content">
+            <p><strong>Ultimo aggiornamento:</strong> 16/05/2026</p>
+            <p>
+              I presenti termini regolano l'utilizzo del sito www.gelone.it e le richieste di prenotazione diretta
+              per Gelone Lungomare, locazione turistica sita in Via Pascoli 1, 93012 Gela (CL).
+            </p>
+
+            <h3>Richieste e prenotazioni</h3>
+            <p>
+              L'invio di una richiesta dal sito non garantisce automaticamente la prenotazione definitiva.
+              La prenotazione si considera confermata dopo conferma scritta da parte della struttura oppure dopo pagamento
+              richiesto tramite link sicuro Stripe, secondo quanto indicato nella comunicazione inviata all'ospite.
+            </p>
+
+            <h3>Prezzi e pagamenti</h3>
+            <p>
+              I prezzi mostrati nel sito sono indicativi e possono variare in base a date, disponibilità, durata del soggiorno
+              e accordi diretti. I pagamenti online sono gestiti tramite Stripe. Gelone Lungomare non conserva i dati completi
+              della carta di pagamento.
+            </p>
+
+            <h3>Cancellazioni e rimborsi</h3>
+            <p>
+              Le condizioni di cancellazione, eventuale caparra, saldo e rimborso vengono comunicate all'ospite prima
+              della conferma definitiva o insieme al link di pagamento. In caso di dubbi, l'ospite può contattare la struttura
+              prima di procedere al pagamento.
+            </p>
+
+            <h3>Regole della casa</h3>
+            <p>
+              L'ospite è tenuto a usare l'alloggio con cura, rispettare orari di check-in e check-out comunicati,
+              norme condominiali, quiete pubblica e divieti indicati dalla struttura. Eventuali danni o usi impropri
+              possono essere addebitati secondo legge.
+            </p>
+
+            <h3>Codici identificativi</h3>
+            <p>
+              CIN: IT085007C2TUGEP2SD. CIR: 19085007C264694.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const minCheckIn = useMemo(() => todayIso(), []);
   const [checkIn, setCheckIn] = useState("");
@@ -207,6 +356,8 @@ export default function App() {
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [legalPage, setLegalPage] = useState("");
   const [requestStatus, setRequestStatus] = useState(null);
   const [paymentReturnStatus, setPaymentReturnStatus] = useState(null);
   const [pricing, setPricing] = useState(defaultPricing);
@@ -488,6 +639,14 @@ export default function App() {
       return false;
     }
 
+    if (!privacyAccepted) {
+      setRequestStatus({
+        ok: false,
+        message: "Accetta Privacy Policy, Cookie Policy e Termini prima di continuare.",
+      });
+      return false;
+    }
+
     return true;
   }
 
@@ -618,6 +777,9 @@ export default function App() {
   return (
     <main className="site-shell">
       <style>{css}</style>
+      {legalPage && (
+        <LegalPage page={legalPage} onClose={() => setLegalPage("")} />
+      )}
 
       <header className="topbar">
         <a href="#home" className="brand" aria-label="Gelone Lungomare home">
@@ -912,6 +1074,20 @@ export default function App() {
                 <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Nome e cognome" />
                 <input value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email" type="email" />
                 <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="Telefono" />
+                <label className="privacy-consent">
+                  <input
+                    type="checkbox"
+                    checked={privacyAccepted}
+                    onChange={(e) => setPrivacyAccepted(e.target.checked)}
+                  />
+                  <span>
+                    Ho letto e accetto
+                    <button type="button" className="inline-legal" onClick={() => setLegalPage("privacy")}>Privacy Policy</button>,
+                    <button type="button" className="inline-legal" onClick={() => setLegalPage("cookie")}>Cookie Policy</button>
+                    e
+                    <button type="button" className="inline-legal" onClick={() => setLegalPage("terms")}>Termini e condizioni</button>.
+                  </span>
+                </label>
                 {pricing.directPaymentEnabled ? (
                   <button
                     disabled={loading}
@@ -1028,6 +1204,12 @@ export default function App() {
         <div>
           <h3>SEGUICI</h3>
           <div className="socials"><span>f</span><span>◎</span><span>☘</span></div>
+        </div>
+        <div className="footer-legal">
+          <h3>INFORMAZIONI LEGALI</h3>
+          <button type="button" onClick={() => setLegalPage("privacy")}>Privacy Policy</button>
+          <button type="button" onClick={() => setLegalPage("cookie")}>Cookie Policy</button>
+          <button type="button" onClick={() => setLegalPage("terms")}>Termini e condizioni</button>
         </div>
       </footer>
       <div className="copyright">© 2026 Gelone Lungomare – Locazione Turistica. Tutti i diritti riservati.</div>
@@ -1264,6 +1446,95 @@ button, input, select { font: inherit; }
   padding: 12px;
   text-align: center;
   font-size: 14px;
+}
+.privacy-consent {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid rgba(180,134,22,.20);
+  background: rgba(255,255,255,.62);
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.privacy-consent input { margin-top: 4px; flex: 0 0 auto; }
+.inline-legal {
+  display: inline;
+  border: 0;
+  background: transparent;
+  color: var(--gold);
+  padding: 0 3px;
+  font-weight: 900;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.legal-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(3,12,24,.78);
+  backdrop-filter: blur(5px);
+}
+.legal-card {
+  width: min(880px, 100%);
+  max-height: 88vh;
+  overflow: auto;
+  border-radius: 18px;
+  background: var(--paper);
+  color: var(--navy);
+  box-shadow: 0 28px 90px rgba(0,0,0,.32);
+  border: 1px solid rgba(180,134,22,.28);
+}
+.legal-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 26px;
+  border-bottom: 1px solid rgba(180,134,22,.20);
+  background: rgba(255,253,247,.98);
+}
+.legal-head p {
+  margin: 0 0 5px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+.legal-head h2 { margin: 0; font-size: 30px; }
+.legal-head button {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--navy);
+  color: #fff;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+}
+.legal-page-content { padding: 24px 28px 30px; }
+.legal-page-content h3 { margin: 24px 0 8px; color: var(--gold); font-size: 18px; }
+.legal-page-content p { margin: 0 0 12px; line-height: 1.68; font-size: 15px; }
+.footer-legal { display: grid; gap: 8px; }
+.footer-legal button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
 }
 .calendar-box { border-left: 1px solid rgba(180,134,22,.16); padding: 32px 42px; background: rgba(255,255,255,.32); }
 .calendar-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
