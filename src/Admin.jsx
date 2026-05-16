@@ -2315,6 +2315,12 @@ wifiName: settings.wifiName || "",
                     label="Data consenso"
                     value={formatDateTime(selectedBooking.legalAcceptedAt)}
                   />
+                  {selectedBooking.status === "pending_direct" && (
+                    <DetailRow
+                      label="Scadenza blocco richiesta"
+                      value={formatDateTime(selectedBooking.expiresAt)}
+                    />
+                  )}
                 </div>
 
 

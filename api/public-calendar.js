@@ -52,6 +52,36 @@ function getQuery(req, key) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function toMillis(value) {
+  if (!value) return null;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (typeof value.seconds === "number") return value.seconds * 1000;
+  return null;
+}
+
+function isExpiredPending(data) {
+  const status = String(data?.status || "").toLowerCase();
+
+  if (!["pending_direct", "pending", "pending_payment"].includes(status)) {
+    return false;
+  }
+
+  const expiresAtMillis = toMillis(data?.expiresAt);
+
+  return Boolean(expiresAtMillis && expiresAtMillis <= Date.now());
+}
+
+function publicStatusForData(data) {
+  if (isExpiredPending(data)) return null;
+  return publicStatusForData(data);
+}
+
 function publicStatusFromRaw(rawStatus, source) {
   const status = String(rawStatus || "").toLowerCase();
   const sourceValue = String(source || "").toLowerCase();
@@ -91,7 +121,7 @@ function bookingBelongsToUnit(data, unitId) {
 }
 
 function isBookingActive(data) {
-  return Boolean(publicStatusFromRaw(data?.status, data?.source));
+  return Boolean(publicStatusForData(data));
 }
 
 function getBookingNightsInsideRange(data, start, end) {
@@ -170,7 +200,7 @@ export default async function handler(req, res) {
       if (!snapshot.exists) return;
 
       const data = snapshot.data();
-      const status = publicStatusFromRaw(data?.status, data?.source);
+      const status = publicStatusForData(data);
 
       if (status) {
         setStatus(statusByDate, days[index], status);
@@ -188,7 +218,7 @@ export default async function handler(req, res) {
         return;
       }
 
-      const status = publicStatusFromRaw(data?.status, data?.source);
+      const status = publicStatusForData(data);
       const bookingNights = getBookingNightsInsideRange(data, start, end);
 
       bookingNights.forEach((night) => {

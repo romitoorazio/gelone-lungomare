@@ -3,6 +3,7 @@ import { getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
 import { DEFAULT_UNIT_ID, bookingUnitId, getPublicUnitConfig } from "./_units.js";
 
 const NOTIFY_EMAIL = "info@gelone.it";
+const PENDING_REQUEST_HOLD_HOURS = 24;
 
 function isValidDate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -141,6 +142,36 @@ function getBody(req) {
   return req.body;
 }
 
+function toMillis(value) {
+  if (!value) return null;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (typeof value.seconds === "number") return value.seconds * 1000;
+  return null;
+}
+
+function isExpiredPending(data) {
+  const status = String(data?.status || "").toLowerCase();
+
+  if (!["pending_direct", "pending", "pending_payment"].includes(status)) {
+    return false;
+  }
+
+  const expiresAtMillis = toMillis(data?.expiresAt);
+
+  return Boolean(expiresAtMillis && expiresAtMillis <= Date.now());
+}
+
+function isActiveStatusForData(data) {
+  if (isExpiredPending(data)) return false;
+  return isActiveStatusForData(data);
+}
+
 function isActiveStatus(status) {
   const value = String(status || "").toLowerCase();
   return !["cancelled", "canceled", "deleted", "available", "rejected", "declined"].includes(value);
@@ -171,7 +202,7 @@ async function hasBookingConflict(adminDb, unitId, checkIn, checkOut) {
 
     const data = doc.data();
 
-    if (bookingBelongsToUnit(data, unitId) && isActiveStatus(data?.status) && bookingOverlaps(data, checkIn, checkOut)) {
+    if (bookingBelongsToUnit(data, unitId) && isActiveStatusForData(data) && bookingOverlaps(data, checkIn, checkOut)) {
       conflict = true;
     }
   });
@@ -386,6 +417,7 @@ export default async function handler(req, res) {
     }
 
     const bookingRef = adminDb.collection("bookings").doc();
+    const pendingExpiresAt = new Date(Date.now() + PENDING_REQUEST_HOLD_HOURS * 60 * 60 * 1000);
 
     const bookingData = {
       unitId,
@@ -405,6 +437,9 @@ export default async function handler(req, res) {
       depositAmount,
       paymentStatus: "unpaid",
       welcomateStatus: "to_send",
+      expiresAt: pendingExpiresAt,
+      holdExpiresAt: pendingExpiresAt.toISOString(),
+      holdExpiresHours: PENDING_REQUEST_HOLD_HOURS,
       notes,
       privacyAccepted,
       termsAccepted,
@@ -441,7 +476,7 @@ export default async function handler(req, res) {
       const occupiedNight = nightSnapshots.find((snapshot) => {
         if (!snapshot.exists) return false;
         const data = snapshot.data();
-        return isActiveStatus(data?.status);
+        return isActiveStatusForData(data);
       });
 
       if (occupiedNight) {
