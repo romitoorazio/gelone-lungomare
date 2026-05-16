@@ -19,6 +19,7 @@ const whatsappUrl = "https://wa.me/393476308456?text=Ciao%2C%20vorrei%20informaz
 const CIN = "IT085007C2TUGEP2SD";
 const CIR = "19085007C264694";
 const UNIT_ID = DEFAULT_UNIT_ID || "lunarossa1";
+const LEGAL_VERSION = "2026-05-16";
 
 const defaultPricing = {
   nightlyRate: 70,
@@ -686,6 +687,13 @@ export default function App() {
           cleaningFee: priceEstimate.cleaningFee,
           nightsCount: priceEstimate.nights,
           depositAmount: priceEstimate.depositAmount,
+          privacyAccepted: true,
+          termsAccepted: true,
+          cookiePolicyAccepted: true,
+          legalAcceptedAt: new Date().toISOString(),
+          privacyVersion: LEGAL_VERSION,
+          termsVersion: LEGAL_VERSION,
+          cookieVersion: LEGAL_VERSION,
         }),
       });
 

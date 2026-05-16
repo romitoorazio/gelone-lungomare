@@ -2293,6 +2293,18 @@ wifiName: settings.wifiName || "",
                   <DetailRow label="Invio WelcoMate" value={formatDateTime(selectedBooking.welcomateSentAt)} />
                   <DetailRow label="Creata" value={formatDateTime(selectedBooking.createdAt)} />
                   <DetailRow label="Aggiornata" value={formatDateTime(selectedBooking.updatedAt)} />
+                  <DetailRow
+                    label="Consenso privacy"
+                    value={
+                      selectedBooking.privacyAccepted && selectedBooking.termsAccepted
+                        ? "Accettato"
+                        : "Non registrato"
+                    }
+                  />
+                  <DetailRow
+                    label="Data consenso"
+                    value={formatDateTime(selectedBooking.legalAcceptedAt)}
+                  />
                 </div>
 
 

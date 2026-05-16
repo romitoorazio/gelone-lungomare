@@ -46,6 +46,11 @@ function cleanIntegerValue(value) {
   return Number.isFinite(number) ? Math.round(number) : null;
 }
 
+function getClientIp(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return forwarded || String(req.headers["x-real-ip"] || req.socket?.remoteAddress || "").trim();
+}
+
 function getBody(req) {
   if (!req.body) return {};
 
@@ -198,6 +203,20 @@ export default async function handler(req, res) {
     const cleaningFee = cleanMoneyValue(body.cleaningFee);
     const depositAmount = cleanMoneyValue(body.depositAmount);
     const nightsCountFromClient = cleanIntegerValue(body.nightsCount);
+    const privacyAccepted = body.privacyAccepted === true;
+    const termsAccepted = body.termsAccepted === true;
+    const cookiePolicyAccepted = body.cookiePolicyAccepted === true;
+    const legalAcceptedAtClient = cleanText(body.legalAcceptedAt);
+    const privacyVersion = cleanText(body.privacyVersion || "2026-05-16");
+    const termsVersion = cleanText(body.termsVersion || "2026-05-16");
+    const cookieVersion = cleanText(body.cookieVersion || "2026-05-16");
+
+    if (!privacyAccepted || !termsAccepted || !cookiePolicyAccepted) {
+      return res.status(400).json({
+        ok: false,
+        message: "Accetta Privacy Policy, Cookie Policy e Termini prima di continuare.",
+      });
+    }
 
     if (!guestName) {
       return res.status(400).json({
@@ -277,6 +296,22 @@ export default async function handler(req, res) {
       paymentStatus: "unpaid",
       welcomateStatus: "to_send",
       notes,
+      privacyAccepted,
+      termsAccepted,
+      cookiePolicyAccepted,
+      legalAcceptedAt: FieldValue.serverTimestamp(),
+      legalAcceptance: {
+        privacyAccepted,
+        termsAccepted,
+        cookiePolicyAccepted,
+        privacyVersion,
+        termsVersion,
+        cookieVersion,
+        acceptedAtClient: legalAcceptedAtClient,
+        acceptedFrom: "public_site",
+        userAgent: cleanText(req.headers["user-agent"]),
+        ip: getClientIp(req),
+      },
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     };
