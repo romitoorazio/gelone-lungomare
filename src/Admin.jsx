@@ -1321,10 +1321,20 @@ wifiName: settings.wifiName || "",
     }
 
     try {
+      const adminUser = auth.currentUser;
+
+      if (!adminUser) {
+        setError("Sessione admin scaduta. Esci e rientra in Admin.");
+        return;
+      }
+
+      const adminToken = await getIdToken(adminUser, true);
+
       const response = await fetch("/api/create-payment-checkout", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
         },
         body: JSON.stringify({
           bookingId: booking.id,

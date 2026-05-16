@@ -1,5 +1,10 @@
 import Stripe from "stripe";
-import { getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
+import { getFirebaseAdminAuth, getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
+
+const ADMIN_EMAILS = [
+  "romitoorazio@gmail.com",
+  "romitofrancesco1@gmail.com",
+].map((email) => email.toLowerCase());
 
 function getStripe() {
   const secretKey = String(process.env.STRIPE_SECRET_KEY || "").trim();
@@ -27,6 +32,49 @@ function getBody(req) {
 
 function cleanText(value) {
   return String(value || "").trim();
+}
+
+function getBearerToken(req) {
+  const authorization = String(req.headers.authorization || req.headers.Authorization || "").trim();
+
+  if (!authorization.toLowerCase().startsWith("bearer ")) {
+    return "";
+  }
+
+  return authorization.slice(7).trim();
+}
+
+async function verifyAdminRequest(req) {
+  const token = getBearerToken(req);
+
+  if (!token) {
+    const error = new Error("Accesso admin richiesto per creare link pagamento manuali.");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  let decodedToken;
+
+  try {
+    decodedToken = await getFirebaseAdminAuth().verifyIdToken(token);
+  } catch {
+    const error = new Error("Sessione admin non valida o scaduta.");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const email = cleanText(decodedToken.email).toLowerCase();
+
+  if (!ADMIN_EMAILS.includes(email)) {
+    const error = new Error("Account non autorizzato a creare link pagamento.");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return {
+    uid: decodedToken.uid,
+    email,
+  };
 }
 
 function getSiteOrigin(req) {
@@ -79,6 +127,7 @@ export default async function handler(req, res) {
     const stripe = getStripe();
     const body = getBody(req);
     const publicDirectPayment = body.publicDirectPayment === true;
+    const adminUser = publicDirectPayment ? null : await verifyAdminRequest(req);
 
     const bookingId = cleanText(body.bookingId);
     const requestedPaymentType = cleanText(body.paymentType || "deposit");
@@ -223,6 +272,7 @@ export default async function handler(req, res) {
       paymentAmount: amount,
       stripeCheckoutSessionId: session.id,
       paymentCheckoutUrl: session.url,
+      paymentCreatedBy: adminUser?.email || "public_site",
       paymentUpdatedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -239,7 +289,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error("Errore create-payment-checkout:", error);
 
-    return res.status(500).json({
+    return res.status(error?.statusCode || 500).json({
       ok: false,
       message:
         error?.message ||
