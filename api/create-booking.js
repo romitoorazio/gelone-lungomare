@@ -34,6 +34,15 @@ function cleanText(value) {
   return String(value || "").trim();
 }
 
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function isValidPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 15;
+}
+
 function cleanMoneyValue(value) {
   if (value === "" || value === null || value === undefined) return null;
   const number = Number(String(value).replace(",", "."));
@@ -225,10 +234,31 @@ export default async function handler(req, res) {
       });
     }
 
-    if (!guestPhone && !guestEmail) {
+    if (!guestEmail) {
       return res.status(400).json({
         ok: false,
-        message: "Inserisci almeno telefono o email.",
+        message: "Inserisci email.",
+      });
+    }
+
+    if (!isValidEmail(guestEmail)) {
+      return res.status(400).json({
+        ok: false,
+        message: "Inserisci un indirizzo email valido.",
+      });
+    }
+
+    if (!guestPhone) {
+      return res.status(400).json({
+        ok: false,
+        message: "Inserisci telefono.",
+      });
+    }
+
+    if (!isValidPhone(guestPhone)) {
+      return res.status(400).json({
+        ok: false,
+        message: "Inserisci un numero di telefono valido.",
       });
     }
 

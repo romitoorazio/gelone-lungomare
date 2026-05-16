@@ -1602,7 +1602,7 @@ wifiName: settings.wifiName || "",
     setUnits(nextUnits);
     setSelectedUnitId(id);
     setUnitForm(createUnitForm(normalizedUnit));
-    setMessage(successMessage || "Foto salvate. La galleria dell'unitÃ  Ã¨ aggiornata.");
+    setMessage(successMessage || "Foto salvate. La galleria dell'unitÃ  è aggiornata.");
   }
 
   async function handleCloudinaryPhotoUpload() {
@@ -1615,7 +1615,7 @@ wifiName: settings.wifiName || "",
     }
 
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-      setError("Cloudinary non Ã¨ configurato. Controlla cloud name e upload preset.");
+      setError("Cloudinary non è configurato. Controlla cloud name e upload preset.");
       return;
     }
 
@@ -1832,7 +1832,7 @@ wifiName: settings.wifiName || "",
         <div className="mx-auto max-w-xl rounded-[2rem] border border-red-200 bg-red-50 p-8 text-red-900">
           <h1 className="font-serif text-3xl">Accesso non autorizzato</h1>
           <p className="mt-3">
-            L'email collegata non Ã¨ autorizzata come amministratore.
+            L'email collegata non è autorizzata come amministratore.
           </p>
           <button
             onClick={() => signOut(auth)}
@@ -2394,7 +2394,7 @@ wifiName: settings.wifiName || "",
                         {settings?.welcomateUrl || defaultSettings.welcomateUrl}
                       </p>
                       <p className="mt-2 text-sm text-[#555]">
-                        Questo Ã¨ il link dati ospiti che puoi copiare, aprire o mandare direttamente su WhatsApp/email.
+                        Questo è il link dati ospiti che puoi copiare, aprire o mandare direttamente su WhatsApp/email.
                       </p>
                     </div>
 
@@ -3132,7 +3132,7 @@ wifiName: settings.wifiName || "",
                     </label>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-[#666]">
-                    Consiglio: lascia le nuove unitÃ  in bozza finchÃ© non prepariamo foto, tariffe, iCal in ingresso e pagina pubblica multi-alloggio.
+                    Consiglio: lascia le nuove unitÃ  in bozza finché non prepariamo foto, tariffe, iCal in ingresso e pagina pubblica multi-alloggio.
                   </p>
                 </div>
 
@@ -3141,7 +3141,7 @@ wifiName: settings.wifiName || "",
                     <div>
                       <h4 className="font-serif text-2xl">Foto unitÃ </h4>
                       <p className="mt-1 text-sm leading-6 text-[#666]">
-                        Carica foto da computer o telefono con Cloudinary. La foto viene ottimizzata per il sito e collegata alla singola unitÃ : Lunarossa 1 aggiorna la galleria pubblica, Lunarossa 2 resta pronta finchÃ© Ã¨ in bozza.
+                        Carica foto da computer o telefono con Cloudinary. La foto viene ottimizzata per il sito e collegata alla singola unitÃ : Lunarossa 1 aggiorna la galleria pubblica, Lunarossa 2 resta pronta finché è in bozza.
                       </p>
                     </div>
                     <button
@@ -3205,7 +3205,7 @@ wifiName: settings.wifiName || "",
                     </div>
                   ) : (
                     <div className="mt-5 rounded-2xl border border-dashed border-[#d7c49f] bg-white p-5 text-sm leading-6 text-[#666]">
-                      Nessuna foto Cloudinary collegata a questa unitÃ . Lunarossa 1 continua a usare le foto attuali del sito finchÃ© non carichi nuove foto.
+                      Nessuna foto Cloudinary collegata a questa unitÃ . Lunarossa 1 continua a usare le foto attuali del sito finché non carichi nuove foto.
                     </div>
                   )}
 
@@ -3255,7 +3255,7 @@ wifiName: settings.wifiName || "",
                 <DetailRow label="UnitÃ  attuale" value={selectedUnit.name} />
                 <DetailRow label="ID tecnico" value={selectedUnit.id} />
                 <p className="rounded-2xl bg-[#faf6ee] p-4 text-sm leading-7 text-[#555]">
-                  La struttura Ã¨ giÃ  preparata con <strong>unitId</strong>. In
+                  La struttura è giÃ  preparata con <strong>unitId</strong>. In
                   futuro potremo aggiungere altre unitÃ  senza rifare il PMS da
                   zero.
                 </p>

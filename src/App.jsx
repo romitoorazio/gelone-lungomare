@@ -184,6 +184,15 @@ function formatEuro(value) {
   return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(number);
 }
 
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function isValidPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 15;
+}
+
 function formatNightsLabel(value) {
   const nights = Number(value || 0);
   return `${nights} ${nights === 1 ? "notte" : "notti"}`;
@@ -627,6 +636,16 @@ export default function App() {
   function validateGuestForm() {
     if (!guestName.trim() || !guestEmail.trim() || !guestPhone.trim()) {
       setRequestStatus({ ok: false, message: "Compila nome, email e telefono." });
+      return false;
+    }
+
+    if (!isValidEmail(guestEmail)) {
+      setRequestStatus({ ok: false, message: "Inserisci un indirizzo email valido." });
+      return false;
+    }
+
+    if (!isValidPhone(guestPhone)) {
+      setRequestStatus({ ok: false, message: "Inserisci un numero di telefono valido." });
       return false;
     }
 
