@@ -2394,7 +2394,7 @@ wifiName: settings.wifiName || "",
                         {settings?.welcomateUrl || defaultSettings.welcomateUrl}
                       </p>
                       <p className="mt-2 text-sm text-[#555]">
-                        Questo è il link dati ospiti che puoi copiare, aprire o mandare direttamente su WhatsApp/email.
+                        Questo e il link dati ospiti che puoi copiare, aprire o mandare direttamente su WhatsApp/email.
                       </p>
                     </div>
 
