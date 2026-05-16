@@ -186,11 +186,14 @@ export default async function handler(req, res) {
             product_data: {
               name:
                 paymentType === "balance"
-                  ? `Saldo restante ${unitName}`
+                  ? `Saldo soggiorno ${unitName}`
                   : paymentType === "full"
                     ? `Pagamento soggiorno ${unitName}`
-                    : `Caparra prenotazione ${unitName}`,
-              description: `${booking.checkIn || "-"} / ${booking.checkOut || "-"}`,
+                    : `Caparra confirmatoria prenotazione ${unitName}`,
+              description:
+                paymentType === "deposit"
+                  ? `Soggiorno: ${booking.checkIn || "-"} / ${booking.checkOut || "-"}. Condizioni: rimborso totale fino a 14 giorni prima del check-in; da 13 a 7 giorni caparra trattenuta; ultimi 6 giorni, no-show o partenza anticipata non rimborsabili salvo accordo scritto.`
+                  : `Soggiorno: ${booking.checkIn || "-"} / ${booking.checkOut || "-"}. Pagamento collegato alla prenotazione Gelone Lungomare.`,
             },
           },
         },
