@@ -79,7 +79,7 @@ function isExpiredPending(data) {
 
 function publicStatusForData(data) {
   if (isExpiredPending(data)) return null;
-  return publicStatusForData(data);
+  return publicStatusFromRaw(data?.status, data?.source);
 }
 
 function publicStatusFromRaw(rawStatus, source) {

@@ -169,7 +169,7 @@ function isExpiredPending(data) {
 
 function isActiveStatusForData(data) {
   if (isExpiredPending(data)) return false;
-  return isActiveStatusForData(data);
+  return isActiveStatus(data?.status);
 }
 
 function isActiveStatus(status) {
