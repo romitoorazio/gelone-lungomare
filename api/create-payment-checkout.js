@@ -262,7 +262,7 @@ export default async function handler(req, res) {
         },
       },
       success_url: `${origin}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/?payment=cancelled&bookingId=${encodeURIComponent(bookingId)}`,
+      cancel_url: `${origin}/?payment=cancelled&bookingId=${encodeURIComponent(bookingId)}&paymentType=${encodeURIComponent(paymentType)}`,
     });
 
     await bookingRef.update({

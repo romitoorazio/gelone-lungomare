@@ -422,6 +422,8 @@ export default function App() {
   const [paymentReturnStatus, setPaymentReturnStatus] = useState(null);
   const [paymentReturnDetails, setPaymentReturnDetails] = useState(null);
   const [paymentReturnLoading, setPaymentReturnLoading] = useState(false);
+  const [paymentRetryLoading, setPaymentRetryLoading] = useState(false);
+  const [paymentRetryError, setPaymentRetryError] = useState("");
   const [pricing, setPricing] = useState(defaultPricing);
   const [publicUnits, setPublicUnits] = useState([DEFAULT_UNIT]);
   const [selectedPublicUnitId, setSelectedPublicUnitId] = useState(UNIT_ID);
@@ -449,6 +451,8 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const payment = params.get("payment");
     const sessionId = params.get("session_id");
+    const cancelledBookingId = params.get("bookingId") || "";
+    const cancelledPaymentType = params.get("paymentType") || "deposit";
 
     async function loadPaymentReturnDetails(value) {
       if (!value) return;
@@ -485,10 +489,13 @@ export default function App() {
         ok: false,
         title: "Pagamento non completato",
         message:
-          "Il pagamento non è stato completato. Puoi riprovare oppure contattarci direttamente su WhatsApp.",
+          "Nessun importo è stato addebitato. Puoi riprovare il pagamento oppure contattarci su WhatsApp per completare la prenotazione.",
         sessionId: "",
+        bookingId: cancelledBookingId,
+        paymentType: cancelledPaymentType,
       });
       setPaymentReturnDetails(null);
+      setPaymentRetryError("");
     }
 
     if (payment) {
@@ -570,6 +577,51 @@ export default function App() {
   };
 
   const closeGallery = () => setActivePhotoIndex(null);
+
+  async function retryCancelledPayment() {
+    const bookingId = paymentReturnStatus?.bookingId;
+
+    if (!bookingId) {
+      document.getElementById("disponibilita")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      return;
+    }
+
+    setPaymentRetryLoading(true);
+    setPaymentRetryError("");
+
+    try {
+      const response = await fetch("/api/create-payment-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId,
+          paymentType: paymentReturnStatus?.paymentType || "deposit",
+          publicDirectPayment: true,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.ok || !data.checkoutUrl) {
+        throw new Error(
+          data?.message ||
+          "Non riesco a riaprire il pagamento. Contattaci su WhatsApp."
+        );
+      }
+
+      window.location.href = data.checkoutUrl;
+    } catch (error) {
+      setPaymentRetryError(
+        error?.message ||
+        "Non riesco a riaprire il pagamento. Contattaci su WhatsApp."
+      );
+    } finally {
+      setPaymentRetryLoading(false);
+    }
+  }
 
   const moveGallery = (direction) => {
     setActivePhotoIndex((current) => {
@@ -924,6 +976,25 @@ export default function App() {
             </div>
           </div>
 
+          {!paymentReturnStatus.ok && (
+            <div className="payment-return-body">
+              <div className="payment-cancelled-card">
+                <strong>Cosa puoi fare adesso</strong>
+                <p>
+                  La richiesta non è persa: puoi riprovare il pagamento, tornare alla disponibilità oppure scriverci su WhatsApp.
+                </p>
+                <ul>
+                  <li>Nessun importo risulta addebitato.</li>
+                  <li>Se hai chiuso Stripe per errore, puoi riprovare subito.</li>
+                  <li>Se preferisci, completiamo noi la prenotazione manualmente.</li>
+                </ul>
+                {paymentRetryError && (
+                  <div className="payment-retry-error">{paymentRetryError}</div>
+                )}
+              </div>
+            </div>
+          )}
+
           {paymentReturnStatus.ok && (
             <div className="payment-return-body">
               {paymentReturnLoading && (
@@ -981,8 +1052,25 @@ export default function App() {
           )}
 
           <div className="payment-return-actions">
-            {paymentReturnStatus.ok && (
+            {paymentReturnStatus.ok ? (
               <a href={whatsappUrl} target="_blank" rel="noreferrer">Scrivi su WhatsApp</a>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={retryCancelledPayment}
+                  disabled={paymentRetryLoading}
+                >
+                  {paymentRetryLoading ? "Apertura Stripe..." : "Riprova pagamento"}
+                </button>
+                <a href={whatsappUrl} target="_blank" rel="noreferrer">Scrivi su WhatsApp</a>
+                <a
+                  href="#disponibilita"
+                  onClick={() => setPaymentReturnStatus(null)}
+                >
+                  Torna alle date
+                </a>
+              </>
             )}
             <button type="button" onClick={() => setPaymentReturnStatus(null)}>
               Chiudi
@@ -1575,6 +1663,37 @@ button, input, select { font: inherit; }
 .payment-next-steps strong {
   color: var(--navy);
   font-size: 16px;
+}
+.payment-cancelled-card {
+  border: 1px solid rgba(154,72,47,.18);
+  background: rgba(255,255,255,.78);
+  border-radius: 12px;
+  padding: 14px;
+  color: var(--navy);
+}
+.payment-cancelled-card strong {
+  color: #8a351e;
+  font-size: 17px;
+}
+.payment-cancelled-card p {
+  margin: 6px 0 10px;
+  color: rgba(7,31,61,.78);
+}
+.payment-cancelled-card ul {
+  margin: 0;
+  padding-left: 18px;
+  color: rgba(7,31,61,.74);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.payment-retry-error {
+  margin-top: 12px;
+  border: 1px solid rgba(154,72,47,.20);
+  background: rgba(154,72,47,.08);
+  color: #8a351e;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 13px;
 }
 .payment-next-steps p {
   color: rgba(7,31,61,.74);
