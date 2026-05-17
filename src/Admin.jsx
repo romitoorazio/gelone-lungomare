@@ -845,6 +845,78 @@ export default function Admin() {
     };
   }, [bookings]);
 
+
+  const economyStats = useMemo(() => {
+    const activeRows = bookings.filter((booking) => booking.status !== "cancelled");
+    const realBookings = activeRows.filter((booking) => booking.status !== "blocked");
+
+    const confirmedRows = realBookings.filter((booking) =>
+      ["confirmed_direct", "booking", "airbnb", "imported_ical"].includes(booking.status)
+    );
+
+    const getTotal = (booking) => Number(booking.totalPrice || 0);
+    const getDeposit = (booking) => Number(booking.depositAmount || 0);
+
+    const getPaidAmount = (booking) => {
+      if (booking.paymentStatus === "paid") return getTotal(booking);
+      if (booking.paymentStatus === "deposit_paid") return getDeposit(booking);
+      return 0;
+    };
+
+    const confirmedRevenue = confirmedRows.reduce(
+      (sum, booking) => sum + getTotal(booking),
+      0
+    );
+
+    const collected = realBookings.reduce(
+      (sum, booking) => sum + getPaidAmount(booking),
+      0
+    );
+
+    const depositCollected = realBookings.reduce((sum, booking) => {
+      if (booking.paymentStatus === "deposit_paid") return sum + getDeposit(booking);
+      return sum;
+    }, 0);
+
+    const balanceDue = realBookings.reduce((sum, booking) => {
+      const due = Math.max(getTotal(booking) - getPaidAmount(booking), 0);
+      return sum + due;
+    }, 0);
+
+    const soldNights = confirmedRows.reduce(
+      (sum, booking) => sum + getNightsCount(booking.checkIn, booking.checkOut),
+      0
+    );
+
+    const averageNight = soldNights > 0 ? confirmedRevenue / soldNights : 0;
+
+    const pendingPayments = realBookings
+      .map((booking) => {
+        const total = getTotal(booking);
+        const paid = getPaidAmount(booking);
+        const due = Math.max(total - paid, 0);
+
+        return {
+          ...booking,
+          paidAmount: paid,
+          balanceDue: due,
+        };
+      })
+      .filter((booking) => booking.balanceDue > 0)
+      .sort((a, b) => String(a.checkIn || "").localeCompare(String(b.checkIn || "")))
+      .slice(0, 12);
+
+    return {
+      confirmedRevenue,
+      collected,
+      depositCollected,
+      balanceDue,
+      soldNights,
+      averageNight,
+      pendingPayments,
+    };
+  }, [bookings]);
+
   function clearMessages() {
     setMessage("");
     setError("");
@@ -2065,6 +2137,9 @@ wifiName: settings.wifiName || "",
           <TabButton active={activeTab === "new"} onClick={() => setActiveTab("new")}>
             Nuova prenotazione
           </TabButton>
+          <TabButton active={activeTab === "economy"} onClick={() => setActiveTab("economy")}>
+            Economia
+          </TabButton>
           <TabButton active={activeTab === "block"} onClick={() => setActiveTab("block")}>
             Blocca date
           </TabButton>
@@ -2121,6 +2196,105 @@ wifiName: settings.wifiName || "",
               className="mt-4 min-h-56 w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-sm leading-6"
             />
           </div>
+        )}
+
+        {activeTab === "economy" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Controllo economico
+              </p>
+              <h2 className="mt-2 font-serif text-3xl">Dashboard economica</h2>
+              <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                Vista interna per controllare incassi, saldi da ricevere, notti vendute
+                e valore medio delle prenotazioni dell'unità selezionata.
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <StatCard title="Incasso confermato" value={formatEuro(economyStats.confirmedRevenue)} icon={CreditCard} subtitle="Totale prenotazioni confermate" />
+                <StatCard title="Incassato" value={formatEuro(economyStats.collected)} icon={ShieldCheck} subtitle="Pagato o caparra ricevuta" />
+                <StatCard title="Saldo da incassare" value={formatEuro(economyStats.balanceDue)} icon={RefreshCcw} subtitle="Importi ancora aperti" />
+                <StatCard title="Caparre" value={formatEuro(economyStats.depositCollected)} icon={Lock} subtitle="Caparre registrate" />
+                <StatCard title="Notti vendute" value={economyStats.soldNights} icon={CalendarDays} subtitle="Solo prenotazioni confermate" />
+                <StatCard title="Media/notte" value={formatEuro(economyStats.averageNight)} icon={Star} subtitle="Valore medio per notte" />
+              </div>
+
+              <div className="mt-8 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                  Controllo saldi
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                  Prossimi importi da ricevere
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-[#555]">
+                  Qui vedi le prenotazioni con totale ancora non completamente saldato.
+                </p>
+
+                <div className="mt-5 overflow-x-auto">
+                  <table className="w-full min-w-[950px] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                        <th className="py-3">Arrivo</th>
+                        <th className="py-3">Partenza</th>
+                        <th className="py-3">Ospite</th>
+                        <th className="py-3">Stato</th>
+                        <th className="py-3">Pagamento</th>
+                        <th className="py-3">Totale</th>
+                        <th className="py-3">Incassato</th>
+                        <th className="py-3">Da ricevere</th>
+                        <th className="py-3">Azioni</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {economyStats.pendingPayments.length === 0 && (
+                        <tr>
+                          <td colSpan="9" className="py-8 text-center text-[#555]">
+                            Nessun saldo aperto trovato.
+                          </td>
+                        </tr>
+                      )}
+
+                      {economyStats.pendingPayments.map((booking) => (
+                        <tr key={booking.id} className="border-b border-[#f0e6d5]">
+                          <td className="py-4">{formatDate(booking.checkIn)}</td>
+                          <td className="py-4">{formatDate(booking.checkOut)}</td>
+                          <td className="py-4 font-semibold">{booking.guestName || "-"}</td>
+                          <td className="py-4">
+                            <Pill className={getStatusClass(booking.status)}>
+                              {getStatusLabel(booking.status)}
+                            </Pill>
+                          </td>
+                          <td className="py-4">{getPaymentLabel(booking.paymentStatus)}</td>
+                          <td className="py-4">{formatEuro(booking.totalPrice)}</td>
+                          <td className="py-4">{formatEuro(booking.paidAmount)}</td>
+                          <td className="py-4 font-bold text-[#0a1d35]">
+                            {formatEuro(booking.balanceDue)}
+                          </td>
+                          <td className="py-4">
+                            <SmallButton
+                              onClick={() => {
+                                setSelectedBookingId(booking.id);
+                                setActiveTab("calendar");
+                              }}
+                              className="bg-[#0a1d35] text-white"
+                            >
+                              Apri dettagli
+                            </SmallButton>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  La dashboard usa i dati salvati nelle prenotazioni: totale, caparra e stato pagamento.
+                  Non modifica nessuna prenotazione.
+                </div>
+              </div>
+            </div>
+          </section>
         )}
 
         {activeTab === "maintenance" && (
