@@ -198,6 +198,26 @@ function formatNightsLabel(value) {
   return `${nights} ${nights === 1 ? "notte" : "notti"}`;
 }
 
+function formatDisplayDate(value) {
+  const text = String(value || "").trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return text || "-";
+  }
+
+  const [year, month, day] = text.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function getPaymentStatusLabel(value) {
+  const status = String(value || "").trim();
+
+  if (status === "paid") return "Prenotazione saldata";
+  if (status === "deposit_paid") return "Caparra ricevuta";
+
+  return "Pagamento ricevuto";
+}
+
 function SectionTitle({ children }) {
   return (
     <div className="section-title">
@@ -400,6 +420,8 @@ export default function App() {
   const [legalPage, setLegalPage] = useState("");
   const [requestStatus, setRequestStatus] = useState(null);
   const [paymentReturnStatus, setPaymentReturnStatus] = useState(null);
+  const [paymentReturnDetails, setPaymentReturnDetails] = useState(null);
+  const [paymentReturnLoading, setPaymentReturnLoading] = useState(false);
   const [pricing, setPricing] = useState(defaultPricing);
   const [publicUnits, setPublicUnits] = useState([DEFAULT_UNIT]);
   const [selectedPublicUnitId, setSelectedPublicUnitId] = useState(UNIT_ID);
@@ -428,14 +450,34 @@ export default function App() {
     const payment = params.get("payment");
     const sessionId = params.get("session_id");
 
+    async function loadPaymentReturnDetails(value) {
+      if (!value) return;
+
+      setPaymentReturnLoading(true);
+
+      try {
+        const response = await fetch(`/api/payment-result?session_id=${encodeURIComponent(value)}`);
+        const data = await response.json().catch(() => null);
+
+        if (response.ok && data?.ok) {
+          setPaymentReturnDetails(data);
+        }
+      } catch (error) {
+        console.warn("Riepilogo pagamento non caricato:", error);
+      } finally {
+        setPaymentReturnLoading(false);
+      }
+    }
+
     if (payment === "success") {
       setPaymentReturnStatus({
         ok: true,
         title: "Pagamento ricevuto",
         message:
-          "Grazie, il pagamento è stato ricevuto. La prenotazione è stata aggiornata automaticamente nel nostro sistema. Ti invieremo le informazioni per il check-in.",
+          "Grazie, il pagamento è stato ricevuto. La prenotazione è stata aggiornata automaticamente nel nostro sistema. Riceverai anche una email di conferma.",
         sessionId,
       });
+      loadPaymentReturnDetails(sessionId);
     }
 
     if (payment === "cancelled") {
@@ -446,6 +488,7 @@ export default function App() {
           "Il pagamento non è stato completato. Puoi riprovare oppure contattarci direttamente su WhatsApp.",
         sessionId: "",
       });
+      setPaymentReturnDetails(null);
     }
 
     if (payment) {
@@ -870,16 +913,81 @@ export default function App() {
 
       {paymentReturnStatus && (
         <section className={`payment-return-banner ${paymentReturnStatus.ok ? "ok" : "no"}`} role="status">
-          <div>
-            <strong>{paymentReturnStatus.title}</strong>
-            <p>{paymentReturnStatus.message}</p>
-            {paymentReturnStatus.sessionId && (
-              <small>Riferimento pagamento: {paymentReturnStatus.sessionId}</small>
-            )}
+          <div className="payment-return-head">
+            <div className="payment-return-icon">{paymentReturnStatus.ok ? "✓" : "!"}</div>
+            <div>
+              <strong>{paymentReturnStatus.title}</strong>
+              <p>{paymentReturnStatus.message}</p>
+              {paymentReturnStatus.sessionId && (
+                <small>Riferimento pagamento: {paymentReturnStatus.sessionId}</small>
+              )}
+            </div>
           </div>
-          <button type="button" onClick={() => setPaymentReturnStatus(null)}>
-            Chiudi
-          </button>
+
+          {paymentReturnStatus.ok && (
+            <div className="payment-return-body">
+              {paymentReturnLoading && (
+                <div className="payment-summary-note">Caricamento riepilogo prenotazione...</div>
+              )}
+
+              {!paymentReturnLoading && paymentReturnDetails?.found && (
+                <div className="payment-summary-grid">
+                  <div>
+                    <span>Struttura</span>
+                    <b>{paymentReturnDetails.unitName}</b>
+                  </div>
+                  <div>
+                    <span>Arrivo</span>
+                    <b>{formatDisplayDate(paymentReturnDetails.checkIn)}</b>
+                  </div>
+                  <div>
+                    <span>Partenza</span>
+                    <b>{formatDisplayDate(paymentReturnDetails.checkOut)}</b>
+                  </div>
+                  <div>
+                    <span>Ospiti</span>
+                    <b>{paymentReturnDetails.guests || "-"}</b>
+                  </div>
+                  <div>
+                    <span>Totale</span>
+                    <b>{formatEuro(paymentReturnDetails.totalPrice)}</b>
+                  </div>
+                  <div>
+                    <span>Pagato</span>
+                    <b>{formatEuro(paymentReturnDetails.paymentAmount)}</b>
+                  </div>
+                  <div>
+                    <span>Stato</span>
+                    <b>{getPaymentStatusLabel(paymentReturnDetails.paymentStatus)}</b>
+                  </div>
+                  <div>
+                    <span>Riferimento</span>
+                    <b>{paymentReturnDetails.reference}</b>
+                  </div>
+                </div>
+              )}
+
+              {!paymentReturnLoading && !paymentReturnDetails?.found && (
+                <div className="payment-summary-note">
+                  Il pagamento è stato ricevuto. Se il riepilogo non compare subito, controlla l'email di conferma.
+                </div>
+              )}
+
+              <div className="payment-next-steps">
+                <strong>Prossimi passi</strong>
+                <p>Riceverai una email di conferma pagamento. Per dubbi o orario di arrivo puoi scriverci su WhatsApp.</p>
+              </div>
+            </div>
+          )}
+
+          <div className="payment-return-actions">
+            {paymentReturnStatus.ok && (
+              <a href={whatsappUrl} target="_blank" rel="noreferrer">Scrivi su WhatsApp</a>
+            )}
+            <button type="button" onClick={() => setPaymentReturnStatus(null)}>
+              Chiudi
+            </button>
+          </div>
         </section>
       )}
 
@@ -1376,27 +1484,45 @@ button, input, select { font: inherit; }
 
 .payment-return-banner {
   margin: 18px auto 0;
-  width: min(1050px, calc(100% - 80px));
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 18px 22px;
-  border-radius: 10px;
+  width: min(1050px, calc(100% - 32px));
+  display: grid;
+  gap: 16px;
+  padding: 20px 22px;
+  border-radius: 16px;
   border: 1px solid rgba(47, 125, 78, .22);
-  background: rgba(47, 125, 78, .10);
+  background: linear-gradient(180deg, rgba(47, 125, 78, .12), rgba(255,255,255,.82));
   color: #1e623b;
-  box-shadow: 0 14px 34px rgba(13,25,43,.08);
+  box-shadow: 0 18px 44px rgba(13,25,43,.10);
 }
 .payment-return-banner.no {
   border-color: rgba(154, 72, 47, .22);
   background: rgba(154, 72, 47, .10);
   color: #8a351e;
 }
+.payment-return-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.payment-return-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #1e623b;
+  color: #fff;
+  font-size: 25px;
+  font-weight: 900;
+  flex: 0 0 auto;
+}
+.payment-return-banner.no .payment-return-icon {
+  background: #8a351e;
+}
 .payment-return-banner strong {
   display: block;
-  font-size: 18px;
-  letter-spacing: .04em;
+  font-size: 21px;
+  letter-spacing: .03em;
 }
 .payment-return-banner p {
   margin: 5px 0 0;
@@ -1410,7 +1536,57 @@ button, input, select { font: inherit; }
   opacity: .78;
   word-break: break-all;
 }
-.payment-return-banner button {
+.payment-return-body {
+  display: grid;
+  gap: 14px;
+}
+.payment-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.payment-summary-grid div,
+.payment-summary-note,
+.payment-next-steps {
+  border: 1px solid rgba(7,31,61,.10);
+  background: rgba(255,255,255,.76);
+  border-radius: 10px;
+  padding: 12px;
+}
+.payment-summary-grid span {
+  display: block;
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .10em;
+  margin-bottom: 4px;
+}
+.payment-summary-grid b {
+  display: block;
+  color: var(--navy);
+  font-size: 15px;
+}
+.payment-summary-note {
+  color: var(--navy);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.payment-next-steps strong {
+  color: var(--navy);
+  font-size: 16px;
+}
+.payment-next-steps p {
+  color: rgba(7,31,61,.74);
+}
+.payment-return-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.payment-return-actions a,
+.payment-return-actions button {
   border: 0;
   border-radius: 999px;
   background: #fff;
@@ -1418,6 +1594,11 @@ button, input, select { font: inherit; }
   padding: 10px 16px;
   font-weight: 800;
   cursor: pointer;
+  text-decoration: none;
+}
+.payment-return-actions a {
+  background: #1e623b;
+  color: #fff;
 }
 
 .hero { position: relative; min-height: 430px; overflow: hidden; isolation: isolate; background: #d7d4c7; }
@@ -1749,6 +1930,10 @@ button, input, select { font: inherit; }
   .hero-content { width: 100%; padding: 20px 24px 185px; }
   .hero h1 { font-size: 34px; max-width: 430px; }
   .legal-line { font-size: 13px; margin-bottom: 26px; }
+  .payment-summary-grid { grid-template-columns: 1fr 1fr; }
+  .payment-return-actions { justify-content: stretch; }
+  .payment-return-actions a,
+  .payment-return-actions button { flex: 1; text-align: center; }
   .booking-cards { width: calc(100% - 32px); margin-top: -118px; grid-template-columns: 1fr 1fr; gap: 10px; }
   .booking-card { min-height: 70px; }
   .booking-card.portal { font-size: 18px; gap: 8px; }
