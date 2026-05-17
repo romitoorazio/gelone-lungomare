@@ -543,6 +543,7 @@ export default function Admin() {
   const [cleanupResult, setCleanupResult] = useState(null);
   const [manualCopy, setManualCopy] = useState({ title: "", text: "" });
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [activityLogs, setActivityLogs] = useState([]);
 
   const [detailForm, setDetailForm] = useState({
     guestName: "",
@@ -777,6 +778,12 @@ export default function Admin() {
         .includes(text);
     });
   }, [bookings, bookingSearch, sourceFilter, statusFilter]);
+
+  const visibleActivityLogs = useMemo(() => {
+    return activityLogs
+      .filter((item) => !item.unitId || item.unitId === selectedUnitId)
+      .slice(0, 80);
+  }, [activityLogs, selectedUnitId]);
 
   const stats = useMemo(() => {
     const active = bookings.filter((item) => item.status !== "cancelled");
@@ -1268,6 +1275,13 @@ wifiName: settings.wifiName || "",
         updatedAt: serverTimestamp(),
       });
 
+      await addActivityLog("updated_booking_details", selectedBooking, {
+        paymentStatus: detailForm.paymentStatus || "unpaid",
+        welcomateStatus: detailForm.welcomateStatus || "to_send",
+        totalPrice: cleanMoneyValue(detailForm.totalPrice),
+        depositAmount: cleanMoneyValue(detailForm.depositAmount),
+      });
+
       setMessage("Dettagli prenotazione aggiornati.");
     } catch (err) {
       console.error(err);
@@ -1282,6 +1296,11 @@ wifiName: settings.wifiName || "",
       await updateDoc(doc(db, "bookings", booking.id), {
         paymentStatus,
         updatedAt: serverTimestamp(),
+      });
+
+      await addActivityLog("updated_payment_status", booking, {
+        paymentStatus,
+        paymentLabel: getPaymentLabel(paymentStatus),
       });
 
       setMessage(`Stato pagamento aggiornato: ${getPaymentLabel(paymentStatus)}.`);
@@ -1365,6 +1384,11 @@ wifiName: settings.wifiName || "",
         text: data.checkoutUrl,
       });
 
+      await addActivityLog("created_stripe_link", booking, {
+        paymentType: effectivePaymentType,
+        amount: data.amount,
+      });
+
       setMessage(
         `Link pagamento ${paymentType === "full" ? "saldo totale" : "caparra"} creato e copiato. Importo: ${formatEuro(data.amount)}.`
       );
@@ -1392,6 +1416,11 @@ wifiName: settings.wifiName || "",
       }
 
       await updateDoc(doc(db, "bookings", booking.id), updateData);
+
+      await addActivityLog("updated_welcomate_status", booking, {
+        welcomateStatus,
+        welcomateLabel: getWelcomateLabel(welcomateStatus),
+      });
 
       setMessage(`Check-in WelcoMate aggiornato: ${getWelcomateLabel(welcomateStatus)}.`);
     } catch (err) {
@@ -1423,6 +1452,10 @@ wifiName: settings.wifiName || "",
         welcomateStatus: "sent",
         welcomateSentAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+      });
+
+      await addActivityLog("copied_welcomate_text", booking, {
+        welcomateStatus: "sent",
       });
 
       setMessage("Testo WelcoMate copiato negli appunti e stato segnato come inviato.");
@@ -2074,6 +2107,78 @@ wifiName: settings.wifiName || "",
                   Le prenotazioni vere e i blocchi manuali attivi non vengono toccati.
                   La pulizia lavora solo sulla tabella tecnica delle notti.
                 </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "logs" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Registro interno
+              </p>
+              <h2 className="mt-2 font-serif text-3xl">Storico azioni Admin</h2>
+              <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                Qui trovi le ultime azioni importanti fatte in Admin: prenotazioni,
+                pagamenti, cancellazioni, link Stripe e WelcoMate.
+              </p>
+
+              <div className="mt-6 overflow-x-auto">
+                <table className="w-full min-w-[950px] border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                      <th className="py-3">Data</th>
+                      <th className="py-3">Admin</th>
+                      <th className="py-3">Azione</th>
+                      <th className="py-3">Ospite / Oggetto</th>
+                      <th className="py-3">Date</th>
+                      <th className="py-3">Dettagli</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {visibleActivityLogs.length === 0 && (
+                      <tr>
+                        <td colSpan="6" className="py-8 text-center text-[#555]">
+                          Nessun log attivita trovato.
+                        </td>
+                      </tr>
+                    )}
+
+                    {visibleActivityLogs.map((log) => (
+                      <tr key={log.id} className="border-b border-[#f0e6d5] align-top">
+                        <td className="py-4">{formatDateTime(log.createdAt)}</td>
+                        <td className="py-4">{log.adminEmail || "-"}</td>
+                        <td className="py-4">
+                          <Pill className="border-[#e4d8c2] bg-[#faf6ee] text-[#0a1d35]">
+                            {String(log.action || "-").replaceAll("_", " ")}
+                          </Pill>
+                        </td>
+                        <td className="py-4 font-semibold">
+                          {log.guestName || log.bookingId || "-"}
+                        </td>
+                        <td className="py-4">
+                          {log.checkIn || log.checkOut
+                            ? `${formatDate(log.checkIn)} - ${formatDate(log.checkOut)}`
+                            : "-"}
+                        </td>
+                        <td className="py-4 text-sm text-[#555]">
+                          {log.details
+                            ? Object.entries(log.details)
+                                .map(([key, value]) => `${key}: ${String(value)}`)
+                                .join(" · ")
+                            : "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                Questo registro e interno: serve per controllare le azioni operative
+                fatte dal pannello Admin.
               </div>
             </div>
           </section>
