@@ -1233,6 +1233,19 @@ wifiName: settings.wifiName || "",
 
       await batch.commit();
 
+      await addActivityLog("created_block", {
+        id: bookingRef.id,
+        unitId: selectedUnitId,
+        unitName: selectedUnit.name,
+        guestName: "Blocco manuale",
+        checkIn: blockForm.checkIn,
+        checkOut: blockForm.checkOut,
+        status: "blocked",
+        paymentStatus: "unpaid",
+      }, {
+        notes: blockForm.notes || "",
+      });
+
       setBlockForm({
         checkIn: getToday(),
         checkOut: "",
