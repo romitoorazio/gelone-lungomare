@@ -1055,6 +1055,13 @@ wifiName: settings.wifiName || "",
       }
 
       setCleanupResult(data);
+      await addActivityLog("cleanup_ghost_nights", null, {
+        scannedCount: data.scannedCount || 0,
+        ghostCount: data.ghostCount || 0,
+        deletedCount: data.deletedCount || 0,
+        keptCount: data.keptCount || 0,
+      });
+
       setMessage(
         data.message ||
           "Pulizia completata. Controlla il riepilogo nella sezione Manutenzione."
