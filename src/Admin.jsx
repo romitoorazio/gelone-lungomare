@@ -927,6 +927,21 @@ export default function Admin() {
 
     const averageNight = soldNights > 0 ? confirmedRevenue / soldNights : 0;
 
+    const reportRows = realBookings
+      .map((booking) => {
+        const total = getTotal(booking);
+        const paid = getPaidAmount(booking);
+        const due = Math.max(total - paid, 0);
+
+        return {
+          ...booking,
+          nights: getNightsCount(booking.checkIn, booking.checkOut),
+          paidAmount: paid,
+          balanceDue: due,
+        };
+      })
+      .sort((a, b) => String(a.checkIn || "").localeCompare(String(b.checkIn || "")));
+
     const pendingPayments = realBookings
       .map((booking) => {
         const total = getTotal(booking);
@@ -951,6 +966,7 @@ export default function Admin() {
       soldNights,
       averageNight,
       pendingPayments,
+      reportRows,
       filteredCount: realBookings.length,
     };
   }, [bookings, economyPeriod, economyDateFrom, economyDateTo]);
@@ -962,6 +978,97 @@ export default function Admin() {
     setSyncResult(null);
     setCleanupResult(null);
     setManualCopy({ title: "", text: "" });
+  }
+
+  function exportEconomyCsv() {
+    clearMessages();
+
+    const rows = economyStats.reportRows || [];
+
+    if (rows.length === 0) {
+      setError("Nessuna prenotazione da esportare nel periodo selezionato.");
+      return;
+    }
+
+    const escapeCsv = (value) => {
+      const textValue = String(value ?? "");
+      return '"' + textValue.replaceAll('"', '""') + '"';
+    };
+
+    const moneyForCsv = (value) => {
+      const number = Number(value || 0);
+      return Number.isFinite(number) ? number.toFixed(2).replace(".", ",") : "0,00";
+    };
+
+    const headers = [
+      "Unita",
+      "Ospite",
+      "Email",
+      "Telefono",
+      "Arrivo",
+      "Partenza",
+      "Notti",
+      "Origine",
+      "Stato",
+      "Pagamento",
+      "Totale",
+      "Incassato",
+      "Da ricevere",
+      "Note",
+    ];
+
+    const csvRows = [
+      headers.map(escapeCsv).join(";"),
+      ...rows.map((booking) =>
+        [
+          selectedUnit?.name || selectedUnitId,
+          booking.guestName || "",
+          booking.guestEmail || "",
+          booking.guestPhone || "",
+          formatDate(booking.checkIn),
+          formatDate(booking.checkOut),
+          booking.nights || 0,
+          getSourceLabel(booking.source),
+          getStatusLabel(booking.status),
+          getPaymentLabel(booking.paymentStatus),
+          moneyForCsv(booking.totalPrice),
+          moneyForCsv(booking.paidAmount),
+          moneyForCsv(booking.balanceDue),
+          booking.internalNotes || booking.notes || "",
+        ]
+          .map(escapeCsv)
+          .join(";")
+      ),
+    ];
+
+    const csv = "\uFEFF" + csvRows.join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const periodLabel =
+      economyPeriod === "custom"
+        ? (economyDateFrom || "inizio") + "_" + (economyDateTo || "fine")
+        : economyPeriod;
+
+    const filename =
+      "gelone-economia-" + selectedUnitId + "-" + periodLabel + "-" + getToday() + ".csv";
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setMessage("Report economia esportato: " + rows.length + " prenotazioni.");
+
+    addActivityLog("exported_economy_csv", null, {
+      rows: rows.length,
+      period: economyPeriod,
+      dateFrom: economyDateFrom || "",
+      dateTo: economyDateTo || "",
+    });
   }
 
   async function addActivityLog(action, booking = null, details = {}) {
@@ -2310,6 +2417,17 @@ wifiName: settings.wifiName || "",
                   Prenotazioni considerate nel periodo: <strong>{economyStats.filteredCount}</strong>.
                   Il filtro usa la data di arrivo della prenotazione.
                 </p>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={exportEconomyCsv}
+                    disabled={!economyStats.reportRows || economyStats.reportRows.length === 0}
+                    className="rounded-full bg-[#0a1d35] px-5 py-3 font-bold text-white transition hover:bg-[#132f52] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Esporta CSV
+                  </button>
+                </div>
               </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
