@@ -1,4 +1,4 @@
-import { getFirebaseAdminDb } from "./_firebaseAdmin.js";
+﻿import { getFirebaseAdminDb } from "./_firebaseAdmin.js";
 import { DEFAULT_UNIT_ID, bookingUnitId, getPublicUnitConfig } from "./_units.js";
 
 function isValidDate(value) {
@@ -74,7 +74,7 @@ function isExpiredPending(data) {
 
 function isActiveStatusForData(data) {
   if (isExpiredPending(data)) return false;
-  return isActiveStatusForData(data);
+  return isActiveStatus(data?.status);
 }
 
 function bookingBelongsToUnit(data, unitId) {
@@ -132,7 +132,7 @@ export default async function handler(req, res) {
     if (!unit) {
       return res.status(404).json({
         ok: false,
-        message: "Unità non disponibile sul sito pubblico.",
+        message: "UnitÃ  non disponibile sul sito pubblico.",
       });
     }
 
@@ -179,7 +179,7 @@ export default async function handler(req, res) {
       .filter((snapshot) => {
         if (!snapshot.exists) return false;
         const data = snapshot.data();
-        return isActiveStatusForData(data);
+        return isActiveStatus(data?.status);
       })
       .map((snapshot, index) => snapshot.data()?.date || nights[index])
       .filter(Boolean);
@@ -209,7 +209,8 @@ export default async function handler(req, res) {
       ok: false,
       message:
         error?.message ||
-        "Errore tecnico durante il controllo disponibilità. Riprova più tardi o contatta la struttura.",
+        "Errore tecnico durante il controllo disponibilitÃ . Riprova piÃ¹ tardi o contatta la struttura.",
     });
   }
 }
+
