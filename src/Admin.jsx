@@ -1125,6 +1125,24 @@ wifiName: settings.wifiName || "",
 
       await batch.commit();
 
+      await addActivityLog("created_booking", {
+        id: bookingRef.id,
+        unitId: selectedUnitId,
+        unitName: selectedUnit.name,
+        guestName: newBooking.guestName || "Prenotazione manuale",
+        guestEmail: newBooking.guestEmail || "",
+        guestPhone: newBooking.guestPhone || "",
+        checkIn: newBooking.checkIn,
+        checkOut: newBooking.checkOut,
+        status: newBooking.status,
+        paymentStatus: newBooking.paymentStatus || "unpaid",
+      }, {
+        source: newBooking.source,
+        guests: Number(newBooking.guests || 1),
+        totalPrice: cleanMoneyValue(newBooking.totalPrice),
+        depositAmount: cleanMoneyValue(newBooking.depositAmount),
+      });
+
       setNewBooking({
         guestName: "",
         guestEmail: "",
