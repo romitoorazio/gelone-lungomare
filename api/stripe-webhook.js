@@ -68,6 +68,157 @@ function centsToEuro(cents) {
   return Math.round((number / 100) * 100) / 100;
 }
 
+function formatEuroForEmail(value) {
+  const number = Number(value || 0);
+
+  if (!Number.isFinite(number) || number <= 0) {
+    return "-";
+  }
+
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
+  }).format(number);
+}
+
+function formatDateForEmail(value) {
+  const text = String(value || "").trim();
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return text || "-";
+  }
+
+  const [year, month, day] = text.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function paymentTypeForEmail(value) {
+  const type = cleanText(value).toLowerCase();
+
+  if (type === "deposit") return "Caparra confirmatoria";
+  if (type === "balance") return "Saldo";
+  if (type === "full") return "Pagamento completo";
+
+  return "Pagamento";
+}
+
+function paymentStatusForEmail(value) {
+  const status = cleanText(value).toLowerCase();
+
+  if (status === "paid") return "Prenotazione saldata";
+  if (status === "deposit_paid") return "Caparra ricevuta";
+
+  return "Pagamento ricevuto";
+}
+
+async function sendPaymentReceivedEmail(payment, session) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const emailFrom =
+    process.env.EMAIL_FROM || "Gelone Lungomare <onboarding@resend.dev>";
+
+  if (!resendApiKey) {
+    return {
+      sent: false,
+      reason: "RESEND_API_KEY non configurata.",
+    };
+  }
+
+  const guestEmail = cleanText(
+    payment.guestEmail ||
+    session?.customer_details?.email ||
+    session?.customer_email
+  );
+
+  if (!guestEmail) {
+    return {
+      sent: false,
+      reason: "Email ospite mancante.",
+    };
+  }
+
+  const unitName = payment.unitName || "Gelone Lungomare";
+  const guestName = payment.guestName || "ospite";
+  const nightsCount = Number(payment.nightsCount || 0);
+  const nightsText = nightsCount === 1 ? "1 notte" : `${nightsCount} notti`;
+  const totalPrice = Number(payment.totalPrice || 0);
+  const paidAmount = Number(payment.paidAmount || 0);
+  const balanceAfterThisPayment =
+    payment.paymentStatus === "deposit_paid" && totalPrice > paidAmount
+      ? Math.max(totalPrice - paidAmount, 0)
+      : 0;
+
+  const subject =
+    payment.paymentStatus === "paid"
+      ? `Pagamento ricevuto - Prenotazione saldata ${unitName}`
+      : `Caparra ricevuta - ${unitName}`;
+
+  const text = `
+Ciao ${guestName},
+
+abbiamo ricevuto il tuo pagamento per ${unitName}.
+
+Riepilogo pagamento:
+- Tipo pagamento: ${paymentTypeForEmail(payment.paymentType)}
+- Importo pagato: ${formatEuroForEmail(paidAmount)}
+- Stato: ${paymentStatusForEmail(payment.paymentStatus)}
+- Riferimento prenotazione: ${payment.bookingId}
+- Riferimento Stripe: ${payment.stripeSessionId || session?.id || "-"}
+
+Riepilogo soggiorno:
+- Arrivo: ${formatDateForEmail(payment.checkIn)}
+- Partenza: ${formatDateForEmail(payment.checkOut)}
+- Durata: ${nightsText}
+- Ospiti: ${payment.guests || "-"}
+- Totale prenotazione: ${formatEuroForEmail(totalPrice)}
+${balanceAfterThisPayment > 0 ? `- Saldo residuo indicativo: ${formatEuroForEmail(balanceAfterThisPayment)}` : "- Saldo residuo: nessuno"}
+
+Prossimi passi:
+La tua prenotazione risulta aggiornata nel nostro sistema.
+Ti contatteremo per eventuali informazioni sul check-in e per la raccolta dei dati ospiti, se necessari.
+
+Condizioni cancellazione prenotazioni dirette:
+- Rimborso totale fino a 14 giorni prima del check-in.
+- Da 13 a 7 giorni prima del check-in viene trattenuta la caparra confirmatoria.
+- Negli ultimi 6 giorni, in caso di no-show o partenza anticipata, gli importi versati non sono rimborsabili salvo diverso accordo scritto.
+
+Contatti:
+Telefono / WhatsApp: 3476308456
+Telefono: 3479461999
+Email: info@gelone.it
+Sito: https://www.gelone.it
+
+Grazie,
+Gelone Lungomare
+`.trim();
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: emailFrom,
+      to: [guestEmail],
+      subject,
+      text,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+
+    return {
+      sent: false,
+      reason: errorText || "Errore invio email pagamento.",
+    };
+  }
+
+  return {
+    sent: true,
+  };
+}
+
 async function readRawBody(req) {
   if (req.rawBody) {
     return Buffer.isBuffer(req.rawBody)
@@ -322,6 +473,18 @@ async function markBookingPaid(adminDb, session, event) {
       paymentStatus: nextPaymentStatus,
       status: nextStatus,
       paidAmount,
+      paymentType,
+      stripeSessionId: session.id,
+      guestName: booking.guestName || cleanText(session.customer_details?.name),
+      guestEmail: booking.guestEmail || cleanText(session.customer_details?.email || session.customer_email),
+      guestPhone: booking.guestPhone || "",
+      unitName: booking.unitName || "Gelone Lungomare",
+      checkIn: booking.checkIn || "",
+      checkOut: booking.checkOut || "",
+      guests: booking.guests || "",
+      nightsCount: booking.nightsCount || nights.length,
+      totalPrice: booking.totalPrice || 0,
+      depositAmount: booking.depositAmount || 0,
     };
   });
 
@@ -447,6 +610,14 @@ export default async function handler(req, res) {
       event.type === "checkout.session.async_payment_succeeded"
     ) {
       result = await markBookingPaid(adminDb, session, event);
+
+      if (result?.updated) {
+        const paymentEmailResult = await sendPaymentReceivedEmail(result, session);
+        result = {
+          ...result,
+          paymentEmailNotification: paymentEmailResult,
+        };
+      }
     }
 
     if (event.type === "checkout.session.async_payment_failed") {
