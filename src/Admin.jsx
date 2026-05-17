@@ -2023,6 +2023,9 @@ wifiName: settings.wifiName || "",
           <TabButton active={activeTab === "maintenance"} onClick={() => setActiveTab("maintenance")}>
             Manutenzione
           </TabButton>
+          <TabButton active={activeTab === "logs"} onClick={() => setActiveTab("logs")}>
+            Log attivita
+          </TabButton>
         </div>
 
         {message && (
