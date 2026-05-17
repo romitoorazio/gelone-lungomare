@@ -824,6 +824,30 @@ export default function Admin() {
     setManualCopy({ title: "", text: "" });
   }
 
+  async function addActivityLog(action, booking = null, details = {}) {
+    try {
+      await addDoc(collection(db, "maintenanceLogs"), {
+        type: "admin_activity",
+        action,
+        unitId: booking?.unitId || selectedUnitId,
+        unitName: booking?.unitName || selectedUnit?.name || selectedUnitId,
+        bookingId: booking?.id || "",
+        guestName: booking?.guestName || "",
+        guestEmail: booking?.guestEmail || "",
+        guestPhone: booking?.guestPhone || "",
+        checkIn: booking?.checkIn || "",
+        checkOut: booking?.checkOut || "",
+        status: booking?.status || "",
+        paymentStatus: booking?.paymentStatus || "",
+        adminEmail: user?.email || "",
+        details,
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn("Log attivita non salvato:", err);
+    }
+  }
+
   async function getOccupiedNights(nights) {
     const snapshots = await Promise.all(
       nights.map((night) => getDoc(doc(db, "nights", `${selectedUnitId}_${night}`)))
@@ -1194,6 +1218,7 @@ wifiName: settings.wifiName || "",
       });
 
       await batch.commit();
+      await addActivityLog("confirmed_booking", booking);
       setMessage("Prenotazione confermata.");
     } catch (err) {
       console.error(err);
@@ -1219,6 +1244,7 @@ wifiName: settings.wifiName || "",
       });
 
       await batch.commit();
+      await addActivityLog("cancelled_booking", booking);
       setMessage("Prenotazione annullata e notti liberate.");
     } catch (err) {
       console.error(err);
@@ -1240,6 +1266,7 @@ wifiName: settings.wifiName || "",
       batch.delete(doc(db, "bookings", booking.id));
 
       await batch.commit();
+      await addActivityLog("deleted_booking", booking);
 
       if (selectedBookingId === booking.id) {
         setSelectedBookingId("");
