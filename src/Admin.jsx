@@ -1000,6 +1000,12 @@ wifiName: settings.wifiName || "",
       setSyncResult(data);
 
       const totals = data.totals || {};
+      await addActivityLog("synced_calendars", null, {
+        imported: totals.imported || data.importedBookings || 0,
+        skippedDuplicate: totals.skippedDuplicate || 0,
+        skippedConflict: totals.skippedConflict || data.skippedNights || 0,
+      });
+
       setMessage(
         `Sincronizzazione completata: ${totals.imported || data.importedBookings || 0} eventi importati, ${totals.skippedDuplicate || 0} duplicati evitati, ${totals.skippedConflict || data.skippedNights || 0} conflitti protetti.`
       );
