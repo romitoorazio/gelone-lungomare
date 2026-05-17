@@ -2009,7 +2009,7 @@ wifiName: settings.wifiName || "",
             </p>
             <h1 className="font-serif text-3xl">Gelone Lungomare</h1>
             <p className="text-sm text-[#555]">
-              Admin: {user.email} Â· UnitÃ : {selectedUnit.name}
+              Admin: {user.email} · UnitÃ : {selectedUnit.name}
             </p>
           </div>
 
@@ -2160,7 +2160,7 @@ wifiName: settings.wifiName || "",
                             <option key={unit.id} value={unit.id}>
                               {(unit.publicName || unit.name || unit.id)}
                               {unit.name && unit.publicName && unit.publicName !== unit.name
-                                ? " â€” " + unit.name
+                                ? " — " + unit.name
                                 : ""}{" "}
                               ({unit.id})
                             </option>
@@ -2207,7 +2207,7 @@ wifiName: settings.wifiName || "",
                                 key={night.id}
                                 className="rounded-xl bg-white px-3 py-2"
                               >
-                                {formatDate(night.date)} Â· {night.status || "-"} Â·{" "}
+                                {formatDate(night.date)} · {night.status || "-"} ·{" "}
                                 {night.source || "-"}
                               </div>
                             ))}
@@ -2306,7 +2306,7 @@ wifiName: settings.wifiName || "",
               </div>
 
               <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-                Questo registro e interno: serve per controllare le azioni operative
+                Questo registro è interno: serve per controllare le azioni operative
                 fatte dal pannello Admin.
               </div>
             </div>
@@ -3194,7 +3194,7 @@ wifiName: settings.wifiName || "",
                     <h3 className="mt-4 font-serif text-2xl">{unit.name}</h3>
                     <p className="mt-1 text-sm text-[#666]">ID: {unit.id}</p>
                     <p className="mt-3 text-sm leading-6 text-[#555]">
-                      {unit.maxGuests} ospiti Â· {unit.bedrooms || 0} camera/e Â· {unit.bathrooms || 0} bagno/i
+                      {unit.maxGuests} ospiti · {unit.bedrooms || 0} camera/e · {unit.bathrooms || 0} bagno/i
                     </p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Pill className={unit.publicVisible ? "border-blue-200 bg-blue-50 text-blue-900" : "border-slate-200 bg-slate-100 text-slate-900"}>
@@ -3295,7 +3295,7 @@ wifiName: settings.wifiName || "",
                     onChange={(event) => setUnitForm({ ...unitForm, hasKitchen: event.target.value === "yes" })}
                     className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                   >
-                    <option value="yes">SÃ¬</option>
+                    <option value="yes">Sì</option>
                     <option value="no">No</option>
                   </select>
                 </FormField>
