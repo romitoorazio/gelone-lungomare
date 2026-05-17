@@ -2184,6 +2184,21 @@ wifiName: settings.wifiName || "",
                 pagamenti, cancellazioni, link Stripe e WelcoMate.
               </p>
 
+              <button
+                type="button"
+                onClick={async () => {
+                  clearMessages();
+                  await addActivityLog("test_log", null, {
+                    source: "manual_test",
+                    unitId: selectedUnitId,
+                  });
+                  setMessage("Log di prova creato. Se non compare, fai CTRL+F5 o controlla Firestore.");
+                }}
+                className="mt-5 rounded-full bg-[#0a1d35] px-5 py-3 font-bold text-white"
+              >
+                Crea log di prova
+              </button>
+
               <div className="mt-6 overflow-x-auto">
                 <table className="w-full min-w-[950px] border-collapse text-left">
                   <thead>
@@ -3753,4 +3768,5 @@ wifiName: settings.wifiName || "",
     </main>
   );
 }
+
 
