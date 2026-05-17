@@ -613,6 +613,9 @@ export default async function handler(req, res) {
           status: "pending_direct",
           source: "direct_site",
           guestName,
+          expiresAt: pendingExpiresAt,
+          holdExpiresAt: pendingExpiresAt.toISOString(),
+          holdExpiresHours: PENDING_REQUEST_HOLD_HOURS,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         });

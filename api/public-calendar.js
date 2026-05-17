@@ -192,6 +192,24 @@ export default async function handler(req, res) {
 
     const statusByDate = new Map();
 
+    const bookingsSnapshot = await adminDb.collection("bookings").get();
+    const expiredPendingBookingIds = new Set();
+    const activeBookingRows = [];
+
+    bookingsSnapshot.forEach((doc) => {
+      const data = doc.data();
+
+      if (isExpiredPending(data)) {
+        expiredPendingBookingIds.add(doc.id);
+      }
+
+      if (!bookingBelongsToUnit(data, unitId) || !isBookingActive(data)) {
+        return;
+      }
+
+      activeBookingRows.push(data);
+    });
+
     // Fonte 1: nights. È la fonte principale usata dal PMS.
     const refs = days.map((day) => adminDb.collection("nights").doc(`${unitId}_${day}`));
     const snapshots = await adminDb.getAll(...refs);
@@ -200,6 +218,11 @@ export default async function handler(req, res) {
       if (!snapshot.exists) return;
 
       const data = snapshot.data();
+
+      if (expiredPendingBookingIds.has(String(data?.bookingId || "").trim())) {
+        return;
+      }
+
       const status = publicStatusForData(data);
 
       if (status) {
@@ -209,15 +232,7 @@ export default async function handler(req, res) {
 
     // Fonte 2 di sicurezza: bookings. Serve quando esiste una prenotazione/blocco,
     // ma per qualche motivo non sono stati creati tutti i documenti nights.
-    const bookingsSnapshot = await adminDb.collection("bookings").get();
-
-    bookingsSnapshot.forEach((doc) => {
-      const data = doc.data();
-
-      if (!bookingBelongsToUnit(data, unitId) || !isBookingActive(data)) {
-        return;
-      }
-
+    activeBookingRows.forEach((data) => {
       const status = publicStatusForData(data);
       const bookingNights = getBookingNightsInsideRange(data, start, end);
 

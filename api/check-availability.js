@@ -47,6 +47,36 @@ function isActiveStatus(status) {
   return !["cancelled", "canceled", "deleted", "available", "rejected", "declined"].includes(value);
 }
 
+function toMillis(value) {
+  if (!value) return null;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  if (typeof value.seconds === "number") return value.seconds * 1000;
+  return null;
+}
+
+function isExpiredPending(data) {
+  const status = String(data?.status || "").toLowerCase();
+
+  if (!["pending_direct", "pending", "pending_payment"].includes(status)) {
+    return false;
+  }
+
+  const expiresAtMillis = toMillis(data?.expiresAt);
+
+  return Boolean(expiresAtMillis && expiresAtMillis <= Date.now());
+}
+
+function isActiveStatusForData(data) {
+  if (isExpiredPending(data)) return false;
+  return isActiveStatusForData(data);
+}
+
 function bookingBelongsToUnit(data, unitId) {
   return bookingUnitId(data) === unitId;
 }
@@ -69,7 +99,7 @@ async function getOccupiedNightsFromBookings(adminDb, unitId, checkIn, checkOut)
   snapshot.forEach((doc) => {
     const data = doc.data();
 
-    if (!bookingBelongsToUnit(data, unitId) || !isActiveStatus(data?.status) || !bookingOverlaps(data, checkIn, checkOut)) {
+    if (!bookingBelongsToUnit(data, unitId) || !isActiveStatusForData(data) || !bookingOverlaps(data, checkIn, checkOut)) {
       return;
     }
 
@@ -149,7 +179,7 @@ export default async function handler(req, res) {
       .filter((snapshot) => {
         if (!snapshot.exists) return false;
         const data = snapshot.data();
-        return isActiveStatus(data?.status);
+        return isActiveStatusForData(data);
       })
       .map((snapshot, index) => snapshot.data()?.date || nights[index])
       .filter(Boolean);
