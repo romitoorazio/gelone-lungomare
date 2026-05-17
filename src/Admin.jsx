@@ -544,6 +544,9 @@ export default function Admin() {
   const [manualCopy, setManualCopy] = useState({ title: "", text: "" });
   const [photoUploading, setPhotoUploading] = useState(false);
   const [activityLogs, setActivityLogs] = useState([]);
+  const [economyPeriod, setEconomyPeriod] = useState("all");
+  const [economyDateFrom, setEconomyDateFrom] = useState("");
+  const [economyDateTo, setEconomyDateTo] = useState("");
 
   const [detailForm, setDetailForm] = useState({
     guestName: "",
@@ -847,7 +850,41 @@ export default function Admin() {
 
 
   const economyStats = useMemo(() => {
-    const activeRows = bookings.filter((booking) => booking.status !== "cancelled");
+    const today = getToday();
+    const currentMonth = today.slice(0, 7);
+    const currentYear = today.slice(0, 4);
+
+    const isInsideSelectedPeriod = (booking) => {
+      const checkIn = String(booking.checkIn || "");
+
+      if (economyPeriod === "all") return true;
+      if (!checkIn) return false;
+
+      if (economyPeriod === "today") {
+        return checkIn === today;
+      }
+
+      if (economyPeriod === "month") {
+        return checkIn.slice(0, 7) === currentMonth;
+      }
+
+      if (economyPeriod === "year") {
+        return checkIn.slice(0, 4) === currentYear;
+      }
+
+      if (economyPeriod === "custom") {
+        if (economyDateFrom && checkIn < economyDateFrom) return false;
+        if (economyDateTo && checkIn > economyDateTo) return false;
+        return true;
+      }
+
+      return true;
+    };
+
+    const activeRows = bookings
+      .filter((booking) => booking.status !== "cancelled")
+      .filter(isInsideSelectedPeriod);
+
     const realBookings = activeRows.filter((booking) => booking.status !== "blocked");
 
     const confirmedRows = realBookings.filter((booking) =>
@@ -914,8 +951,9 @@ export default function Admin() {
       soldNights,
       averageNight,
       pendingPayments,
+      filteredCount: realBookings.length,
     };
-  }, [bookings]);
+  }, [bookings, economyPeriod, economyDateFrom, economyDateTo]);
 
   function clearMessages() {
     setMessage("");
@@ -2209,6 +2247,70 @@ wifiName: settings.wifiName || "",
                 Vista interna per controllare incassi, saldi da ricevere, notti vendute
                 e valore medio delle prenotazioni dell'unità selezionata.
               </p>
+
+              <div className="mt-6 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                <div className="grid gap-4 lg:grid-cols-4">
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-semibold">Periodo</span>
+                    <select
+                      value={economyPeriod}
+                      onChange={(event) => setEconomyPeriod(event.target.value)}
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 font-semibold outline-none"
+                    >
+                      <option value="all">Tutto</option>
+                      <option value="today">Oggi</option>
+                      <option value="month">Questo mese</option>
+                      <option value="year">Questo anno</option>
+                      <option value="custom">Personalizzato</option>
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-semibold">Da data</span>
+                    <input
+                      type="date"
+                      value={economyDateFrom}
+                      onChange={(event) => {
+                        setEconomyDateFrom(event.target.value);
+                        setEconomyPeriod("custom");
+                      }}
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 font-semibold outline-none"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-sm font-semibold">A data</span>
+                    <input
+                      type="date"
+                      value={economyDateTo}
+                      onChange={(event) => {
+                        setEconomyDateTo(event.target.value);
+                        setEconomyPeriod("custom");
+                      }}
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 font-semibold outline-none"
+                    />
+                  </label>
+
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEconomyPeriod("all");
+                        setEconomyDateFrom("");
+                        setEconomyDateTo("");
+                      }}
+                      className="w-full rounded-full border border-[#0a1d35] bg-white px-5 py-4 font-bold text-[#0a1d35]"
+                    >
+                      Azzera filtro
+                    </button>
+                  </div>
+                </div>
+
+                <p className="mt-4 text-sm leading-6 text-[#555]">
+                  Prenotazioni considerate nel periodo: <strong>{economyStats.filteredCount}</strong>.
+                  Il filtro usa la data di arrivo della prenotazione.
+                </p>
+              </div>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
                 <StatCard title="Incasso confermato" value={formatEuro(economyStats.confirmedRevenue)} icon={CreditCard} subtitle="Totale prenotazioni confermate" />
