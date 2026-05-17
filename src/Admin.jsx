@@ -942,13 +942,38 @@ export default function Admin() {
       })
       .sort((a, b) => String(a.checkIn || "").localeCompare(String(b.checkIn || "")));
 
+    const urgentLimitDate = parseDateAsUTC(today);
+    urgentLimitDate.setUTCDate(urgentLimitDate.getUTCDate() + 7);
+    const urgentLimit = urgentLimitDate.toISOString().slice(0, 10);
+
     const pendingPayments = realBookings
       .map((booking) => {
         const total = getTotal(booking);
         const paid = getPaidAmount(booking);
         const due = Math.max(total - paid, 0);
+        const checkIn = String(booking.checkIn || "");
+        const isUrgentBalance = due > 0 && checkIn >= today && checkIn <= urgentLimit;
 
         return {
+          ...booking,
+          nights: getNightsCount(booking.checkIn, booking.checkOut),
+          paidAmount: paid,
+          balanceDue: due,
+          isUrgentBalance,
+        };
+      })
+      .filter((booking) => booking.balanceDue > 0)
+      .sort((a, b) => {
+        if (a.isUrgentBalance !== b.isUrgentBalance) {
+          return a.isUrgentBalance ? -1 : 1;
+        }
+
+        return String(a.checkIn || "").localeCompare(String(b.checkIn || ""));
+      });
+
+    const urgentBalanceRows = pendingPayments.filter((booking) => booking.isUrgentBalance);
+
+    return {
           ...booking,
           paidAmount: paid,
           balanceDue: due,
@@ -967,6 +992,9 @@ export default function Admin() {
       averageNight,
       pendingPayments,
       reportRows,
+      openBalanceCount: pendingPayments.length,
+      urgentBalanceCount: urgentBalanceRows.length,
+      urgentBalanceTotal: urgentBalanceRows.reduce((sum, booking) => sum + Number(booking.balanceDue || 0), 0),
       filteredCount: realBookings.length,
     };
   }, [bookings, economyPeriod, economyDateFrom, economyDateTo]);
@@ -984,6 +1012,10 @@ export default function Admin() {
     clearMessages();
 
     const rows = economyStats.reportRows || [];
+    const today = getToday();
+    const urgentLimitDate = parseDateAsUTC(today);
+    urgentLimitDate.setUTCDate(urgentLimitDate.getUTCDate() + 7);
+    const urgentLimit = urgentLimitDate.toISOString().slice(0, 10);
 
     if (rows.length === 0) {
       setError("Nessuna prenotazione da esportare nel periodo selezionato.");
@@ -1014,6 +1046,9 @@ export default function Admin() {
       "Totale",
       "Incassato",
       "Da ricevere",
+      "Da incassare urgente",
+      "Pagamento manuale da",
+      "Pagamento manuale aggiornato il",
       "Note",
     ];
 
@@ -1034,6 +1069,13 @@ export default function Admin() {
           moneyForCsv(booking.totalPrice),
           moneyForCsv(booking.paidAmount),
           moneyForCsv(booking.balanceDue),
+          booking.balanceDue > 0 &&
+          String(booking.checkIn || "") >= today &&
+          String(booking.checkIn || "") <= urgentLimit
+            ? "Si"
+            : "No",
+          booking.manualPaymentUpdatedBy || "",
+          formatDateTime(booking.manualPaymentUpdatedAt),
           booking.internalNotes || booking.notes || "",
         ]
           .map(escapeCsv)
@@ -2489,6 +2531,8 @@ wifiName: settings.wifiName || "",
                 <StatCard title="Caparre" value={formatEuro(economyStats.depositCollected)} icon={Lock} subtitle="Caparre registrate" />
                 <StatCard title="Notti vendute" value={economyStats.soldNights} icon={CalendarDays} subtitle="Solo prenotazioni confermate" />
                 <StatCard title="Media/notte" value={formatEuro(economyStats.averageNight)} icon={Star} subtitle="Valore medio per notte" />
+                <StatCard title="Da incassare" value={economyStats.openBalanceCount} icon={Mail} subtitle="Prenotazioni con saldo aperto" />
+                <StatCard title="Urgenti" value={economyStats.urgentBalanceCount} icon={Wifi} subtitle="Check-in entro 7 giorni" />
               </div>
 
               <div className="mt-8 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
@@ -2502,6 +2546,12 @@ wifiName: settings.wifiName || "",
                   Qui vedi le prenotazioni con totale ancora non completamente saldato.
                 </p>
 
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <DetailRow label="Saldo aperto totale" value={formatEuro(economyStats.balanceDue)} />
+                  <DetailRow label="Prenotazioni da incassare" value={economyStats.openBalanceCount} />
+                  <DetailRow label="Urgenti entro 7 giorni" value={formatEuro(economyStats.urgentBalanceTotal)} />
+                </div>
+
                 <div className="mt-5 overflow-x-auto">
                   <table className="w-full min-w-[950px] border-collapse text-left">
                     <thead>
@@ -2514,6 +2564,7 @@ wifiName: settings.wifiName || "",
                         <th className="py-3">Totale</th>
                         <th className="py-3">Incassato</th>
                         <th className="py-3">Da ricevere</th>
+                        <th className="py-3">Priorità</th>
                         <th className="py-3">Azioni</th>
                       </tr>
                     </thead>
@@ -2521,7 +2572,7 @@ wifiName: settings.wifiName || "",
                     <tbody>
                       {economyStats.pendingPayments.length === 0 && (
                         <tr>
-                          <td colSpan="9" className="py-8 text-center text-[#555]">
+                          <td colSpan="10" className="py-8 text-center text-[#555]">
                             Nessun saldo aperto trovato.
                           </td>
                         </tr>
@@ -2544,15 +2595,41 @@ wifiName: settings.wifiName || "",
                             {formatEuro(booking.balanceDue)}
                           </td>
                           <td className="py-4">
-                            <SmallButton
-                              onClick={() => {
-                                setSelectedBookingId(booking.id);
-                                setActiveTab("calendar");
-                              }}
-                              className="bg-[#0a1d35] text-white"
-                            >
-                              Apri dettagli
-                            </SmallButton>
+                            {booking.isUrgentBalance ? (
+                              <Pill className="border-red-200 bg-red-50 text-red-900">
+                                Urgente
+                              </Pill>
+                            ) : (
+                              <Pill className="border-[#e4d8c2] bg-white text-[#0a1d35]">
+                                Normale
+                              </Pill>
+                            )}
+                          </td>
+                          <td className="py-4">
+                            <div className="flex flex-wrap gap-2">
+                              <SmallButton
+                                onClick={() => {
+                                  setSelectedBookingId(booking.id);
+                                  setActiveTab("calendar");
+                                }}
+                                className="bg-[#0a1d35] text-white"
+                              >
+                                Apri dettagli
+                              </SmallButton>
+
+                              <SmallButton
+                                onClick={() =>
+                                  setManualPaymentStatus(
+                                    booking,
+                                    "paid",
+                                    "saldo_pagato_da_dashboard"
+                                  )
+                                }
+                                className="bg-green-700 text-white"
+                              >
+                                Segna saldo pagato
+                              </SmallButton>
+                            </div>
                           </td>
                         </tr>
                       ))}
