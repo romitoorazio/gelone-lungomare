@@ -935,6 +935,16 @@ wifiName: settings.wifiName || "",
       await batch.commit();
 
       if (!options.silent) {
+        await addActivityLog("updated_settings", null, {
+          nightlyRate: Number(settings.nightlyRate || defaultSettings.nightlyRate),
+          cleaningFee: Number(settings.cleaningFee || 0),
+          minimumNights: Number(settings.minimumNights || defaultSettings.minimumNights),
+          depositPercent: Number(settings.depositPercent || defaultSettings.depositPercent),
+          directPaymentEnabled: Boolean(settings.directPaymentEnabled),
+        });
+      }
+
+      if (!options.silent) {
         const savedTime = new Intl.DateTimeFormat("it-IT", {
           hour: "2-digit",
           minute: "2-digit",
