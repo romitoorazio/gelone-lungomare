@@ -624,7 +624,7 @@ export default function Admin() {
         );
       },
       (err) => {
-        console.error("Errore lettura unitÃ :", err);
+        console.error("Errore lettura unità:", err);
         setUnits(DEFAULT_UNITS);
       }
     );
@@ -1095,7 +1095,7 @@ wifiName: settings.wifiName || "",
 
       if (occupied.length > 0) {
         setError(
-          `Almeno una notte risulta giÃ  occupata: ${occupied.map(formatDate).join(", ")}.`
+          `Almeno una notte risulta già occupata: ${occupied.map(formatDate).join(", ")}.`
         );
         return;
       }
@@ -1201,7 +1201,7 @@ wifiName: settings.wifiName || "",
 
       if (occupied.length > 0) {
         setError(
-          `Non posso bloccare: alcune notti risultano giÃ  occupate (${occupied
+          `Non posso bloccare: alcune notti risultano già occupate (${occupied
             .map(formatDate)
             .join(", ")}).`
         );
@@ -1441,12 +1441,12 @@ wifiName: settings.wifiName || "",
         : paymentType;
 
     if (currentPaymentStatus === "paid") {
-      setError("Questa prenotazione risulta giÃ  saldata.");
+      setError("Questa prenotazione risulta già saldata.");
       return;
     }
 
     if (currentPaymentStatus === "deposit_paid" && effectivePaymentType === "deposit") {
-      setError("La caparra risulta giÃ  pagata. Usa il pulsante saldo da pagare.");
+      setError("La caparra risulta già pagata. Usa il pulsante saldo da pagare.");
       return;
     }
 
@@ -1600,7 +1600,7 @@ wifiName: settings.wifiName || "",
         id: nextId,
         name: `Lunarossa ${index}`,
         publicName: `Gelone Lungomare - Lunarossa ${index}`,
-        description: "Nuova unitÃ  da completare",
+        description: "Nuova unità da completare",
         cin: "",
         cir: "",
         active: false,
@@ -1614,7 +1614,7 @@ wifiName: settings.wifiName || "",
       })
     );
 
-    setMessage("Scheda nuova unitÃ  pronta. Completa i dati e premi Salva unitÃ .");
+    setMessage("Scheda nuova unità pronta. Completa i dati e premi Salva unità.");
   }
 
   async function saveUnit(event) {
@@ -1629,7 +1629,7 @@ wifiName: settings.wifiName || "",
     }
 
     if (!unitForm.name.trim()) {
-      setError("Inserisci il nome dell'unitÃ .");
+      setError("Inserisci il nome dell'unità.");
       return;
     }
 
@@ -1669,10 +1669,10 @@ wifiName: settings.wifiName || "",
       );
 
       setSelectedUnitId(id);
-      setMessage("UnitÃ  salvata. Lunarossa 1 resta invariata e le future unitÃ  avranno calendari separati.");
+      setMessage("Unità salvata. Lunarossa 1 resta invariata e le future unità avranno calendari separati.");
     } catch (err) {
       console.error(err);
-      setError("Errore durante il salvataggio dell'unitÃ .");
+      setError("Errore durante il salvataggio dell'unità.");
     }
   }
 
@@ -1756,7 +1756,7 @@ wifiName: settings.wifiName || "",
     setUnits(nextUnits);
     setSelectedUnitId(id);
     setUnitForm(createUnitForm(normalizedUnit));
-    setMessage(successMessage || "Foto salvate. La galleria dell'unitÃ  è aggiornata.");
+    setMessage(successMessage || "Foto salvate. La galleria dell'unità è aggiornata.");
   }
 
   async function handleCloudinaryPhotoUpload() {
@@ -1764,7 +1764,7 @@ wifiName: settings.wifiName || "",
 
     const id = sanitizeUnitId(unitForm.id || selectedUnitId);
     if (!id) {
-      setError("Prima inserisci un ID tecnico valido per l'unitÃ .");
+      setError("Prima inserisci un ID tecnico valido per l'unità.");
       return;
     }
 
@@ -1789,7 +1789,7 @@ wifiName: settings.wifiName || "",
         await persistUnitPhotos(
           id,
           nextPhotos,
-          `${uploadedPhotos.length} foto caricata/e con Cloudinary e salvata/e nella scheda unitÃ .`
+          `${uploadedPhotos.length} foto caricata/e con Cloudinary e salvata/e nella scheda unità.`
         );
       };
 
@@ -1862,7 +1862,7 @@ wifiName: settings.wifiName || "",
               await persistUploadedPhotos();
             } catch (persistError) {
               console.error(persistError);
-              setError("Foto caricate su Cloudinary, ma non riesco a salvarle nella scheda unitÃ . Riprova.");
+              setError("Foto caricate su Cloudinary, ma non riesco a salvarle nella scheda unità. Riprova.");
             } finally {
               setPhotoUploading(false);
             }
@@ -1896,7 +1896,7 @@ wifiName: settings.wifiName || "",
       await persistUnitPhotos(id, nextPhotos, "Foto rimossa e galleria salvata.");
     } catch (err) {
       console.error(err);
-      setError("Foto rimossa dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unitÃ .");
+      setError("Foto rimossa dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unità.");
     }
   }
 
@@ -1915,7 +1915,7 @@ wifiName: settings.wifiName || "",
       await persistUnitPhotos(id, nextPhotos, "Copertina aggiornata e salvata.");
     } catch (err) {
       console.error(err);
-      setError("Copertina aggiornata dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unitÃ .");
+      setError("Copertina aggiornata dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unità.");
     }
   }
 
@@ -1936,7 +1936,7 @@ wifiName: settings.wifiName || "",
       await persistUnitPhotos(sanitizeUnitId(unitForm.id || selectedUnitId), normalizedPhotos, "Ordine foto aggiornato e salvato.");
     } catch (err) {
       console.error(err);
-      setError("Ordine foto aggiornato dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unitÃ .");
+      setError("Ordine foto aggiornato dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unità.");
     }
   }
 
@@ -2009,7 +2009,7 @@ wifiName: settings.wifiName || "",
             </p>
             <h1 className="font-serif text-3xl">Gelone Lungomare</h1>
             <p className="text-sm text-[#555]">
-              Admin: {user.email} · UnitÃ : {selectedUnit.name}
+              Admin: {user.email} · Unità: {selectedUnit.name}
             </p>
           </div>
 
@@ -2069,7 +2069,7 @@ wifiName: settings.wifiName || "",
             Blocca date
           </TabButton>
           <TabButton active={activeTab === "units"} onClick={() => setActiveTab("units")}>
-            UnitÃ  alloggiative
+            Unità alloggiative
           </TabButton>
           <TabButton active={activeTab === "settings"} onClick={() => setActiveTab("settings")}>
             Impostazioni
@@ -2142,14 +2142,14 @@ wifiName: settings.wifiName || "",
                       Pulisci notti fantasma
                     </h3>
                     <p className="mt-2 leading-7 text-[#555]">
-                      Controlla la disponibilitÃ  dell'unitÃ  selezionata e cancella solo
+                      Controlla la disponibilità dell'unità selezionata e cancella solo
                       le notti isolate che non hanno una prenotazione o un blocco attivo
                       collegato.
                     </p>
                     <div className="mt-4 rounded-2xl bg-white p-4">
                       <label className="block">
                         <span className="text-xs uppercase tracking-[0.18em] text-[#9b6b25]">
-                          Scegli unitÃ  da pulire
+                          Scegli unità da pulire
                         </span>
                         <select
                           value={selectedUnitId}
@@ -2168,7 +2168,7 @@ wifiName: settings.wifiName || "",
                         </select>
                       </label>
                       <p className="mt-3 text-sm leading-6 text-[#555]">
-                        La pulizia verrÃ  eseguita solo sull'unitÃ  selezionata qui sopra.
+                        La pulizia verrà eseguita solo sull'unità selezionata qui sopra.
                       </p>
                     </div>
                   </div>
@@ -2189,7 +2189,7 @@ wifiName: settings.wifiName || "",
                       Risultato pulizia
                     </p>
                     <div className="mt-4 grid gap-3 md:grid-cols-4">
-                      <DetailRow label="UnitÃ " value={cleanupResult.unitName || cleanupResult.unitId} />
+                      <DetailRow label="Unità" value={cleanupResult.unitName || cleanupResult.unitId} />
                       <DetailRow label="Controllate" value={cleanupResult.scannedCount ?? 0} />
                       <DetailRow label="Eliminate" value={cleanupResult.deletedCount ?? 0} />
                       <DetailRow label="Protette" value={cleanupResult.keptCount ?? 0} />
@@ -2904,7 +2904,7 @@ wifiName: settings.wifiName || "",
           <section className="mt-8 rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
             <h2 className="font-serif text-3xl">Nuova prenotazione</h2>
             <p className="mt-2 text-[#555]">
-              Inserisci manualmente una prenotazione giÃ  confermata, oppure una
+              Inserisci manualmente una prenotazione già confermata, oppure una
               richiesta ricevuta fuori dal sito.
             </p>
 
@@ -3158,9 +3158,9 @@ wifiName: settings.wifiName || "",
             <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <h2 className="font-serif text-3xl">UnitÃ  alloggiative</h2>
+                  <h2 className="font-serif text-3xl">Unità alloggiative</h2>
                   <p className="mt-2 leading-7 text-[#555]">
-                    Base multi-unitÃ : Lunarossa 1 resta funzionante, ma da qui puoi preparare nuove unitÃ  con ID, dati, iCal e visibilitÃ  separati.
+                    Base multi-unità: Lunarossa 1 resta funzionante, ma da qui puoi preparare nuove unità con ID, dati, iCal e visibilità separati.
                   </p>
                 </div>
                 <button
@@ -3169,7 +3169,7 @@ wifiName: settings.wifiName || "",
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-[#9b6b25] px-6 py-4 font-bold text-white"
                 >
                   <Plus size={18} />
-                  Prepara nuova unitÃ 
+                  Prepara nuova unità
                 </button>
               </div>
 
@@ -3210,13 +3210,13 @@ wifiName: settings.wifiName || "",
             </div>
 
             <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
-              <h3 className="font-serif text-3xl">Scheda unitÃ </h3>
+              <h3 className="font-serif text-3xl">Scheda unità</h3>
               <p className="mt-2 leading-7 text-[#555]">
-                Per ora il sito pubblico continua a vendere Lunarossa 1. Le nuove unitÃ  possono essere preparate qui e attivate nel prossimo step senza mischiare prenotazioni e calendari.
+                Per ora il sito pubblico continua a vendere Lunarossa 1. Le nuove unità possono essere preparate qui e attivate nel prossimo step senza mischiare prenotazioni e calendari.
               </p>
 
               <form onSubmit={saveUnit} className="mt-6 grid gap-4 lg:grid-cols-2">
-                <FormField label="ID tecnico unitÃ ">
+                <FormField label="ID tecnico unità">
                   <input
                     value={unitForm.id}
                     onChange={(event) =>
@@ -3344,7 +3344,7 @@ wifiName: settings.wifiName || "",
                       onClick={() =>
                         copyText(
                           `https://www.gelone.it${unitForm.icalPath || `/api/ical/${unitForm.id}.ics`}`,
-                          "Link iCal unitÃ  copiato."
+                          "Link iCal unità copiato."
                         )
                       }
                       className="rounded-2xl bg-[#0a1d35] px-5 font-bold text-white"
@@ -3362,7 +3362,7 @@ wifiName: settings.wifiName || "",
                         checked={unitForm.active}
                         onChange={(event) => setUnitForm({ ...unitForm, active: event.target.checked })}
                       />
-                      UnitÃ  attiva
+                      Unità attiva
                     </label>
                     <label className="flex items-center gap-3 font-semibold">
                       <input
@@ -3382,16 +3382,16 @@ wifiName: settings.wifiName || "",
                     </label>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-[#666]">
-                    Consiglio: lascia le nuove unitÃ  in bozza finché non prepariamo foto, tariffe, iCal in ingresso e pagina pubblica multi-alloggio.
+                    Consiglio: lascia le nuove unità in bozza finché non prepariamo foto, tariffe, iCal in ingresso e pagina pubblica multi-alloggio.
                   </p>
                 </div>
 
                 <div className="rounded-[2rem] border border-[#eadbbf] bg-[#faf6ee] p-5 lg:col-span-2">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <h4 className="font-serif text-2xl">Foto unitÃ </h4>
+                      <h4 className="font-serif text-2xl">Foto unità</h4>
                       <p className="mt-1 text-sm leading-6 text-[#666]">
-                        Carica foto da computer o telefono con Cloudinary. La foto viene ottimizzata per il sito e collegata alla singola unitÃ : Lunarossa 1 aggiorna la galleria pubblica, Lunarossa 2 resta pronta finché è in bozza.
+                        Carica foto da computer o telefono con Cloudinary. La foto viene ottimizzata per il sito e collegata alla singola unità: Lunarossa 1 aggiorna la galleria pubblica, Lunarossa 2 resta pronta finché è in bozza.
                       </p>
                     </div>
                     <button
@@ -3455,12 +3455,12 @@ wifiName: settings.wifiName || "",
                     </div>
                   ) : (
                     <div className="mt-5 rounded-2xl border border-dashed border-[#d7c49f] bg-white p-5 text-sm leading-6 text-[#666]">
-                      Nessuna foto Cloudinary collegata a questa unitÃ . Lunarossa 1 continua a usare le foto attuali del sito finché non carichi nuove foto.
+                      Nessuna foto Cloudinary collegata a questa unità. Lunarossa 1 continua a usare le foto attuali del sito finché non carichi nuove foto.
                     </div>
                   )}
 
                   <p className="mt-4 rounded-2xl bg-white p-4 text-sm font-semibold text-[#0a1d35]">
-                    Dopo upload Cloudinary, eliminazione, copertina o ordine foto il sistema salva subito la galleria. Usa <strong>Salva unitÃ </strong> solo se hai modificato anche testi, CIN/CIR o altri dati.
+                    Dopo upload Cloudinary, eliminazione, copertina o ordine foto il sistema salva subito la galleria. Usa <strong>Salva unità</strong> solo se hai modificato anche testi, CIN/CIR o altri dati.
                   </p>
                 </div>
 
@@ -3478,7 +3478,7 @@ wifiName: settings.wifiName || "",
                     className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white"
                   >
                     <Save size={18} />
-                    Salva unitÃ 
+                    Salva unità
                   </button>
                   <button
                     type="button"
@@ -3498,15 +3498,15 @@ wifiName: settings.wifiName || "",
             <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
               <div className="flex items-center gap-3">
                 <Building2 className="text-[#9b6b25]" />
-                <h2 className="font-serif text-3xl">UnitÃ  abitativa</h2>
+                <h2 className="font-serif text-3xl">Unità abitativa</h2>
               </div>
 
               <div className="mt-6 grid gap-4">
-                <DetailRow label="UnitÃ  attuale" value={selectedUnit.name} />
+                <DetailRow label="Unità attuale" value={selectedUnit.name} />
                 <DetailRow label="ID tecnico" value={selectedUnit.id} />
                 <p className="rounded-2xl bg-[#faf6ee] p-4 text-sm leading-7 text-[#555]">
-                  La struttura è giÃ  preparata con <strong>unitId</strong>. In
-                  futuro potremo aggiungere altre unitÃ  senza rifare il PMS da
+                  La struttura è già preparata con <strong>unitId</strong>. In
+                  futuro potremo aggiungere altre unità senza rifare il PMS da
                   zero.
                 </p>
               </div>
