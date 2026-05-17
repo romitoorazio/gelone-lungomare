@@ -1617,6 +1617,58 @@ wifiName: settings.wifiName || "",
     }
   }
 
+  async function setManualPaymentStatus(booking, paymentStatus, manualAction) {
+    clearMessages();
+
+    if (!booking?.id) {
+      setError("Seleziona una prenotazione valida.");
+      return;
+    }
+
+    if (booking.status === "blocked" || booking.status === "cancelled") {
+      setError("Non puoi aggiornare il pagamento manuale di un blocco o di una prenotazione annullata.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Vuoi aggiornare manualmente il pagamento di " +
+        (booking.guestName || "questa prenotazione") +
+        " come: " +
+        getPaymentLabel(paymentStatus) +
+        "?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await updateDoc(doc(db, "bookings", booking.id), {
+        paymentStatus,
+        manualPaymentUpdatedAt: serverTimestamp(),
+        manualPaymentUpdatedBy: user?.email || "",
+        updatedAt: serverTimestamp(),
+      });
+
+      setDetailForm((current) => ({
+        ...current,
+        paymentStatus,
+      }));
+
+      await addActivityLog("updated_manual_payment", booking, {
+        manualAction,
+        paymentStatus,
+        paymentLabel: getPaymentLabel(paymentStatus),
+        totalPrice: booking.totalPrice ?? null,
+        depositAmount: booking.depositAmount ?? null,
+        source: "manual_admin",
+      });
+
+      setMessage("Pagamento manuale aggiornato: " + getPaymentLabel(paymentStatus) + ".");
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante l'aggiornamento manuale del pagamento.");
+    }
+  }
+
   async function setPaymentStatus(booking, paymentStatus) {
     clearMessages();
 
@@ -3226,17 +3278,42 @@ wifiName: settings.wifiName || "",
                     )}
 
                     <SmallButton
-                      onClick={() => setPaymentStatus(selectedBooking, "deposit_paid")}
+                      onClick={() =>
+                        setManualPaymentStatus(
+                          selectedBooking,
+                          "deposit_paid",
+                          "caparra_incassata"
+                        )
+                      }
                       className="bg-[#f5c84b] px-6 py-4 text-[#0a1d35]"
                     >
-                      Caparra pagata
+                      Segna caparra incassata
                     </SmallButton>
 
                     <SmallButton
-                      onClick={() => setPaymentStatus(selectedBooking, "paid")}
+                      onClick={() =>
+                        setManualPaymentStatus(
+                          selectedBooking,
+                          "paid",
+                          "saldo_pagato"
+                        )
+                      }
                       className="bg-green-700 px-6 py-4 text-white"
                     >
-                      Pagato
+                      Segna saldo pagato
+                    </SmallButton>
+
+                    <SmallButton
+                      onClick={() =>
+                        setManualPaymentStatus(
+                          selectedBooking,
+                          "unpaid",
+                          "non_pagato"
+                        )
+                      }
+                      className="bg-white px-6 py-4 text-[#0a1d35] border border-[#0a1d35]"
+                    >
+                      Segna non pagato
                     </SmallButton>
 
                     <SmallButton
