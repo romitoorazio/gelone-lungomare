@@ -974,16 +974,6 @@ export default function Admin() {
     const urgentBalanceRows = pendingPayments.filter((booking) => booking.isUrgentBalance);
 
     return {
-          ...booking,
-          paidAmount: paid,
-          balanceDue: due,
-        };
-      })
-      .filter((booking) => booking.balanceDue > 0)
-      .sort((a, b) => String(a.checkIn || "").localeCompare(String(b.checkIn || "")))
-      .slice(0, 12);
-
-    return {
       confirmedRevenue,
       collected,
       depositCollected,
