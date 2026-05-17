@@ -785,6 +785,36 @@ export default function Admin() {
       .slice(0, 80);
   }, [activityLogs, selectedUnitId]);
 
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+
+    const activityLogsQuery = query(
+      collection(db, "maintenanceLogs"),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribeActivityLogs = onSnapshot(
+      activityLogsQuery,
+      (snapshot) => {
+        const rows = snapshot.docs
+          .map((item) => ({
+            id: item.id,
+            ...item.data(),
+          }))
+          .filter((item) => item.type === "admin_activity")
+          .slice(0, 120);
+
+        setActivityLogs(rows);
+      },
+      (err) => {
+        console.warn("Log attivita non caricati:", err);
+        setActivityLogs([]);
+      }
+    );
+
+    return () => unsubscribeActivityLogs();
+  }, [isAdmin, selectedUnitId]);
+
   const stats = useMemo(() => {
     const active = bookings.filter((item) => item.status !== "cancelled");
     const confirmed = active.filter((item) =>
