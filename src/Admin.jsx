@@ -544,9 +544,18 @@ export default function Admin() {
   const [manualCopy, setManualCopy] = useState({ title: "", text: "" });
   const [photoUploading, setPhotoUploading] = useState(false);
   const [activityLogs, setActivityLogs] = useState([]);
+  const [internalRecords, setInternalRecords] = useState([]);
   const [economyPeriod, setEconomyPeriod] = useState("all");
   const [economyDateFrom, setEconomyDateFrom] = useState("");
   const [economyDateTo, setEconomyDateTo] = useState("");
+  const [internalRecordForm, setInternalRecordForm] = useState({
+    category: "nota",
+    title: "",
+    note: "",
+    priority: "Media",
+    dueDate: "",
+    linkedBookingId: "",
+  });
 
   const [detailForm, setDetailForm] = useState({
     guestName: "",
@@ -788,6 +797,34 @@ export default function Admin() {
       .slice(0, 80);
   }, [activityLogs, selectedUnitId]);
 
+  const visibleInternalRecords = useMemo(() => {
+    return internalRecords
+      .filter((item) => !item.unitId || item.unitId === selectedUnitId)
+      .slice(0, 120);
+  }, [internalRecords, selectedUnitId]);
+
+  const internalRecordStats = useMemo(() => {
+    const today = getToday();
+    const urgentLimitDate = parseDateAsUTC(today);
+    urgentLimitDate.setUTCDate(urgentLimitDate.getUTCDate() + 7);
+    const urgentLimit = urgentLimitDate.toISOString().slice(0, 10);
+
+    const openRecords = visibleInternalRecords.filter((item) => item.status !== "closed");
+    const closedRecords = visibleInternalRecords.filter((item) => item.status === "closed");
+    const highPriority = openRecords.filter((item) => item.priority === "Alta");
+    const dueSoon = openRecords.filter((item) => {
+      const dueDate = String(item.dueDate || "");
+      return dueDate && dueDate <= urgentLimit;
+    });
+
+    return {
+      open: openRecords.length,
+      closed: closedRecords.length,
+      highPriority: highPriority.length,
+      dueSoon: dueSoon.length,
+    };
+  }, [visibleInternalRecords]);
+
   useEffect(() => {
     if (!isAdmin) return undefined;
 
@@ -799,19 +836,26 @@ export default function Admin() {
     const unsubscribeActivityLogs = onSnapshot(
       activityLogsQuery,
       (snapshot) => {
-        const rows = snapshot.docs
-          .map((item) => ({
-            id: item.id,
-            ...item.data(),
-          }))
+        const rows = snapshot.docs.map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }));
+
+        const adminRows = rows
           .filter((item) => item.type === "admin_activity")
           .slice(0, 120);
 
-        setActivityLogs(rows);
+        const recordRows = rows
+          .filter((item) => item.type === "internal_record")
+          .slice(0, 160);
+
+        setActivityLogs(adminRows);
+        setInternalRecords(recordRows);
       },
       (err) => {
         console.warn("Log attivita non caricati:", err);
         setActivityLogs([]);
+        setInternalRecords([]);
       }
     );
 
@@ -1440,6 +1484,112 @@ export default function Admin() {
         mode,
         rows: rows.length,
       });
+    }
+  }
+
+  async function createInternalRecord(event) {
+    event.preventDefault();
+    clearMessages();
+
+    const title = String(internalRecordForm.title || "").trim();
+    const note = String(internalRecordForm.note || "").trim();
+
+    if (title.length < 3) {
+      setError("Inserisci un titolo chiaro per il registro interno.");
+      return;
+    }
+
+    if (note.length < 5) {
+      setError("Inserisci una nota interna più dettagliata.");
+      return;
+    }
+
+    const linkedBooking =
+      bookings.find((booking) => booking.id === internalRecordForm.linkedBookingId) || null;
+
+    try {
+      const recordRef = await addDoc(collection(db, "maintenanceLogs"), {
+        type: "internal_record",
+        unitId: selectedUnitId,
+        unitName: selectedUnit?.name || selectedUnitId,
+        category: internalRecordForm.category || "nota",
+        title,
+        note,
+        priority: internalRecordForm.priority || "Media",
+        status: "open",
+        dueDate: internalRecordForm.dueDate || "",
+        linkedBookingId: linkedBooking?.id || "",
+        linkedGuestName: linkedBooking?.guestName || "",
+        linkedCheckIn: linkedBooking?.checkIn || "",
+        linkedCheckOut: linkedBooking?.checkOut || "",
+        adminEmail: user?.email || "",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      await addActivityLog("created_internal_record", null, {
+        recordId: recordRef.id,
+        category: internalRecordForm.category || "nota",
+        priority: internalRecordForm.priority || "Media",
+        title,
+        linkedBookingId: linkedBooking?.id || "",
+        linkedGuestName: linkedBooking?.guestName || "",
+      });
+
+      setInternalRecordForm({
+        category: "nota",
+        title: "",
+        note: "",
+        priority: "Media",
+        dueDate: "",
+        linkedBookingId: "",
+      });
+
+      setMessage("Nota inserita nel registro interno.");
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante il salvataggio del registro interno.");
+    }
+  }
+
+  async function setInternalRecordStatus(record, status) {
+    clearMessages();
+
+    if (!record?.id) {
+      setError("Record interno non valido.");
+      return;
+    }
+
+    try {
+      const updateData = {
+        status,
+        updatedAt: serverTimestamp(),
+      };
+
+      if (status === "closed") {
+        updateData.closedAt = serverTimestamp();
+        updateData.closedBy = user?.email || "";
+      }
+
+      if (status === "open") {
+        updateData.reopenedAt = serverTimestamp();
+        updateData.reopenedBy = user?.email || "";
+      }
+
+      await updateDoc(doc(db, "maintenanceLogs", record.id), updateData);
+
+      await addActivityLog("updated_internal_record_status", null, {
+        recordId: record.id,
+        title: record.title || "",
+        category: record.category || "",
+        previousStatus: record.status || "",
+        status,
+      });
+
+      setMessage(status === "closed" ? "Nota interna chiusa." : "Nota interna riaperta.");
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante l'aggiornamento del registro interno.");
     }
   }
 
@@ -2856,6 +3006,9 @@ wifiName: settings.wifiName || "",
           <TabButton active={activeTab === "backup"} onClick={() => setActiveTab("backup")}>
             Backup
           </TabButton>
+          <TabButton active={activeTab === "internal"} onClick={() => setActiveTab("internal")}>
+            Registro operativo
+          </TabButton>
           <TabButton active={activeTab === "block"} onClick={() => setActiveTab("block")}>
             Blocca date
           </TabButton>
@@ -2912,6 +3065,263 @@ wifiName: settings.wifiName || "",
               className="mt-4 min-h-56 w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-sm leading-6"
             />
           </div>
+        )}
+
+        {activeTab === "internal" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Registro operativo
+              </p>
+              <h2 className="mt-2 font-serif text-3xl">Registro interno avanzato</h2>
+              <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                Qui puoi registrare manutenzioni, problemi ospiti, pulizie, note amministrative
+                e promemoria interni. Ogni nota resta nello storico e può essere chiusa o riaperta.
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-4">
+                <StatCard title="Aperte" value={internalRecordStats.open} icon={RefreshCcw} subtitle="Da seguire" />
+                <StatCard title="Alta priorità" value={internalRecordStats.highPriority} icon={Lock} subtitle="Attenzione" />
+                <StatCard title="Entro 7 giorni" value={internalRecordStats.dueSoon} icon={CalendarDays} subtitle="Scadenze vicine" />
+                <StatCard title="Chiuse" value={internalRecordStats.closed} icon={ShieldCheck} subtitle="Completate" />
+              </div>
+
+              <form onSubmit={createInternalRecord} className="mt-8 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                  Nuova nota interna
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                  Aggiungi al registro
+                </h3>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  <FormField label="Categoria">
+                    <select
+                      value={internalRecordForm.category}
+                      onChange={(event) =>
+                        setInternalRecordForm({
+                          ...internalRecordForm,
+                          category: event.target.value,
+                        })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                    >
+                      <option value="nota">Nota generale</option>
+                      <option value="manutenzione">Manutenzione</option>
+                      <option value="pulizia">Pulizia</option>
+                      <option value="problema_ospite">Problema ospite</option>
+                      <option value="amministrativo">Amministrativo</option>
+                      <option value="promemoria">Promemoria</option>
+                    </select>
+                  </FormField>
+
+                  <FormField label="Priorità">
+                    <select
+                      value={internalRecordForm.priority}
+                      onChange={(event) =>
+                        setInternalRecordForm({
+                          ...internalRecordForm,
+                          priority: event.target.value,
+                        })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                    >
+                      <option value="Alta">Alta</option>
+                      <option value="Media">Media</option>
+                      <option value="Bassa">Bassa</option>
+                    </select>
+                  </FormField>
+
+                  <FormField label="Scadenza / data controllo">
+                    <input
+                      type="date"
+                      value={internalRecordForm.dueDate}
+                      onChange={(event) =>
+                        setInternalRecordForm({
+                          ...internalRecordForm,
+                          dueDate: event.target.value,
+                        })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                    />
+                  </FormField>
+
+                  <FormField label="Titolo">
+                    <input
+                      value={internalRecordForm.title}
+                      onChange={(event) =>
+                        setInternalRecordForm({
+                          ...internalRecordForm,
+                          title: event.target.value,
+                        })
+                      }
+                      placeholder="Es. Controllare climatizzatore"
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                    />
+                  </FormField>
+
+                  <FormField label="Collega prenotazione">
+                    <select
+                      value={internalRecordForm.linkedBookingId}
+                      onChange={(event) =>
+                        setInternalRecordForm({
+                          ...internalRecordForm,
+                          linkedBookingId: event.target.value,
+                        })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                    >
+                      <option value="">Nessuna prenotazione collegata</option>
+                      {bookings
+                        .filter((booking) => booking.status !== "cancelled")
+                        .map((booking) => (
+                          <option key={booking.id} value={booking.id}>
+                            {booking.guestName || "Prenotazione"} · {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
+                          </option>
+                        ))}
+                    </select>
+                  </FormField>
+
+                  <div className="flex items-end">
+                    <button
+                      type="submit"
+                      className="w-full rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white"
+                    >
+                      Salva nota
+                    </button>
+                  </div>
+
+                  <div className="md:col-span-3">
+                    <FormField label="Nota dettagliata">
+                      <textarea
+                        value={internalRecordForm.note}
+                        onChange={(event) =>
+                          setInternalRecordForm({
+                            ...internalRecordForm,
+                            note: event.target.value,
+                          })
+                        }
+                        placeholder="Scrivi cosa è successo, cosa va fatto, chi deve controllare o cosa è stato deciso."
+                        className="min-h-32 w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                      />
+                    </FormField>
+                  </div>
+                </div>
+              </form>
+
+              <div className="mt-8 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                  Storico registro
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                  Note operative
+                </h3>
+
+                <div className="mt-5 overflow-x-auto">
+                  <table className="w-full min-w-[1100px] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                        <th className="py-3">Stato</th>
+                        <th className="py-3">Priorità</th>
+                        <th className="py-3">Categoria</th>
+                        <th className="py-3">Titolo</th>
+                        <th className="py-3">Scadenza</th>
+                        <th className="py-3">Prenotazione</th>
+                        <th className="py-3">Nota</th>
+                        <th className="py-3">Azioni</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {visibleInternalRecords.length === 0 && (
+                        <tr>
+                          <td colSpan="8" className="py-8 text-center text-[#555]">
+                            Nessuna nota interna registrata.
+                          </td>
+                        </tr>
+                      )}
+
+                      {visibleInternalRecords.map((record) => (
+                        <tr key={record.id} className="border-b border-[#f0e6d5] align-top">
+                          <td className="py-4">
+                            <Pill
+                              className={
+                                record.status === "closed"
+                                  ? "border-green-200 bg-green-50 text-green-900"
+                                  : "border-amber-200 bg-amber-50 text-amber-900"
+                              }
+                            >
+                              {record.status === "closed" ? "Chiusa" : "Aperta"}
+                            </Pill>
+                          </td>
+                          <td className="py-4">
+                            <Pill
+                              className={
+                                record.priority === "Alta"
+                                  ? "border-red-200 bg-red-50 text-red-900"
+                                  : record.priority === "Bassa"
+                                    ? "border-slate-200 bg-slate-100 text-slate-900"
+                                    : "border-amber-200 bg-amber-50 text-amber-900"
+                              }
+                            >
+                              {record.priority || "Media"}
+                            </Pill>
+                          </td>
+                          <td className="py-4">{String(record.category || "nota").replaceAll("_", " ")}</td>
+                          <td className="py-4 font-semibold">{record.title || "-"}</td>
+                          <td className="py-4">{formatDate(record.dueDate)}</td>
+                          <td className="py-4">
+                            {record.linkedGuestName
+                              ? record.linkedGuestName + " · " + formatDate(record.linkedCheckIn)
+                              : "-"}
+                          </td>
+                          <td className="py-4 text-sm leading-6 text-[#555]">
+                            {record.note || "-"}
+                          </td>
+                          <td className="py-4">
+                            <div className="flex flex-wrap gap-2">
+                              {record.linkedBookingId && (
+                                <SmallButton
+                                  onClick={() => {
+                                    setSelectedBookingId(record.linkedBookingId);
+                                    setActiveTab("calendar");
+                                  }}
+                                  className="bg-[#0a1d35] text-white"
+                                >
+                                  Apri prenotazione
+                                </SmallButton>
+                              )}
+
+                              {record.status === "closed" ? (
+                                <SmallButton
+                                  onClick={() => setInternalRecordStatus(record, "open")}
+                                  className="bg-[#f5c84b] text-[#0a1d35]"
+                                >
+                                  Riapri
+                                </SmallButton>
+                              ) : (
+                                <SmallButton
+                                  onClick={() => setInternalRecordStatus(record, "closed")}
+                                  className="bg-green-700 text-white"
+                                >
+                                  Chiudi
+                                </SmallButton>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  Il registro interno non modifica disponibilità, prenotazioni o pagamenti.
+                  Serve come storico operativo e controllo interno della struttura.
+                </div>
+              </div>
+            </div>
+          </section>
         )}
 
         {activeTab === "backup" && (
