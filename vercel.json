@@ -17,6 +17,15 @@
           "value": "noindex, nofollow"
         }
       ]
+    },
+    {
+      "source": "/ospiti.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -25,7 +34,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/((?!api/.*).*)",
+      "source": "/admin/:path*",
       "destination": "/index.html"
     }
   ]

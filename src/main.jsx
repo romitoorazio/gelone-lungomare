@@ -7,7 +7,7 @@ import Admin from "./Admin.jsx";
 function Router() {
   const path = window.location.pathname;
 
-  if (path === "/admin") {
+  if (path === "/admin" || path.startsWith("/admin/")) {
     return <Admin />;
   }
 
