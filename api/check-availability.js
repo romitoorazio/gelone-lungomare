@@ -179,7 +179,7 @@ export default async function handler(req, res) {
       .filter((snapshot) => {
         if (!snapshot.exists) return false;
         const data = snapshot.data();
-        return isActiveStatus(data?.status);
+        return isActiveStatusForData(data);
       })
       .map((snapshot, index) => snapshot.data()?.date || nights[index])
       .filter(Boolean);
