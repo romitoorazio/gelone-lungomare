@@ -6124,7 +6124,7 @@ wifiName: settings.wifiName || "",
 
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <FormField label="Prezzo diretto per notte (â‚¬)">
+                    <FormField label="Prezzo diretto per notte (€)">
                       <input
                         type="number"
                         min="0"
@@ -6137,7 +6137,7 @@ wifiName: settings.wifiName || "",
                       />
                     </FormField>
 
-                    <FormField label="Pulizie finali (â‚¬)">
+                    <FormField label="Pulizie finali (€)">
                       <input
                         type="number"
                         min="0"
