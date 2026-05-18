@@ -1914,11 +1914,15 @@ export default function Admin() {
       await updateDoc(doc(db, "bookings", booking.id), {
         preparationChecks: nextChecks,
         preparationStatus:
-          Object.values(nextChecks).filter(Boolean).length > 0
-            ? booking.preparationStatus === "completed"
-              ? "completed"
-              : "in_progress"
-            : "to_do",
+          ["cleaning", "bathroom", "kitchen", "linen", "keys", "finalCheck"].every((key) =>
+            Boolean(nextChecks[key])
+          )
+            ? "completed"
+            : ["cleaning", "bathroom", "kitchen", "linen", "keys", "finalCheck"].some((key) =>
+                  Boolean(nextChecks[key])
+                )
+              ? "in_progress"
+              : "to_do",
         preparationUpdatedAt: serverTimestamp(),
         preparationUpdatedBy: user?.email || "",
         updatedAt: serverTimestamp(),
