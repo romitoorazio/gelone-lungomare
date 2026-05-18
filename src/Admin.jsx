@@ -1133,6 +1133,27 @@ export default function Admin() {
     };
   }, [bookings]);
 
+  const backupStats = useMemo(() => {
+    const today = getToday();
+    const allRows = bookings;
+    const futureRows = bookings.filter((booking) => {
+      if (booking.status === "cancelled") return false;
+      return String(booking.checkOut || booking.checkIn || "") >= today;
+    });
+    const cancelledRows = bookings.filter((booking) => booking.status === "cancelled");
+    const deletedOrCancelledLogs = visibleActivityLogs.filter((log) =>
+      ["deleted_booking", "cancelled_booking"].includes(log.action)
+    );
+
+    return {
+      allBookings: allRows.length,
+      futureBookings: futureRows.length,
+      cancelledBookings: cancelledRows.length,
+      activityLogs: visibleActivityLogs.length,
+      deletedOrCancelledLogs: deletedOrCancelledLogs.length,
+    };
+  }, [bookings, visibleActivityLogs]);
+
   function clearMessages() {
     setMessage("");
     setError("");
@@ -1245,6 +1266,181 @@ export default function Admin() {
       dateFrom: economyDateFrom || "",
       dateTo: economyDateTo || "",
     });
+  }
+
+  function escapeCsvValue(value) {
+    const textValue = String(value ?? "");
+    return '"' + textValue.replaceAll('"', '""') + '"';
+  }
+
+  function moneyCsvValue(value) {
+    const number = Number(value || 0);
+    return Number.isFinite(number) ? number.toFixed(2).replace(".", ",") : "0,00";
+  }
+
+  function downloadCsvFile(filename, headers, rows) {
+    if (!rows.length) {
+      setError("Nessun dato da esportare per questa selezione.");
+      return false;
+    }
+
+    const csvRows = [
+      headers.map(escapeCsvValue).join(";"),
+      ...rows.map((row) => row.map(escapeCsvValue).join(";")),
+    ];
+
+    const csv = "\uFEFF" + csvRows.join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    return true;
+  }
+
+  function exportBookingsCsv(mode = "all") {
+    clearMessages();
+
+    const today = getToday();
+
+    let rows = bookings;
+
+    if (mode === "future") {
+      rows = bookings.filter((booking) => {
+        if (booking.status === "cancelled") return false;
+        return String(booking.checkOut || booking.checkIn || "") >= today;
+      });
+    }
+
+    if (mode === "cancelled") {
+      rows = bookings.filter((booking) => booking.status === "cancelled");
+    }
+
+    rows = [...rows].sort((a, b) =>
+      String(a.checkIn || "").localeCompare(String(b.checkIn || ""))
+    );
+
+    const headers = [
+      "Unita",
+      "ID prenotazione",
+      "Ospite",
+      "Email",
+      "Telefono",
+      "Arrivo",
+      "Partenza",
+      "Notti",
+      "Ospiti",
+      "Origine",
+      "Stato",
+      "Pagamento",
+      "Totale",
+      "Caparra",
+      "WelcoMate",
+      "Creata",
+      "Aggiornata",
+      "Motivo cancellazione",
+      "Note ospite",
+      "Note interne",
+    ];
+
+    const csvRows = rows.map((booking) => [
+      selectedUnit?.name || selectedUnitId,
+      booking.id || "",
+      booking.guestName || "",
+      booking.guestEmail || "",
+      booking.guestPhone || "",
+      formatDate(booking.checkIn),
+      formatDate(booking.checkOut),
+      getNightsCount(booking.checkIn, booking.checkOut),
+      booking.guests ?? "",
+      getSourceLabel(booking.source),
+      getStatusLabel(booking.status),
+      getPaymentLabel(booking.paymentStatus),
+      moneyCsvValue(booking.totalPrice),
+      moneyCsvValue(booking.depositAmount),
+      getWelcomateLabel(booking.welcomateStatus),
+      formatDateTime(booking.createdAt),
+      formatDateTime(booking.updatedAt),
+      booking.cancellationReason || "",
+      booking.notes || "",
+      booking.internalNotes || "",
+    ]);
+
+    const filename =
+      "gelone-prenotazioni-" + selectedUnitId + "-" + mode + "-" + today + ".csv";
+
+    const ok = downloadCsvFile(filename, headers, csvRows);
+
+    if (ok) {
+      setMessage("Export prenotazioni creato: " + rows.length + " righe.");
+      addActivityLog("exported_bookings_csv", null, {
+        mode,
+        rows: rows.length,
+      });
+    }
+  }
+
+  function exportActivityLogsCsv(mode = "all") {
+    clearMessages();
+
+    let rows = visibleActivityLogs;
+
+    if (mode === "deleted_cancelled") {
+      rows = visibleActivityLogs.filter((log) =>
+        ["deleted_booking", "cancelled_booking"].includes(log.action)
+      );
+    }
+
+    const headers = [
+      "Data",
+      "Admin",
+      "Azione",
+      "Unita",
+      "Booking ID",
+      "Ospite",
+      "Email",
+      "Telefono",
+      "Arrivo",
+      "Partenza",
+      "Stato",
+      "Pagamento",
+      "Dettagli",
+    ];
+
+    const csvRows = rows.map((log) => [
+      formatDateTime(log.createdAt),
+      log.adminEmail || "",
+      String(log.action || "").replaceAll("_", " "),
+      log.unitName || log.unitId || "",
+      log.bookingId || "",
+      log.guestName || "",
+      log.guestEmail || "",
+      log.guestPhone || "",
+      formatDate(log.checkIn),
+      formatDate(log.checkOut),
+      log.status || "",
+      getPaymentLabel(log.paymentStatus),
+      log.details ? JSON.stringify(log.details) : "",
+    ]);
+
+    const filename =
+      "gelone-log-attivita-" + selectedUnitId + "-" + mode + "-" + getToday() + ".csv";
+
+    const ok = downloadCsvFile(filename, headers, csvRows);
+
+    if (ok) {
+      setMessage("Export log attività creato: " + rows.length + " righe.");
+      addActivityLog("exported_activity_logs_csv", null, {
+        mode,
+        rows: rows.length,
+      });
+    }
   }
 
   async function addActivityLog(action, booking = null, details = {}) {
@@ -2657,6 +2853,9 @@ wifiName: settings.wifiName || "",
           <TabButton active={activeTab === "checks"} onClick={() => setActiveTab("checks")}>
             Controlli
           </TabButton>
+          <TabButton active={activeTab === "backup"} onClick={() => setActiveTab("backup")}>
+            Backup
+          </TabButton>
           <TabButton active={activeTab === "block"} onClick={() => setActiveTab("block")}>
             Blocca date
           </TabButton>
@@ -2713,6 +2912,102 @@ wifiName: settings.wifiName || "",
               className="mt-4 min-h-56 w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-sm leading-6"
             />
           </div>
+        )}
+
+        {activeTab === "backup" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Backup dati
+              </p>
+              <h2 className="mt-2 font-serif text-3xl">Export e sicurezza dati</h2>
+              <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                Scarica copie CSV delle prenotazioni e del registro attività.
+                Questi export sono utili per controllo interno, commercialista,
+                storico operativo e sicurezza.
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-5">
+                <StatCard title="Prenotazioni" value={backupStats.allBookings} icon={CalendarDays} subtitle="Totali unità" />
+                <StatCard title="Future" value={backupStats.futureBookings} icon={ShieldCheck} subtitle="Da oggi in poi" />
+                <StatCard title="Cancellate" value={backupStats.cancelledBookings} icon={Trash2} subtitle="Ancora presenti" />
+                <StatCard title="Log" value={backupStats.activityLogs} icon={Search} subtitle="Ultimi caricati" />
+                <StatCard title="Azioni delicate" value={backupStats.deletedOrCancelledLogs} icon={Lock} subtitle="Cancellazioni/eliminazioni" />
+              </div>
+
+              <div className="mt-8 grid gap-5 lg:grid-cols-2">
+                <div className="rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                  <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                    Prenotazioni
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                    Export prenotazioni CSV
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#555]">
+                    Esporta le prenotazioni dell'unità selezionata con date,
+                    ospite, stato, pagamento, totale, caparra e note.
+                  </p>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <SmallButton
+                      onClick={() => exportBookingsCsv("all")}
+                      className="bg-[#0a1d35] px-5 py-3 text-white"
+                    >
+                      Esporta tutte
+                    </SmallButton>
+
+                    <SmallButton
+                      onClick={() => exportBookingsCsv("future")}
+                      className="bg-green-700 px-5 py-3 text-white"
+                    >
+                      Esporta future
+                    </SmallButton>
+
+                    <SmallButton
+                      onClick={() => exportBookingsCsv("cancelled")}
+                      className="bg-red-900 px-5 py-3 text-white"
+                    >
+                      Esporta cancellate
+                    </SmallButton>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                  <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                    Registro attività
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                    Export log operativi CSV
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#555]">
+                    Esporta i log Admin caricati: modifiche, pagamenti,
+                    cancellazioni, eliminazioni, sincronizzazioni e manutenzione.
+                  </p>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <SmallButton
+                      onClick={() => exportActivityLogsCsv("all")}
+                      className="bg-[#0a1d35] px-5 py-3 text-white"
+                    >
+                      Esporta log attività
+                    </SmallButton>
+
+                    <SmallButton
+                      onClick={() => exportActivityLogsCsv("deleted_cancelled")}
+                      className="bg-red-900 px-5 py-3 text-white"
+                    >
+                      Solo cancellazioni/eliminazioni
+                    </SmallButton>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                Gli export CSV vengono generati dal browser sui dati già visibili in Admin.
+                Non modificano prenotazioni, calendari o pagamenti.
+              </div>
+            </div>
+          </section>
         )}
 
         {activeTab === "checks" && (
