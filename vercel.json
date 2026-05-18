@@ -34,6 +34,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/admin/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/admin/:path*",
       "destination": "/index.html"
     }
