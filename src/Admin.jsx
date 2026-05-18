@@ -1033,6 +1033,157 @@ export default function Admin() {
     };
   }, [bookings, economyPeriod, economyDateFrom, economyDateTo]);
 
+  function getBookingReadiness(booking) {
+    if (!booking) {
+      return {
+        ready: false,
+        label: "Da completare",
+        severity: "high",
+        issues: ["Prenotazione non selezionata"],
+      };
+    }
+
+    if (booking.status === "blocked" || booking.status === "cancelled") {
+      return {
+        ready: false,
+        label: "Non operativa",
+        severity: "low",
+        issues: [],
+      };
+    }
+
+    const issues = [];
+    const total = Number(booking.totalPrice || 0);
+    const deposit = Number(booking.depositAmount || 0);
+    const paymentStatus = String(booking.paymentStatus || "unpaid");
+    const source = String(booking.source || "");
+    const status = String(booking.status || "");
+
+    const paidAmount =
+      paymentStatus === "paid"
+        ? total
+        : paymentStatus === "deposit_paid"
+          ? deposit
+          : 0;
+
+    const balanceDue = Math.max(total - paidAmount, 0);
+
+    if (total <= 0) {
+      issues.push("Prezzo totale mancante");
+    }
+
+    if (!String(booking.guestPhone || "").trim()) {
+      issues.push("Telefono ospite mancante");
+    }
+
+    if (!String(booking.guestEmail || "").trim()) {
+      issues.push("Email ospite mancante");
+    }
+
+    if (paymentStatus === "unpaid" || paymentStatus === "failed" || paymentStatus === "expired") {
+      issues.push("Pagamento non completato");
+    }
+
+    if (paymentStatus === "pending") {
+      issues.push("Pagamento in corso da controllare");
+    }
+
+    if (paymentStatus === "deposit_paid" && balanceDue > 0) {
+      issues.push("Saldo ancora da incassare");
+    }
+
+    if (!["sent", "completed", "not_needed"].includes(String(booking.welcomateStatus || ""))) {
+      issues.push("WelcoMate da inviare o controllare");
+    }
+
+    if (
+      (source === "direct_site" || ["pending_direct", "confirmed_direct"].includes(status)) &&
+      !(booking.privacyAccepted && booking.termsAccepted)
+    ) {
+      issues.push("Consenso privacy/termini non registrato");
+    }
+
+    const highProblems = issues.filter((issue) =>
+      issue.includes("Prezzo") ||
+      issue.includes("Telefono") ||
+      issue.includes("Pagamento non completato") ||
+      issue.includes("in corso")
+    );
+
+    if (issues.length === 0) {
+      return {
+        ready: true,
+        label: "Pronta",
+        severity: "ok",
+        issues: [],
+      };
+    }
+
+    return {
+      ready: false,
+      label: highProblems.length > 0 ? "Da completare" : "Da controllare",
+      severity: highProblems.length > 0 ? "high" : "medium",
+      issues,
+    };
+  }
+
+  function getReadinessClass(readiness) {
+    if (readiness?.ready) {
+      return "border-green-200 bg-green-50 text-green-900";
+    }
+
+    if (readiness?.severity === "high") {
+      return "border-red-200 bg-red-50 text-red-900";
+    }
+
+    if (readiness?.severity === "low") {
+      return "border-slate-200 bg-slate-100 text-slate-900";
+    }
+
+    return "border-amber-200 bg-amber-50 text-amber-900";
+  }
+
+  const qualityStats = useMemo(() => {
+    const rows = bookings
+      .filter((booking) => booking.status !== "blocked" && booking.status !== "cancelled")
+      .map((booking) => ({
+        ...booking,
+        readiness: getBookingReadiness(booking),
+      }))
+      .sort((a, b) => String(a.checkIn || "").localeCompare(String(b.checkIn || "")));
+
+    const readyRows = rows.filter((booking) => booking.readiness.ready);
+    const toCompleteRows = rows.filter((booking) => booking.readiness.severity === "high");
+    const toCheckRows = rows.filter((booking) => booking.readiness.severity === "medium");
+
+    const missingPriceRows = rows.filter((booking) =>
+      booking.readiness.issues.some((issue) => issue.includes("Prezzo"))
+    );
+
+    const missingContactRows = rows.filter((booking) =>
+      booking.readiness.issues.some((issue) => issue.includes("Telefono") || issue.includes("Email"))
+    );
+
+    const paymentProblemRows = rows.filter((booking) =>
+      booking.readiness.issues.some((issue) => issue.includes("Pagamento") || issue.includes("Saldo"))
+    );
+
+    const welcomateProblemRows = rows.filter((booking) =>
+      booking.readiness.issues.some((issue) => issue.includes("WelcoMate"))
+    );
+
+    return {
+      rows,
+      readyRows,
+      toCompleteRows,
+      toCheckRows,
+      missingPriceRows,
+      missingContactRows,
+      paymentProblemRows,
+      welcomateProblemRows,
+    };
+  }, [bookings]);
+
   const controlsStats = useMemo(() => {
     const today = getToday();
     const urgentLimitDate = parseDateAsUTC(today);
@@ -3006,6 +3157,9 @@ wifiName: settings.wifiName || "",
           <TabButton active={activeTab === "backup"} onClick={() => setActiveTab("backup")}>
             Backup
           </TabButton>
+          <TabButton active={activeTab === "quality"} onClick={() => setActiveTab("quality")}>
+            Qualità dati
+          </TabButton>
           <TabButton active={activeTab === "internal"} onClick={() => setActiveTab("internal")}>
             Registro operativo
           </TabButton>
@@ -3318,6 +3472,137 @@ wifiName: settings.wifiName || "",
                 <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
                   Il registro interno non modifica disponibilità, prenotazioni o pagamenti.
                   Serve come storico operativo e controllo interno della struttura.
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "quality" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Qualità dati
+              </p>
+              <h2 className="mt-2 font-serif text-3xl">Prenotazioni pronte o da completare</h2>
+              <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                Questa sezione controlla la qualità operativa delle prenotazioni:
+                prezzo, contatti, pagamento, WelcoMate e consensi quando arrivano dal sito.
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-4">
+                <StatCard title="Pronte" value={qualityStats.readyRows.length} icon={ShieldCheck} subtitle="Complete operative" />
+                <StatCard title="Da completare" value={qualityStats.toCompleteRows.length} icon={Lock} subtitle="Mancano dati importanti" />
+                <StatCard title="Da controllare" value={qualityStats.toCheckRows.length} icon={RefreshCcw} subtitle="Verifiche consigliate" />
+                <StatCard title="Problemi pagamento" value={qualityStats.paymentProblemRows.length} icon={CreditCard} subtitle="Saldo o stato pagamento" />
+                <StatCard title="Senza prezzo" value={qualityStats.missingPriceRows.length} icon={Search} subtitle="Totale mancante" />
+                <StatCard title="Contatti mancanti" value={qualityStats.missingContactRows.length} icon={Mail} subtitle="Telefono o email" />
+                <StatCard title="WelcoMate" value={qualityStats.welcomateProblemRows.length} icon={MessageCircle} subtitle="Da inviare o controllare" />
+                <StatCard title="Totale controllate" value={qualityStats.rows.length} icon={CalendarDays} subtitle="Prenotazioni attive" />
+              </div>
+
+              <div className="mt-8 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                  Verifica operativa
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                  Lista qualità dati
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-[#555]">
+                  Apri le prenotazioni non pronte e completa i dati mancanti.
+                </p>
+
+                <div className="mt-5 overflow-x-auto">
+                  <table className="w-full min-w-[1100px] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                        <th className="py-3">Qualità</th>
+                        <th className="py-3">Ospite</th>
+                        <th className="py-3">Date</th>
+                        <th className="py-3">Pagamento</th>
+                        <th className="py-3">WelcoMate</th>
+                        <th className="py-3">Problemi rilevati</th>
+                        <th className="py-3">Azioni</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {qualityStats.rows.length === 0 && (
+                        <tr>
+                          <td colSpan="7" className="py-8 text-center text-[#555]">
+                            Nessuna prenotazione attiva da controllare.
+                          </td>
+                        </tr>
+                      )}
+
+                      {qualityStats.rows.map((booking) => {
+                        const readiness = getBookingReadiness(booking);
+
+                        return (
+                          <tr key={booking.id} className="border-b border-[#f0e6d5] align-top">
+                            <td className="py-4">
+                              <Pill className={getReadinessClass(readiness)}>
+                                {readiness.label}
+                              </Pill>
+                            </td>
+                            <td className="py-4 font-semibold">{booking.guestName || "-"}</td>
+                            <td className="py-4">
+                              {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
+                            </td>
+                            <td className="py-4">{getPaymentLabel(booking.paymentStatus)}</td>
+                            <td className="py-4">{getWelcomateLabel(booking.welcomateStatus)}</td>
+                            <td className="py-4 text-sm text-[#555]">
+                              {readiness.issues.length === 0
+                                ? "Nessun problema"
+                                : readiness.issues.join(" · ")}
+                            </td>
+                            <td className="py-4">
+                              <div className="flex flex-wrap gap-2">
+                                <SmallButton
+                                  onClick={() => {
+                                    setSelectedBookingId(booking.id);
+                                    setActiveTab("calendar");
+                                  }}
+                                  className="bg-[#0a1d35] text-white"
+                                >
+                                  Apri dettagli
+                                </SmallButton>
+
+                                {readiness.issues.some((issue) => issue.includes("Saldo")) && (
+                                  <SmallButton
+                                    onClick={() =>
+                                      setManualPaymentStatus(
+                                        booking,
+                                        "paid",
+                                        "saldo_pagato_da_qualita_dati"
+                                      )
+                                    }
+                                    className="bg-green-700 text-white"
+                                  >
+                                    Segna saldo pagato
+                                  </SmallButton>
+                                )}
+
+                                {readiness.issues.some((issue) => issue.includes("WelcoMate")) && (
+                                  <SmallButton
+                                    onClick={() => copyWelcomateAndMarkSent(booking)}
+                                    className="bg-[#9b6b25] text-white"
+                                  >
+                                    Copia WelcoMate
+                                  </SmallButton>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  Questo controllo non modifica automaticamente le prenotazioni.
+                  Serve per evitare dati mancanti prima del check-in.
                 </div>
               </div>
             </div>
