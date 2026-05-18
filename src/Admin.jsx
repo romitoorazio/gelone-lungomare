@@ -1237,6 +1237,75 @@ export default function Admin() {
     };
   }, [bookings]);
 
+  function getPreparationLabel(status) {
+    if (status === "completed") return "Completata";
+    if (status === "in_progress") return "In corso";
+    return "Da fare";
+  }
+
+  function getPreparationClass(status) {
+    if (status === "completed") return "border-green-200 bg-green-50 text-green-900";
+    if (status === "in_progress") return "border-amber-200 bg-amber-50 text-amber-900";
+    return "border-red-200 bg-red-50 text-red-900";
+  }
+
+  const preparationStats = useMemo(() => {
+    const today = getToday();
+    const limitDate = parseDateAsUTC(today);
+    limitDate.setUTCDate(limitDate.getUTCDate() + 14);
+    const limit = limitDate.toISOString().slice(0, 10);
+
+    const activeStatuses = ["confirmed_direct", "booking", "airbnb", "imported_ical"];
+
+    const activeRows = bookings
+      .filter((booking) => booking.status !== "cancelled" && booking.status !== "blocked")
+      .filter((booking) => activeStatuses.includes(booking.status))
+      .sort((a, b) => String(a.checkIn || "").localeCompare(String(b.checkIn || "")));
+
+    const rows = activeRows
+      .filter((booking) => {
+        const checkOut = String(booking.checkOut || "");
+        return checkOut >= today && checkOut <= limit;
+      })
+      .map((booking) => {
+        const nextBooking =
+          activeRows.find((item) => String(item.checkIn || "") >= String(booking.checkOut || "")) ||
+          null;
+
+        const status = booking.preparationStatus || "to_do";
+        const checks = booking.preparationChecks || {};
+        const checkKeys = ["cleaning", "bathroom", "kitchen", "linen", "keys", "finalCheck"];
+        const completedChecks = checkKeys.filter((key) => Boolean(checks[key]));
+
+        return {
+          ...booking,
+          preparationStatus: status,
+          preparationChecks: checks,
+          preparationCompletedChecks: completedChecks.length,
+          preparationTotalChecks: checkKeys.length,
+          preparationReady: status === "completed" && completedChecks.length === checkKeys.length,
+          nextBooking,
+          isTodayCheckout: String(booking.checkOut || "") === today,
+          isSameDayTurnover: nextBooking?.checkIn === booking.checkOut,
+        };
+      })
+      .sort((a, b) => {
+        if (a.isTodayCheckout !== b.isTodayCheckout) return a.isTodayCheckout ? -1 : 1;
+        if (a.isSameDayTurnover !== b.isSameDayTurnover) return a.isSameDayTurnover ? -1 : 1;
+        return String(a.checkOut || "").localeCompare(String(b.checkOut || ""));
+      });
+
+    return {
+      rows,
+      todayRows: rows.filter((booking) => booking.isTodayCheckout),
+      sameDayRows: rows.filter((booking) => booking.isSameDayTurnover),
+      toDoRows: rows.filter((booking) => booking.preparationStatus === "to_do"),
+      inProgressRows: rows.filter((booking) => booking.preparationStatus === "in_progress"),
+      completedRows: rows.filter((booking) => booking.preparationStatus === "completed"),
+      notReadyRows: rows.filter((booking) => !booking.preparationReady),
+    };
+  }, [bookings]);
+
   const controlsStats = useMemo(() => {
     const today = getToday();
     const urgentLimitDate = parseDateAsUTC(today);
@@ -1794,6 +1863,112 @@ export default function Admin() {
     } catch (err) {
       console.error(err);
       setError("Errore durante l'aggiornamento del registro interno.");
+    }
+  }
+
+  async function setPreparationStatus(booking, status) {
+    clearMessages();
+
+    if (!booking?.id) {
+      setError("Prenotazione non valida.");
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "bookings", booking.id), {
+        preparationStatus: status,
+        preparationUpdatedAt: serverTimestamp(),
+        preparationUpdatedBy: user?.email || "",
+        updatedAt: serverTimestamp(),
+      });
+
+      await addActivityLog("updated_preparation_status", booking, {
+        preparationStatus: status,
+        preparationLabel: getPreparationLabel(status),
+        checkOut: booking.checkOut || "",
+        nextCheckIn: booking.nextBooking?.checkIn || "",
+      });
+
+      setMessage("Stato preparazione aggiornato: " + getPreparationLabel(status) + ".");
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante l'aggiornamento della preparazione alloggio.");
+    }
+  }
+
+  async function setPreparationCheck(booking, key, checked) {
+    clearMessages();
+
+    if (!booking?.id) {
+      setError("Prenotazione non valida.");
+      return;
+    }
+
+    const currentChecks = booking.preparationChecks || {};
+    const nextChecks = {
+      ...currentChecks,
+      [key]: Boolean(checked),
+    };
+
+    try {
+      await updateDoc(doc(db, "bookings", booking.id), {
+        preparationChecks: nextChecks,
+        preparationStatus:
+          Object.values(nextChecks).filter(Boolean).length > 0
+            ? booking.preparationStatus === "completed"
+              ? "completed"
+              : "in_progress"
+            : "to_do",
+        preparationUpdatedAt: serverTimestamp(),
+        preparationUpdatedBy: user?.email || "",
+        updatedAt: serverTimestamp(),
+      });
+
+      await addActivityLog("updated_preparation_check", booking, {
+        check: key,
+        checked: Boolean(checked),
+      });
+
+      setMessage("Controllo preparazione aggiornato.");
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante il salvataggio del controllo preparazione.");
+    }
+  }
+
+  async function updatePreparationNote(booking) {
+    clearMessages();
+
+    if (!booking?.id) {
+      setError("Prenotazione non valida.");
+      return;
+    }
+
+    const note = window.prompt(
+      "Nota pulizia/preparazione per " +
+        (booking.guestName || "questa prenotazione") +
+        ":",
+      booking.preparationNote || ""
+    );
+
+    if (note === null) return;
+
+    try {
+      await updateDoc(doc(db, "bookings", booking.id), {
+        preparationNote: String(note || "").trim(),
+        preparationUpdatedAt: serverTimestamp(),
+        preparationUpdatedBy: user?.email || "",
+        updatedAt: serverTimestamp(),
+      });
+
+      await addActivityLog("updated_preparation_note", booking, {
+        note: String(note || "").trim(),
+      });
+
+      setMessage("Nota preparazione aggiornata.");
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante il salvataggio della nota preparazione.");
     }
   }
 
@@ -3213,6 +3388,9 @@ wifiName: settings.wifiName || "",
           <TabButton active={activeTab === "checkin"} onClick={() => setActiveTab("checkin")}>
             Check-in
           </TabButton>
+          <TabButton active={activeTab === "preparation"} onClick={() => setActiveTab("preparation")}>
+            Pulizie
+          </TabButton>
           <TabButton active={activeTab === "quality"} onClick={() => setActiveTab("quality")}>
             Qualità dati
           </TabButton>
@@ -3528,6 +3706,186 @@ wifiName: settings.wifiName || "",
                 <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
                   Il registro interno non modifica disponibilità, prenotazioni o pagamenti.
                   Serve come storico operativo e controllo interno della struttura.
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "preparation" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Pulizie e preparazione
+              </p>
+              <h2 className="mt-2 font-serif text-3xl">Preparazione alloggio</h2>
+              <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                Lista operativa dei check-out e delle pulizie da completare prima del prossimo arrivo.
+                Qui controlli bagno, cucina, biancheria, chiavi e verifica finale.
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <StatCard title="Check-out oggi" value={preparationStats.todayRows.length} icon={CalendarDays} subtitle="Da preparare" />
+                <StatCard title="Turnover stesso giorno" value={preparationStats.sameDayRows.length} icon={RefreshCcw} subtitle="Priorità alta" />
+                <StatCard title="Da fare" value={preparationStats.toDoRows.length} icon={Lock} subtitle="Non iniziate" />
+                <StatCard title="In corso" value={preparationStats.inProgressRows.length} icon={Search} subtitle="Parziali" />
+                <StatCard title="Completate" value={preparationStats.completedRows.length} icon={ShieldCheck} subtitle="Pronte" />
+                <StatCard title="Non pronte" value={preparationStats.notReadyRows.length} icon={CreditCard} subtitle="Da controllare" />
+              </div>
+
+              <div className="mt-8 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                  Lista pulizie
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                  Check-out e preparazione
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-[#555]">
+                  Segna i controlli completati e aggiorna lo stato dell'alloggio.
+                </p>
+
+                <div className="mt-5 overflow-x-auto">
+                  <table className="w-full min-w-[1350px] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                        <th className="py-3">Check-out</th>
+                        <th className="py-3">Ospite uscita</th>
+                        <th className="py-3">Prossimo arrivo</th>
+                        <th className="py-3">Stato</th>
+                        <th className="py-3">Controlli</th>
+                        <th className="py-3">Nota</th>
+                        <th className="py-3">Azioni</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {preparationStats.rows.length === 0 && (
+                        <tr>
+                          <td colSpan="7" className="py-8 text-center text-[#555]">
+                            Nessuna pulizia programmata nei prossimi 14 giorni.
+                          </td>
+                        </tr>
+                      )}
+
+                      {preparationStats.rows.map((booking) => {
+                        const checks = booking.preparationChecks || {};
+                        const checkItems = [
+                          ["cleaning", "Pulizia"],
+                          ["bathroom", "Bagno"],
+                          ["kitchen", "Cucina"],
+                          ["linen", "Biancheria"],
+                          ["keys", "Chiavi"],
+                          ["finalCheck", "Controllo finale"],
+                        ];
+
+                        return (
+                          <tr key={booking.id} className="border-b border-[#f0e6d5] align-top">
+                            <td className="py-4">
+                              <div className="font-semibold">{formatDate(booking.checkOut)}</div>
+                              {booking.isTodayCheckout && (
+                                <Pill className="mt-2 border-red-200 bg-red-50 text-red-900">
+                                  Oggi
+                                </Pill>
+                              )}
+                              {booking.isSameDayTurnover && (
+                                <Pill className="mt-2 border-red-200 bg-red-50 text-red-900">
+                                  Turnover
+                                </Pill>
+                              )}
+                            </td>
+                            <td className="py-4 font-semibold">{booking.guestName || "-"}</td>
+                            <td className="py-4">
+                              {booking.nextBooking ? (
+                                <div>
+                                  <div className="font-semibold">
+                                    {booking.nextBooking.guestName || "Prossimo ospite"}
+                                  </div>
+                                  <div className="text-sm text-[#555]">
+                                    {formatDate(booking.nextBooking.checkIn)}
+                                  </div>
+                                </div>
+                              ) : (
+                                "-"
+                              )}
+                            </td>
+                            <td className="py-4">
+                              <Pill className={getPreparationClass(booking.preparationStatus)}>
+                                {getPreparationLabel(booking.preparationStatus)}
+                              </Pill>
+                              <div className="mt-2 text-xs text-[#555]">
+                                {booking.preparationCompletedChecks}/{booking.preparationTotalChecks} controlli
+                              </div>
+                            </td>
+                            <td className="py-4">
+                              <div className="grid gap-2 md:grid-cols-2">
+                                {checkItems.map(([key, label]) => (
+                                  <label key={key} className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm">
+                                    <input
+                                      type="checkbox"
+                                      checked={Boolean(checks[key])}
+                                      onChange={(event) =>
+                                        setPreparationCheck(booking, key, event.target.checked)
+                                      }
+                                    />
+                                    <span>{label}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="py-4 text-sm leading-6 text-[#555]">
+                              {booking.preparationNote || "-"}
+                            </td>
+                            <td className="py-4">
+                              <div className="flex flex-wrap gap-2">
+                                <SmallButton
+                                  onClick={() => setPreparationStatus(booking, "to_do")}
+                                  className="bg-red-900 text-white"
+                                >
+                                  Da fare
+                                </SmallButton>
+
+                                <SmallButton
+                                  onClick={() => setPreparationStatus(booking, "in_progress")}
+                                  className="bg-[#f5c84b] text-[#0a1d35]"
+                                >
+                                  In corso
+                                </SmallButton>
+
+                                <SmallButton
+                                  onClick={() => setPreparationStatus(booking, "completed")}
+                                  className="bg-green-700 text-white"
+                                >
+                                  Completata
+                                </SmallButton>
+
+                                <SmallButton
+                                  onClick={() => updatePreparationNote(booking)}
+                                  className="bg-[#9b6b25] text-white"
+                                >
+                                  Nota
+                                </SmallButton>
+
+                                <SmallButton
+                                  onClick={() => {
+                                    setSelectedBookingId(booking.id);
+                                    setActiveTab("calendar");
+                                  }}
+                                  className="bg-[#0a1d35] text-white"
+                                >
+                                  Apri dettagli
+                                </SmallButton>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  La scheda Pulizie aggiorna solo lo stato di preparazione della prenotazione.
+                  Non modifica calendario, pagamenti o disponibilità pubblica.
                 </div>
               </div>
             </div>
