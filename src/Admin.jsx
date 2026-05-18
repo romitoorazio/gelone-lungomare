@@ -1703,15 +1703,80 @@ wifiName: settings.wifiName || "",
     }
   }
 
+  function hasSensitivePayment(booking) {
+    return ["paid", "deposit_paid", "pending"].includes(String(booking?.paymentStatus || ""));
+  }
+
+  function buildDangerPaymentWarning(booking) {
+    if (!hasSensitivePayment(booking)) return "";
+
+    return (
+      "\n\nATTENZIONE: questa prenotazione risulta con pagamento/caparra/link in corso." +
+      "\nStato pagamento: " +
+      getPaymentLabel(booking.paymentStatus) +
+      "\nTotale: " +
+      formatEuro(booking.totalPrice) +
+      "\nCaparra: " +
+      formatEuro(booking.depositAmount)
+    );
+  }
+
   async function cancelBooking(booking) {
     clearMessages();
+
+    if (!booking?.id) {
+      setError("Seleziona una prenotazione valida.");
+      return;
+    }
+
+    const reason = window.prompt(
+      "Motivo obbligatorio per annullare la prenotazione di " +
+        (booking.guestName || "questo ospite") +
+        ".\n\nQuesta azione libera le notti e modifica la disponibilità pubblica." +
+        buildDangerPaymentWarning(booking) +
+        "\n\nScrivi il motivo dell'annullamento:"
+    );
+
+    if (reason === null) {
+      setMessage("Annullamento interrotto.");
+      return;
+    }
+
+    const cleanReason = String(reason || "").trim();
+
+    if (cleanReason.length < 5) {
+      setError("Annullamento non eseguito: devi inserire un motivo chiaro, almeno 5 caratteri.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Confermi annullamento prenotazione?\n\n" +
+        "Ospite: " +
+        (booking.guestName || "-") +
+        "\nDate: " +
+        formatDate(booking.checkIn) +
+        " - " +
+        formatDate(booking.checkOut) +
+        "\nMotivo: " +
+        cleanReason +
+        "\n\nLe notti verranno liberate nel calendario pubblico."
+    );
+
+    if (!confirmed) {
+      setMessage("Annullamento interrotto.");
+      return;
+    }
 
     try {
       const batch = writeBatch(db);
 
       batch.update(doc(db, "bookings", booking.id), {
         status: "cancelled",
+        cancellationReason: cleanReason,
+        cancellationPreviousStatus: booking.status || "",
+        cancellationPreviousPaymentStatus: booking.paymentStatus || "",
         cancelledAt: serverTimestamp(),
+        cancelledBy: user?.email || "",
         updatedAt: serverTimestamp(),
       });
 
@@ -1721,8 +1786,19 @@ wifiName: settings.wifiName || "",
       });
 
       await batch.commit();
-      await addActivityLog("cancelled_booking", booking);
-      setMessage("Prenotazione annullata e notti liberate.");
+
+      await addActivityLog("cancelled_booking", booking, {
+        reason: cleanReason,
+        previousStatus: booking.status || "",
+        previousPaymentStatus: booking.paymentStatus || "",
+        previousPaymentLabel: getPaymentLabel(booking.paymentStatus),
+        totalPrice: booking.totalPrice ?? null,
+        depositAmount: booking.depositAmount ?? null,
+        nightsReleased: nights.length,
+        sensitivePayment: hasSensitivePayment(booking),
+      });
+
+      setMessage("Prenotazione annullata con motivo registrato e notti liberate.");
     } catch (err) {
       console.error(err);
       setError("Errore durante l'annullamento.");
@@ -1731,6 +1807,60 @@ wifiName: settings.wifiName || "",
 
   async function deleteBookingForever(booking) {
     clearMessages();
+
+    if (!booking?.id) {
+      setError("Seleziona una prenotazione valida.");
+      return;
+    }
+
+    const reason = window.prompt(
+      "Motivo eliminazione DEFINITIVA per " +
+        (booking.guestName || "questa prenotazione") +
+        ".\n\nQuesta azione cancella la prenotazione dall'Admin e libera le notti." +
+        buildDangerPaymentWarning(booking) +
+        "\n\nScrivi il motivo:"
+    );
+
+    if (reason === null) {
+      setMessage("Eliminazione interrotta.");
+      return;
+    }
+
+    const cleanReason = String(reason || "").trim();
+
+    if (cleanReason.length < 5) {
+      setError("Eliminazione non eseguita: devi inserire un motivo chiaro, almeno 5 caratteri.");
+      return;
+    }
+
+    const confirmationText = window.prompt(
+      "CONFERMA FORTE\n\n" +
+        "Per eliminare definitivamente la prenotazione di " +
+        (booking.guestName || "-") +
+        " dal " +
+        formatDate(booking.checkIn) +
+        " al " +
+        formatDate(booking.checkOut) +
+        ", scrivi esattamente: ELIMINA"
+    );
+
+    if (String(confirmationText || "").trim().toUpperCase() !== "ELIMINA") {
+      setError("Eliminazione bloccata: non hai scritto ELIMINA.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Ultima conferma.\n\n" +
+        "La prenotazione verrà eliminata definitivamente.\n" +
+        "Le notti verranno liberate.\n" +
+        "Il log conserverà motivo, stato e pagamento precedente.\n\n" +
+        "Procedere?"
+    );
+
+    if (!confirmed) {
+      setMessage("Eliminazione interrotta.");
+      return;
+    }
 
     try {
       const batch = writeBatch(db);
@@ -1743,13 +1873,24 @@ wifiName: settings.wifiName || "",
       batch.delete(doc(db, "bookings", booking.id));
 
       await batch.commit();
-      await addActivityLog("deleted_booking", booking);
+
+      await addActivityLog("deleted_booking", booking, {
+        reason: cleanReason,
+        previousStatus: booking.status || "",
+        previousPaymentStatus: booking.paymentStatus || "",
+        previousPaymentLabel: getPaymentLabel(booking.paymentStatus),
+        totalPrice: booking.totalPrice ?? null,
+        depositAmount: booking.depositAmount ?? null,
+        nightsReleased: nights.length,
+        sensitivePayment: hasSensitivePayment(booking),
+        strongConfirmation: "ELIMINA",
+      });
 
       if (selectedBookingId === booking.id) {
         setSelectedBookingId("");
       }
 
-      setMessage("Prenotazione eliminata definitivamente.");
+      setMessage("Prenotazione eliminata definitivamente con log di sicurezza registrato.");
     } catch (err) {
       console.error(err);
       setError("Errore durante l'eliminazione.");
