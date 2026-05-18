@@ -989,6 +989,150 @@ export default function Admin() {
     };
   }, [bookings, economyPeriod, economyDateFrom, economyDateTo]);
 
+  const controlsStats = useMemo(() => {
+    const today = getToday();
+    const urgentLimitDate = parseDateAsUTC(today);
+    urgentLimitDate.setUTCDate(urgentLimitDate.getUTCDate() + 7);
+    const urgentLimit = urgentLimitDate.toISOString().slice(0, 10);
+
+    const activeRows = bookings.filter((booking) => booking.status !== "cancelled");
+    const realRows = activeRows.filter((booking) => booking.status !== "blocked");
+    const confirmedStatuses = ["confirmed_direct", "booking", "airbnb", "imported_ical"];
+
+    const getTotal = (booking) => Number(booking.totalPrice || 0);
+    const getDeposit = (booking) => Number(booking.depositAmount || 0);
+
+    const getPaidAmount = (booking) => {
+      if (booking.paymentStatus === "paid") return getTotal(booking);
+      if (booking.paymentStatus === "deposit_paid") return getDeposit(booking);
+      return 0;
+    };
+
+    const rowsWithControlData = realRows.map((booking) => {
+      const total = getTotal(booking);
+      const paid = getPaidAmount(booking);
+      const balanceDue = Math.max(total - paid, 0);
+      const checkIn = String(booking.checkIn || "");
+      const isCheckInSoon = checkIn >= today && checkIn <= urgentLimit;
+      const missingPhone = !String(booking.guestPhone || "").trim();
+      const missingEmail = !String(booking.guestEmail || "").trim();
+      const missingContact = missingPhone || missingEmail;
+      const missingPrice = total <= 0;
+      const welcomateStatus = booking.welcomateStatus || "to_send";
+      const welcomateNeedsWork = ["to_send", "missing", "", undefined, null].includes(welcomateStatus);
+      const isConfirmed = confirmedStatuses.includes(booking.status);
+
+      return {
+        ...booking,
+        total,
+        paidAmount: paid,
+        balanceDue,
+        isCheckInSoon,
+        missingPhone,
+        missingEmail,
+        missingContact,
+        missingPrice,
+        welcomateNeedsWork,
+        isConfirmed,
+      };
+    });
+
+    const requestsToConfirm = rowsWithControlData.filter((booking) =>
+      ["pending_direct", "pending"].includes(booking.status)
+    );
+
+    const openBalances = rowsWithControlData.filter((booking) => booking.balanceDue > 0);
+
+    const welcomateToSend = rowsWithControlData.filter(
+      (booking) => booking.isConfirmed && booking.welcomateNeedsWork
+    );
+
+    const checkInsSoon = rowsWithControlData.filter(
+      (booking) => booking.isConfirmed && booking.isCheckInSoon
+    );
+
+    const missingPriceRows = rowsWithControlData.filter((booking) => booking.missingPrice);
+    const missingContactRows = rowsWithControlData.filter((booking) => booking.missingContact);
+
+    const actionRows = [];
+
+    requestsToConfirm.forEach((booking) => {
+      actionRows.push({
+        id: booking.id + "_confirm",
+        booking,
+        priority: "Alta",
+        type: "Richiesta da confermare",
+        detail: "Richiesta non ancora confermata",
+        action: "confirm",
+      });
+    });
+
+    openBalances.forEach((booking) => {
+      actionRows.push({
+        id: booking.id + "_balance",
+        booking,
+        priority: booking.isCheckInSoon ? "Alta" : "Media",
+        type: "Saldo da incassare",
+        detail: "Da ricevere " + formatEuro(booking.balanceDue),
+        action: "balance",
+      });
+    });
+
+    welcomateToSend.forEach((booking) => {
+      actionRows.push({
+        id: booking.id + "_welcomate",
+        booking,
+        priority: booking.isCheckInSoon ? "Alta" : "Media",
+        type: "WelcoMate da gestire",
+        detail: getWelcomateLabel(booking.welcomateStatus),
+        action: "welcomate",
+      });
+    });
+
+    missingPriceRows.forEach((booking) => {
+      actionRows.push({
+        id: booking.id + "_price",
+        booking,
+        priority: "Media",
+        type: "Prezzo mancante",
+        detail: "Totale prenotazione non inserito",
+        action: "details",
+      });
+    });
+
+    missingContactRows.forEach((booking) => {
+      actionRows.push({
+        id: booking.id + "_contact",
+        booking,
+        priority: booking.isCheckInSoon ? "Alta" : "Media",
+        type: "Contatto incompleto",
+        detail:
+          (booking.missingPhone ? "telefono mancante" : "") +
+          (booking.missingPhone && booking.missingEmail ? " · " : "") +
+          (booking.missingEmail ? "email mancante" : ""),
+        action: "details",
+      });
+    });
+
+    actionRows.sort((a, b) => {
+      const priorityOrder = { Alta: 0, Media: 1, Bassa: 2 };
+      const priorityDiff = (priorityOrder[a.priority] ?? 9) - (priorityOrder[b.priority] ?? 9);
+      if (priorityDiff !== 0) return priorityDiff;
+      return String(a.booking.checkIn || "").localeCompare(String(b.booking.checkIn || ""));
+    });
+
+    return {
+      requestsToConfirm,
+      openBalances,
+      welcomateToSend,
+      checkInsSoon,
+      missingPriceRows,
+      missingContactRows,
+      actionRows: actionRows.slice(0, 40),
+      openBalanceTotal: openBalances.reduce((sum, booking) => sum + Number(booking.balanceDue || 0), 0),
+    };
+  }, [bookings]);
+
   function clearMessages() {
     setMessage("");
     setError("");
@@ -2369,6 +2513,9 @@ wifiName: settings.wifiName || "",
           <TabButton active={activeTab === "economy"} onClick={() => setActiveTab("economy")}>
             Economia
           </TabButton>
+          <TabButton active={activeTab === "checks"} onClick={() => setActiveTab("checks")}>
+            Controlli
+          </TabButton>
           <TabButton active={activeTab === "block"} onClick={() => setActiveTab("block")}>
             Blocca date
           </TabButton>
@@ -2425,6 +2572,143 @@ wifiName: settings.wifiName || "",
               className="mt-4 min-h-56 w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-sm leading-6"
             />
           </div>
+        )}
+
+        {activeTab === "checks" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Controllo operativo
+              </p>
+              <h2 className="mt-2 font-serif text-3xl">Cose da controllare</h2>
+              <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                Questa sezione ti dice cosa richiede attenzione prima del check-in:
+                pagamenti, richieste, WelcoMate, dati mancanti e prenotazioni incomplete.
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <StatCard title="Richieste" value={controlsStats.requestsToConfirm.length} icon={RefreshCcw} subtitle="Da confermare" />
+                <StatCard title="Saldi aperti" value={formatEuro(controlsStats.openBalanceTotal)} icon={CreditCard} subtitle={controlsStats.openBalances.length + " prenotazioni"} />
+                <StatCard title="WelcoMate" value={controlsStats.welcomateToSend.length} icon={MessageCircle} subtitle="Da inviare o controllare" />
+                <StatCard title="Check-in 7 giorni" value={controlsStats.checkInsSoon.length} icon={CalendarDays} subtitle="Arrivi vicini" />
+                <StatCard title="Senza prezzo" value={controlsStats.missingPriceRows.length} icon={Search} subtitle="Totale mancante" />
+                <StatCard title="Dati mancanti" value={controlsStats.missingContactRows.length} icon={Mail} subtitle="Telefono o email" />
+              </div>
+
+              <div className="mt-8 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                      Azioni operative
+                    </p>
+                    <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                      Lista priorità
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-[#555]">
+                      Le priorità alte sono quelle più vicine al check-in o più delicate.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 overflow-x-auto">
+                  <table className="w-full min-w-[1050px] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                        <th className="py-3">Priorità</th>
+                        <th className="py-3">Tipo</th>
+                        <th className="py-3">Ospite</th>
+                        <th className="py-3">Date</th>
+                        <th className="py-3">Dettaglio</th>
+                        <th className="py-3">Azioni</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {controlsStats.actionRows.length === 0 && (
+                        <tr>
+                          <td colSpan="6" className="py-8 text-center text-[#555]">
+                            Nessuna azione urgente trovata.
+                          </td>
+                        </tr>
+                      )}
+
+                      {controlsStats.actionRows.map((item) => (
+                        <tr key={item.id} className="border-b border-[#f0e6d5] align-top">
+                          <td className="py-4">
+                            <Pill
+                              className={
+                                item.priority === "Alta"
+                                  ? "border-red-200 bg-red-50 text-red-900"
+                                  : "border-amber-200 bg-amber-50 text-amber-900"
+                              }
+                            >
+                              {item.priority}
+                            </Pill>
+                          </td>
+                          <td className="py-4 font-semibold">{item.type}</td>
+                          <td className="py-4">{item.booking.guestName || "-"}</td>
+                          <td className="py-4">
+                            {formatDate(item.booking.checkIn)} - {formatDate(item.booking.checkOut)}
+                          </td>
+                          <td className="py-4 text-sm text-[#555]">{item.detail}</td>
+                          <td className="py-4">
+                            <div className="flex flex-wrap gap-2">
+                              <SmallButton
+                                onClick={() => {
+                                  setSelectedBookingId(item.booking.id);
+                                  setActiveTab("calendar");
+                                }}
+                                className="bg-[#0a1d35] text-white"
+                              >
+                                Apri dettagli
+                              </SmallButton>
+
+                              {item.action === "confirm" && (
+                                <SmallButton
+                                  onClick={() => confirmBooking(item.booking)}
+                                  className="bg-green-700 text-white"
+                                >
+                                  Conferma
+                                </SmallButton>
+                              )}
+
+                              {item.action === "balance" && (
+                                <SmallButton
+                                  onClick={() =>
+                                    setManualPaymentStatus(
+                                      item.booking,
+                                      "paid",
+                                      "saldo_pagato_da_controlli"
+                                    )
+                                  }
+                                  className="bg-green-700 text-white"
+                                >
+                                  Segna saldo pagato
+                                </SmallButton>
+                              )}
+
+                              {item.action === "welcomate" && (
+                                <SmallButton
+                                  onClick={() => copyWelcomateAndMarkSent(item.booking)}
+                                  className="bg-[#9b6b25] text-white"
+                                >
+                                  Copia WelcoMate
+                                </SmallButton>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  Questa scheda non modifica nulla da sola: ti mostra cosa controllare e usa solo pulsanti espliciti per le azioni operative.
+                </div>
+              </div>
+            </div>
+          </section>
         )}
 
         {activeTab === "economy" && (
