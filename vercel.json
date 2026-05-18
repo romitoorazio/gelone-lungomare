@@ -41,5 +41,11 @@
       "source": "/admin/:path*",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-sync-calendars",
+      "schedule": "0 * * * *"
+    }
   ]
 }
