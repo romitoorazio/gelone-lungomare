@@ -2928,11 +2928,11 @@ wifiName: settings.wifiName || "",
               </p>
 
               <div className="mt-6 grid gap-4 md:grid-cols-5">
-                <StatCard title="Prenotazioni" value={backupStats.allBookings} icon={CalendarDays} subtitle="Totali unità" />
-                <StatCard title="Future" value={backupStats.futureBookings} icon={ShieldCheck} subtitle="Da oggi in poi" />
-                <StatCard title="Cancellate" value={backupStats.cancelledBookings} icon={Trash2} subtitle="Ancora presenti" />
-                <StatCard title="Log" value={backupStats.activityLogs} icon={Search} subtitle="Ultimi caricati" />
-                <StatCard title="Azioni delicate" value={backupStats.deletedOrCancelledLogs} icon={Lock} subtitle="Cancellazioni/eliminazioni" />
+                <StatCard title="Prenotazioni totali" value={backupStats.allBookings} icon={CalendarDays} subtitle="Attive + cancellate" />
+                <StatCard title="Future" value={backupStats.futureBookings} icon={ShieldCheck} subtitle="Attive da oggi in poi" />
+                <StatCard title="Annullate" value={backupStats.cancelledBookings} icon={Trash2} subtitle="Salvate nello storico" />
+                <StatCard title="Log attività" value={backupStats.activityLogs} icon={Search} subtitle="Ultimi log caricati" />
+                <StatCard title="Azioni delicate" value={backupStats.deletedOrCancelledLogs} icon={Lock} subtitle="Annullamenti/eliminazioni" />
               </div>
 
               <div className="mt-8 grid gap-5 lg:grid-cols-2">
@@ -2944,7 +2944,7 @@ wifiName: settings.wifiName || "",
                     Export prenotazioni CSV
                   </h3>
                   <p className="mt-2 text-sm leading-6 text-[#555]">
-                    Esporta le prenotazioni dell'unità selezionata con date,
+                    Esporta i record prenotazione dell'unità selezionata con date,
                     ospite, stato, pagamento, totale, caparra e note.
                   </p>
 
