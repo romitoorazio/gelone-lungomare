@@ -6332,12 +6332,58 @@ wifiName: settings.wifiName || "",
                   {syncLoading ? "Sincronizzazione..." : "Sincronizza ora"}
                 </button>
               </div>
+              {syncResult && (() => {
+                const totals = syncResult.totals || {};
+                const sources = totals.sources || {};
+                const bookingSync = sources.booking_ical || {};
+                const airbnbSync = sources.airbnb_ical || {};
 
-              {syncResult && (
-                <pre className="mt-6 overflow-auto rounded-2xl bg-[#0a1d35] p-4 text-sm text-white">
-                  {JSON.stringify(syncResult, null, 2)}
-                </pre>
-              )}
+                return (
+                  <div className="mt-6 rounded-2xl border border-[#d7c49f] bg-[#faf6ee] p-5">
+                    <p className="text-sm uppercase tracking-[0.2em] text-[#9b6b25]">
+                      Riepilogo sincronizzazione
+                    </p>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <DetailRow
+                        label="Booking"
+                        value={
+                          (bookingSync.urlPresent ? "Link presente" : "Link assente") +
+                          " · " +
+                          (bookingSync.imported || 0) +
+                          " importate · " +
+                          (bookingSync.skippedConflict || 0) +
+                          " conflitti protetti"
+                        }
+                      />
+                      <DetailRow
+                        label="Airbnb"
+                        value={
+                          (airbnbSync.urlPresent ? "Link presente" : "Link assente") +
+                          " · " +
+                          (airbnbSync.imported || 0) +
+                          " importate · " +
+                          (airbnbSync.skippedConflict || 0) +
+                          " conflitti protetti"
+                        }
+                      />
+                      <DetailRow
+                        label="Eventi rimossi dai portali"
+                        value={totals.cancelledStale || 0}
+                      />
+                      <DetailRow
+                        label="Notti spostate liberate"
+                        value={totals.movedNightsDeleted || 0}
+                      />
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm leading-6 text-green-900">
+                      Sincronizzazione completata correttamente. I conflitti protetti non sono errori:
+                      indicano date già occupate che il sistema non ha sovrascritto.
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </section>
         )}
