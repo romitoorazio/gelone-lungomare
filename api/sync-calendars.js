@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+﻿import crypto from "node:crypto";
 import {
   FieldValue,
   getFirebaseAdminAuth,
@@ -258,6 +258,85 @@ async function readPrivateSettings(adminDb, unitId) {
   return legacy.exists ? legacy.data() : {};
 }
 
+
+async function deleteMovedNightsForBooking(adminDb, unitId, bookingId, previousCheckIn, previousCheckOut, currentNights, batch) {
+  const previousNights = getNightDates(previousCheckIn, previousCheckOut);
+  const currentNightSet = new Set(currentNights);
+
+  const staleNights = previousNights.filter((night) => !currentNightSet.has(night));
+  if (staleNights.length === 0) return 0;
+
+  const nightRefs = staleNights.map((night) => adminDb.collection("nights").doc(`${unitId}_${night}`));
+  const nightSnapshots = await adminDb.getAll(...nightRefs);
+
+  let deleted = 0;
+
+  nightSnapshots.forEach((snapshot, index) => {
+    if (!snapshot.exists) return;
+    const data = snapshot.data();
+
+    if (data?.bookingId === bookingId) {
+      batch.delete(nightRefs[index]);
+      deleted += 1;
+    }
+  });
+
+  return deleted;
+}
+
+async function cancelStaleExternalBookings(adminDb, unitId, sourceConfig, activeExternalKeys) {
+  const snapshot = await adminDb
+    .collection("bookings")
+    .where("source", "==", sourceConfig.key)
+    .get();
+
+  let cancelled = 0;
+
+  for (const bookingSnapshot of snapshot.docs) {
+    const data = bookingSnapshot.data();
+
+    const bookingUnitId = sanitizeUnitId(data?.unitId || DEFAULT_UNIT_ID) || DEFAULT_UNIT_ID;
+    if (bookingUnitId !== unitId) continue;
+
+    if (!data?.externalKey) continue;
+    if (!isActiveStatus(data?.status)) continue;
+    if (activeExternalKeys.has(data.externalKey)) continue;
+
+    const nights = getNightDates(data.checkIn, data.checkOut);
+    const nightRefs = nights.map((night) => adminDb.collection("nights").doc(`${unitId}_${night}`));
+    const nightSnapshots = nightRefs.length > 0 ? await adminDb.getAll(...nightRefs) : [];
+
+    const batch = adminDb.batch();
+
+    nightSnapshots.forEach((nightSnapshot, index) => {
+      if (!nightSnapshot.exists) return;
+      const nightData = nightSnapshot.data();
+
+      if (nightData?.bookingId === bookingSnapshot.id) {
+        batch.delete(nightRefs[index]);
+      }
+    });
+
+    batch.set(
+      bookingSnapshot.ref,
+      {
+        status: "cancelled",
+        staleExternal: true,
+        staleExternalSource: sourceConfig.key,
+        cancellationReason: `Evento non piu presente nel calendario ${sourceConfig.label}`,
+        cancelledAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    await batch.commit();
+    cancelled += 1;
+  }
+
+  return cancelled;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return json(res, 405, { ok: false, message: "Metodo non consentito." });
@@ -275,7 +354,7 @@ export default async function handler(req, res) {
     const unit = await getUnitConfig(adminDb, requestedUnitId);
 
     if (!unit) {
-      return json(res, 404, { ok: false, message: "Unità non trovata." });
+      return json(res, 404, { ok: false, message: "UnitÃ  non trovata." });
     }
 
     const settings = await readPrivateSettings(adminDb, unit.id);
@@ -284,12 +363,14 @@ export default async function handler(req, res) {
       skippedNoUrl: 0,
       skippedInvalid: 0,
       skippedConflict: 0,
+      cancelledStale: 0,
+      movedNightsDeleted: 0,
       sources: {},
     };
 
     for (const sourceConfig of SOURCE_CONFIGS) {
       const url = cleanText(settings[sourceConfig.settingsField]);
-      totals.sources[sourceConfig.key] = { imported: 0, skippedConflict: 0, skippedInvalid: 0, urlPresent: Boolean(url) };
+      totals.sources[sourceConfig.key] = { imported: 0, skippedConflict: 0, skippedInvalid: 0, cancelledStale: 0, movedNightsDeleted: 0, urlPresent: Boolean(url) };
 
       if (!url) {
         totals.skippedNoUrl += 1;
@@ -297,9 +378,22 @@ export default async function handler(req, res) {
       }
 
       const icsText = await fetchIcs(url);
-      const events = parseIcsEvents(icsText)
+      const rawEvents = parseIcsEvents(icsText);
+      const events = rawEvents
         .map((event) => normalizeExternalEvent(event, sourceConfig))
         .filter(Boolean);
+
+      const skippedInvalid = Math.max(0, rawEvents.length - events.length);
+      totals.skippedInvalid += skippedInvalid;
+      totals.sources[sourceConfig.key].skippedInvalid += skippedInvalid;
+
+      const activeExternalKeys = new Set(events.map((event) => event.externalKey));
+
+      if (rawEvents.length > 0) {
+        const cancelledStale = await cancelStaleExternalBookings(adminDb, unit.id, sourceConfig, activeExternalKeys);
+        totals.cancelledStale += cancelledStale;
+        totals.sources[sourceConfig.key].cancelledStale += cancelledStale;
+      }
 
       for (const event of events) {
         const bookingId = getBookingDocId(unit.id, sourceConfig.key, event.externalKey);
@@ -319,6 +413,22 @@ export default async function handler(req, res) {
 
         const batch = adminDb.batch();
         const bookingRef = adminDb.collection("bookings").doc(bookingId);
+        const existingBookingSnapshot = await bookingRef.get();
+
+        const movedNightsDeleted = existingBookingSnapshot.exists
+          ? await deleteMovedNightsForBooking(
+              adminDb,
+              unit.id,
+              bookingId,
+              existingBookingSnapshot.data()?.checkIn,
+              existingBookingSnapshot.data()?.checkOut,
+              event.nights,
+              batch
+            )
+          : 0;
+
+        totals.movedNightsDeleted += movedNightsDeleted;
+        totals.sources[sourceConfig.key].movedNightsDeleted += movedNightsDeleted;
 
         batch.set(
           bookingRef,
