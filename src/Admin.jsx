@@ -539,6 +539,7 @@ export default function Admin() {
   const [settingsSavedAt, setSettingsSavedAt] = useState("");
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
+  const [syncLogs, setSyncLogs] = useState([]);
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [cleanupResult, setCleanupResult] = useState(null);
   const [manualCopy, setManualCopy] = useState({ title: "", text: "" });
@@ -797,6 +798,20 @@ export default function Admin() {
       .slice(0, 80);
   }, [activityLogs, selectedUnitId]);
 
+  const visibleSyncLogs = useMemo(() => {
+    return syncLogs
+      .filter((item) => !item.unitId || item.unitId === selectedUnitId)
+      .slice(0, 20);
+  }, [syncLogs, selectedUnitId]);
+
+  const latestAutomaticSyncLog = useMemo(() => {
+    return visibleSyncLogs.find((item) => item.source === "vercel_cron") || null;
+  }, [visibleSyncLogs]);
+
+  const latestManualSyncLog = useMemo(() => {
+    return visibleActivityLogs.find((item) => item.action === "synced_calendars") || null;
+  }, [visibleActivityLogs]);
+
   const visibleInternalRecords = useMemo(() => {
     return internalRecords
       .filter((item) => !item.unitId || item.unitId === selectedUnitId)
@@ -849,13 +864,19 @@ export default function Admin() {
           .filter((item) => item.type === "internal_record")
           .slice(0, 160);
 
+        const syncRows = rows
+          .filter((item) => item.type === "calendar_sync")
+          .slice(0, 80);
+
         setActivityLogs(adminRows);
         setInternalRecords(recordRows);
+        setSyncLogs(syncRows);
       },
       (err) => {
         console.warn("Log attivita non caricati:", err);
         setActivityLogs([]);
         setInternalRecords([]);
+        setSyncLogs([]);
       }
     );
 
@@ -6332,7 +6353,84 @@ wifiName: settings.wifiName || "",
                   {syncLoading ? "Sincronizzazione..." : "Sincronizza ora"}
                 </button>
               </div>
-              {syncResult && (() => {
+
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                <div className="rounded-2xl border border-[#d7c49f] bg-[#faf6ee] p-5">
+                  <p className="text-sm uppercase tracking-[0.2em] text-[#9b6b25]">
+                    Ultima sincronizzazione automatica
+                  </p>
+
+                  {latestAutomaticSyncLog ? (
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <DetailRow
+                        label="Quando"
+                        value={formatDateTime(latestAutomaticSyncLog.createdAt)}
+                      />
+                      <DetailRow
+                        label="Stato"
+                        value={latestAutomaticSyncLog.ok === false ? "Errore" : "Completata"}
+                      />
+                      <DetailRow
+                        label="Importate"
+                        value={String(latestAutomaticSyncLog.imported ?? latestAutomaticSyncLog.totals?.imported ?? 0)}
+                      />
+                      <DetailRow
+                        label="Conflitti protetti"
+                        value={String(latestAutomaticSyncLog.skippedConflict ?? latestAutomaticSyncLog.totals?.skippedConflict ?? 0)}
+                      />
+                      <DetailRow
+                        label="Ignorate"
+                        value={String(latestAutomaticSyncLog.skippedIgnored ?? latestAutomaticSyncLog.totals?.skippedIgnored ?? 0)}
+                      />
+                      <DetailRow
+                        label="Messaggio"
+                        value={latestAutomaticSyncLog.message || "Sync automatica completata."}
+                      />
+                    </div>
+                  ) : (
+                    <p className="mt-4 rounded-2xl bg-white p-4 text-sm leading-6 text-[#555]">
+                      Nessuna sincronizzazione automatica registrata ancora. Verrà compilata dopo il primo passaggio del cron Vercel.
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-[#d7c49f] bg-[#faf6ee] p-5">
+                  <p className="text-sm uppercase tracking-[0.2em] text-[#9b6b25]">
+                    Ultima sincronizzazione manuale
+                  </p>
+
+                  {latestManualSyncLog ? (() => {
+                    const details = latestManualSyncLog.details || {};
+
+                    return (
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <DetailRow
+                          label="Quando"
+                          value={formatDateTime(latestManualSyncLog.createdAt)}
+                        />
+                        <DetailRow
+                          label="Admin"
+                          value={latestManualSyncLog.adminEmail || "-"}
+                        />
+                        <DetailRow
+                          label="Importate"
+                          value={String(details.imported ?? 0)}
+                        />
+                        <DetailRow
+                          label="Conflitti protetti"
+                          value={String(details.skippedConflict ?? 0)}
+                        />
+                      </div>
+                    );
+                  })() : (
+                    <p className="mt-4 rounded-2xl bg-white p-4 text-sm leading-6 text-[#555]">
+                      Nessuna sincronizzazione manuale registrata ancora.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+                            {syncResult && (() => {
                 const totals = syncResult.totals || {};
                 const sources = totals.sources || {};
                 const bookingSync = sources.booking_ical || {};
