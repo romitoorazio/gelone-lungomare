@@ -1184,6 +1184,59 @@ export default function Admin() {
     };
   }, [bookings]);
 
+  const checkinStats = useMemo(() => {
+    const today = getToday();
+    const limitDate = parseDateAsUTC(today);
+    limitDate.setUTCDate(limitDate.getUTCDate() + 7);
+    const limit = limitDate.toISOString().slice(0, 10);
+
+    const activeStatuses = ["confirmed_direct", "booking", "airbnb", "imported_ical"];
+
+    const rows = bookings
+      .filter((booking) => booking.status !== "cancelled" && booking.status !== "blocked")
+      .filter((booking) => activeStatuses.includes(booking.status))
+      .filter((booking) => {
+        const checkIn = String(booking.checkIn || "");
+        return checkIn >= today && checkIn <= limit;
+      })
+      .map((booking) => {
+        const readiness = getBookingReadiness(booking);
+        const total = Number(booking.totalPrice || 0);
+        const deposit = Number(booking.depositAmount || 0);
+        const paymentStatus = String(booking.paymentStatus || "unpaid");
+        const paidAmount =
+          paymentStatus === "paid"
+            ? total
+            : paymentStatus === "deposit_paid"
+              ? deposit
+              : 0;
+        const balanceDue = Math.max(total - paidAmount, 0);
+        const checkIn = String(booking.checkIn || "");
+        const isToday = checkIn === today;
+        const welcomateOpen = !["sent", "completed", "not_needed"].includes(
+          String(booking.welcomateStatus || "")
+        );
+
+        return {
+          ...booking,
+          readiness,
+          balanceDue,
+          isToday,
+          welcomateOpen,
+        };
+      })
+      .sort((a, b) => String(a.checkIn || "").localeCompare(String(b.checkIn || "")));
+
+    return {
+      rows,
+      todayRows: rows.filter((booking) => booking.isToday),
+      readyRows: rows.filter((booking) => booking.readiness.ready),
+      notReadyRows: rows.filter((booking) => !booking.readiness.ready),
+      openBalanceRows: rows.filter((booking) => booking.balanceDue > 0),
+      welcomateRows: rows.filter((booking) => booking.welcomateOpen),
+    };
+  }, [bookings]);
+
   const controlsStats = useMemo(() => {
     const today = getToday();
     const urgentLimitDate = parseDateAsUTC(today);
@@ -3157,6 +3210,9 @@ wifiName: settings.wifiName || "",
           <TabButton active={activeTab === "backup"} onClick={() => setActiveTab("backup")}>
             Backup
           </TabButton>
+          <TabButton active={activeTab === "checkin"} onClick={() => setActiveTab("checkin")}>
+            Check-in
+          </TabButton>
           <TabButton active={activeTab === "quality"} onClick={() => setActiveTab("quality")}>
             Qualità dati
           </TabButton>
@@ -3472,6 +3528,158 @@ wifiName: settings.wifiName || "",
                 <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
                   Il registro interno non modifica disponibilità, prenotazioni o pagamenti.
                   Serve come storico operativo e controllo interno della struttura.
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "checkin" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Check-in operativo
+              </p>
+              <h2 className="mt-2 font-serif text-3xl">Arrivi da preparare</h2>
+              <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                Lista pratica degli arrivi di oggi e dei prossimi 7 giorni, con pagamento,
+                WelcoMate, qualità dati, telefono e note operative.
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <StatCard title="Arrivi oggi" value={checkinStats.todayRows.length} icon={CalendarDays} subtitle="Check-in odierni" />
+                <StatCard title="Entro 7 giorni" value={checkinStats.rows.length} icon={RefreshCcw} subtitle="Arrivi vicini" />
+                <StatCard title="Pronti" value={checkinStats.readyRows.length} icon={ShieldCheck} subtitle="Operativi completi" />
+                <StatCard title="Non pronti" value={checkinStats.notReadyRows.length} icon={Lock} subtitle="Richiedono controllo" />
+                <StatCard title="Saldi aperti" value={checkinStats.openBalanceRows.length} icon={CreditCard} subtitle="Da incassare" />
+                <StatCard title="WelcoMate" value={checkinStats.welcomateRows.length} icon={MessageCircle} subtitle="Da gestire" />
+              </div>
+
+              <div className="mt-8 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                  Lista check-in
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                  Arrivi operativi
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-[#555]">
+                  Usa questa tabella per preparare gli arrivi senza entrare in ogni scheda.
+                </p>
+
+                <div className="mt-5 overflow-x-auto">
+                  <table className="w-full min-w-[1250px] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                        <th className="py-3">Arrivo</th>
+                        <th className="py-3">Ospite</th>
+                        <th className="py-3">Telefono</th>
+                        <th className="py-3">Qualità</th>
+                        <th className="py-3">Pagamento</th>
+                        <th className="py-3">Saldo</th>
+                        <th className="py-3">WelcoMate</th>
+                        <th className="py-3">Note interne</th>
+                        <th className="py-3">Azioni</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {checkinStats.rows.length === 0 && (
+                        <tr>
+                          <td colSpan="9" className="py-8 text-center text-[#555]">
+                            Nessun check-in nei prossimi 7 giorni.
+                          </td>
+                        </tr>
+                      )}
+
+                      {checkinStats.rows.map((booking) => {
+                        const whatsappNumber = normalizePhoneForWhatsApp(booking.guestPhone);
+
+                        return (
+                          <tr key={booking.id} className="border-b border-[#f0e6d5] align-top">
+                            <td className="py-4">
+                              <div className="font-semibold">{formatDate(booking.checkIn)}</div>
+                              {booking.isToday && (
+                                <Pill className="mt-2 border-red-200 bg-red-50 text-red-900">
+                                  Oggi
+                                </Pill>
+                              )}
+                            </td>
+                            <td className="py-4 font-semibold">{booking.guestName || "-"}</td>
+                            <td className="py-4">{booking.guestPhone || "-"}</td>
+                            <td className="py-4">
+                              <Pill className={getReadinessClass(booking.readiness)}>
+                                {booking.readiness.label}
+                              </Pill>
+                            </td>
+                            <td className="py-4">{getPaymentLabel(booking.paymentStatus)}</td>
+                            <td className="py-4 font-bold text-[#0a1d35]">
+                              {formatEuro(booking.balanceDue)}
+                            </td>
+                            <td className="py-4">{getWelcomateLabel(booking.welcomateStatus)}</td>
+                            <td className="py-4 text-sm text-[#555]">
+                              {booking.internalNotes || "-"}
+                            </td>
+                            <td className="py-4">
+                              <div className="flex flex-wrap gap-2">
+                                <SmallButton
+                                  onClick={() => {
+                                    setSelectedBookingId(booking.id);
+                                    setActiveTab("calendar");
+                                  }}
+                                  className="bg-[#0a1d35] text-white"
+                                >
+                                  Apri dettagli
+                                </SmallButton>
+
+                                {whatsappNumber && (
+                                  <a
+                                    href={`https://wa.me/${whatsappNumber}?text=${buildWhatsAppMessage(
+                                      booking,
+                                      settings
+                                    )}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white"
+                                  >
+                                    WhatsApp
+                                  </a>
+                                )}
+
+                                {booking.balanceDue > 0 && (
+                                  <SmallButton
+                                    onClick={() =>
+                                      setManualPaymentStatus(
+                                        booking,
+                                        "paid",
+                                        "saldo_pagato_da_checkin"
+                                      )
+                                    }
+                                    className="bg-green-700 text-white"
+                                  >
+                                    Segna saldo pagato
+                                  </SmallButton>
+                                )}
+
+                                {booking.welcomateOpen && (
+                                  <SmallButton
+                                    onClick={() => copyWelcomateAndMarkSent(booking)}
+                                    className="bg-[#9b6b25] text-white"
+                                  >
+                                    Copia WelcoMate
+                                  </SmallButton>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  Il Check-in operativo non cambia nulla automaticamente. Usa solo pulsanti espliciti
+                  per pagamento, WhatsApp, WelcoMate o apertura dettagli.
                 </div>
               </div>
             </div>
