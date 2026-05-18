@@ -365,12 +365,21 @@ export default async function handler(req, res) {
       skippedConflict: 0,
       cancelledStale: 0,
       movedNightsDeleted: 0,
+      skippedIgnored: 0,
       sources: {},
     };
 
     for (const sourceConfig of SOURCE_CONFIGS) {
       const url = cleanText(settings[sourceConfig.settingsField]);
-      totals.sources[sourceConfig.key] = { imported: 0, skippedConflict: 0, skippedInvalid: 0, cancelledStale: 0, movedNightsDeleted: 0, urlPresent: Boolean(url) };
+      totals.sources[sourceConfig.key] = {
+        imported: 0,
+        skippedConflict: 0,
+        skippedInvalid: 0,
+        cancelledStale: 0,
+        movedNightsDeleted: 0,
+        skippedIgnored: 0,
+        urlPresent: Boolean(url),
+      };
 
       if (!url) {
         totals.skippedNoUrl += 1;
@@ -414,6 +423,43 @@ export default async function handler(req, res) {
         const batch = adminDb.batch();
         const bookingRef = adminDb.collection("bookings").doc(bookingId);
         const existingBookingSnapshot = await bookingRef.get();
+
+        const existingBookingData = existingBookingSnapshot.exists
+          ? existingBookingSnapshot.data()
+          : null;
+
+        const wasManuallyCancelledExternal =
+          existingBookingData &&
+          existingBookingData.externalKey === event.externalKey &&
+          existingBookingData.source === event.source &&
+          String(existingBookingData.status || "").toLowerCase() === "cancelled" &&
+          existingBookingData.staleExternal !== true;
+
+        if (wasManuallyCancelledExternal) {
+          totals.skippedIgnored += 1;
+          totals.sources[sourceConfig.key].skippedIgnored += 1;
+
+          const ignoredNightSnapshots =
+            nightRefs.length > 0 ? await adminDb.getAll(...nightRefs) : [];
+          const ignoreBatch = adminDb.batch();
+          let deletedIgnoredNights = 0;
+
+          ignoredNightSnapshots.forEach((snapshot, index) => {
+            if (!snapshot.exists) return;
+            const data = snapshot.data();
+
+            if (data?.bookingId === bookingId) {
+              ignoreBatch.delete(nightRefs[index]);
+              deletedIgnoredNights += 1;
+            }
+          });
+
+          if (deletedIgnoredNights > 0) {
+            await ignoreBatch.commit();
+          }
+
+          continue;
+        }
 
         const movedNightsDeleted = existingBookingSnapshot.exists
           ? await deleteMovedNightsForBooking(

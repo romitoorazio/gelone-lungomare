@@ -6353,7 +6353,10 @@ wifiName: settings.wifiName || "",
                           (bookingSync.imported || 0) +
                           " importate · " +
                           (bookingSync.skippedConflict || 0) +
-                          " conflitti protetti"
+                          " conflitti protetti" +
+                          " · " +
+                          (bookingSync.skippedIgnored || 0) +
+                          " ignorate"
                         }
                       />
                       <DetailRow
@@ -6364,22 +6367,29 @@ wifiName: settings.wifiName || "",
                           (airbnbSync.imported || 0) +
                           " importate · " +
                           (airbnbSync.skippedConflict || 0) +
-                          " conflitti protetti"
+                          " conflitti protetti" +
+                          " · " +
+                          (airbnbSync.skippedIgnored || 0) +
+                          " ignorate"
                         }
                       />
                       <DetailRow
                         label="Eventi rimossi dai portali"
-                        value={totals.cancelledStale || 0}
+                        value={String(totals.cancelledStale ?? 0)}
                       />
                       <DetailRow
                         label="Notti spostate liberate"
-                        value={totals.movedNightsDeleted || 0}
+                        value={String(totals.movedNightsDeleted ?? 0)}
+                      />
+                      <DetailRow
+                        label="Eventi iCal ignorati manualmente"
+                        value={String(totals.skippedIgnored ?? 0)}
                       />
                     </div>
 
                     <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm leading-6 text-green-900">
                       Sincronizzazione completata correttamente. I conflitti protetti non sono errori:
-                      indicano date già occupate che il sistema non ha sovrascritto.
+                      indicano date già occupate che il sistema non ha sovrascritto. Gli eventi ignorati sono prenotazioni iCal annullate manualmente dall'admin.
                     </div>
                   </div>
                 );
