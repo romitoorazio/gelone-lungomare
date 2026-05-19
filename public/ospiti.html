@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Pagina informazioni ospiti di Gelone Lungomare a Gela: contatti, Wi-Fi, posizione, regole e link utili." />
+    <meta name="description" content="Pagina informazioni ospiti di Gelone Lungomare a Gela: contatti, Wi-Fi, posizione, regole, sicurezza, rifiuti ed emergenze." />
 
     <title>Info ospiti | Gelone Lungomare</title>
 
@@ -17,6 +17,10 @@
         --white: #ffffff;
         --border: #e4d8c2;
         --text: #4c4c4c;
+        --green: #2f6f4e;
+        --red: #9b1c1c;
+        --soft-red: #fff1f1;
+        --soft-green: #eef8f1;
       }
 
       * {
@@ -29,8 +33,7 @@
 
       body {
         margin: 0;
-        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         background: var(--paper);
         color: var(--blue);
       }
@@ -105,10 +108,16 @@
         margin: 16px 0 10px;
       }
 
-      p {
+      p,
+      li {
         color: var(--text);
         line-height: 1.7;
         font-size: 17px;
+      }
+
+      ul {
+        padding-left: 20px;
+        margin: 12px 0 0;
       }
 
       .badge {
@@ -136,6 +145,14 @@
         box-shadow: 0 8px 26px rgba(10, 29, 53, 0.06);
       }
 
+      .card-wide {
+        grid-column: span 2;
+      }
+
+      .card-full {
+        grid-column: 1 / -1;
+      }
+
       .icon {
         width: 48px;
         height: 48px;
@@ -147,6 +164,16 @@
         justify-content: center;
         font-weight: 800;
         font-size: 20px;
+      }
+
+      .icon-red {
+        background: var(--soft-red);
+        color: var(--red);
+      }
+
+      .icon-green {
+        background: var(--soft-green);
+        color: var(--green);
       }
 
       .wifi-box {
@@ -198,11 +225,79 @@
         border-color: var(--blue);
       }
 
+      .btn-red {
+        background: var(--red);
+        color: white;
+        border-color: var(--red);
+      }
+
       .notice {
         border-left: 5px solid var(--gold);
         background: #fffaf0;
         padding: 18px;
         border-radius: 18px;
+      }
+
+      .warning {
+        border-left: 5px solid var(--red);
+        background: var(--soft-red);
+        padding: 18px;
+        border-radius: 18px;
+        margin-top: 14px;
+      }
+
+      .ok-box {
+        border-left: 5px solid var(--green);
+        background: var(--soft-green);
+        padding: 18px;
+        border-radius: 18px;
+        margin-top: 14px;
+      }
+
+      .mini-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+        margin-top: 16px;
+      }
+
+      .mini-card {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 16px;
+        background: #fffaf0;
+      }
+
+      .mini-card strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--blue);
+      }
+
+      .rifiuti-panel {
+        display: grid;
+        grid-template-columns: 0.95fr 1.05fr;
+        gap: 18px;
+        align-items: start;
+      }
+
+      .calendar-frame {
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        overflow: hidden;
+        background: #fffaf0;
+      }
+
+      .calendar-frame img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .calendar-caption {
+        padding: 14px 16px;
+        font-size: 14px;
+        color: #6d552d;
       }
 
       footer {
@@ -217,8 +312,15 @@
       }
 
       @media (max-width: 850px) {
-        .grid {
+        .grid,
+        .mini-grid,
+        .rifiuti-panel {
           grid-template-columns: 1fr;
+        }
+
+        .card-wide,
+        .card-full {
+          grid-column: auto;
         }
 
         .hero-box {
@@ -263,8 +365,9 @@
           <span class="badge">Benvenuto a Gelone Lungomare</span>
           <h1>Info utili per il tuo soggiorno</h1>
           <p>
-            In questa pagina trovi contatti rapidi, Wi-Fi, posizione, regole
-            principali, emergenze e collegamenti utili durante il soggiorno.
+            In questa pagina trovi contatti rapidi, Wi-Fi, posizione, accesso,
+            sicurezza, raccolta rifiuti, regole principali ed emergenze durante
+            il soggiorno.
           </p>
 
           <div class="btns">
@@ -276,6 +379,9 @@
             </a>
             <a class="btn btn-white" href="https://www.booking.com/Share-OQe9T5" target="_blank" rel="noreferrer">
               Booking
+            </a>
+            <a class="btn btn-white" href="https://www.airbnb.it/rooms/1267419022190887817" target="_blank" rel="noreferrer">
+              Airbnb
             </a>
           </div>
         </div>
@@ -323,26 +429,116 @@
         <article class="card">
           <div class="icon">⏱</div>
           <h3>Check-in / Check-out</h3>
-          <p>Check-in: da confermare prima dell’arrivo.</p>
-          <p>Check-out: da confermare prima della partenza.</p>
-          <p>Per esigenze particolari contattaci su WhatsApp.</p>
+          <p><strong>Check-in:</strong> da confermare prima dell’arrivo.</p>
+          <p><strong>Check-out:</strong> da confermare prima della partenza.</p>
+          <ul>
+            <li>Spegni luci, climatizzatore e cucina prima di uscire.</li>
+            <li>Chiudi finestre, balconi e porta d’ingresso.</li>
+            <li>Lascia l’appartamento ordinato.</li>
+            <li>Invia un messaggio WhatsApp quando lasci l’alloggio.</li>
+          </ul>
         </article>
 
         <article class="card">
           <div class="icon">⚿</div>
           <h3>Chiavi e accesso</h3>
-          <p>Le istruzioni di accesso vengono comunicate prima dell’arrivo.</p>
+          <p>Le istruzioni di accesso vengono comunicate privatamente prima dell’arrivo.</p>
           <p>Conserva le chiavi con attenzione durante il soggiorno.</p>
-          <p>In caso di problemi, contattaci subito.</p>
+          <p>In caso di problemi con accesso o chiavi, contattaci subito su WhatsApp.</p>
+        </article>
+
+        <article class="card card-wide">
+          <div class="icon icon-red">⚠</div>
+          <h3>Sicurezza in appartamento</h3>
+          <div class="warning">
+            <strong>Rilevatore di fumo in cucina</strong><br />
+            In cucina è presente un rilevatore di fumo. Non deve essere coperto,
+            spostato, rimosso o manomesso per nessun motivo.
+          </div>
+          <div class="mini-grid">
+            <div class="mini-card">
+              <strong>Estintore</strong>
+              È presente un estintore all’ingresso dell’appartamento, da usare solo in caso di reale emergenza.
+            </div>
+            <div class="mini-card">
+              <strong>Cassetta medica</strong>
+              La cassetta di primo soccorso si trova nel corridoio.
+            </div>
+          </div>
+          <p>
+            In caso di incendio o pericolo grave chiama subito il <strong>112</strong>,
+            poi avvisa la struttura appena possibile.
+          </p>
         </article>
 
         <article class="card">
           <div class="icon">!</div>
           <h3>Regole principali</h3>
-          <p>Rispetta gli orari di silenzio.</p>
-          <p>Non arrecare disturbo ai vicini.</p>
-          <p>Lascia l’appartamento in ordine alla partenza.</p>
-          <p>Segui le indicazioni per la raccolta dei rifiuti.</p>
+          <ul>
+            <li>Rispetta gli orari di silenzio e non arrecare disturbo ai vicini.</li>
+            <li>Non sono consentite feste o eventi.</li>
+            <li>Non sono ammessi ospiti extra non dichiarati.</li>
+            <li>Vietato fumare all’interno dell’appartamento.</li>
+            <li>Segnala subito eventuali danni o problemi.</li>
+          </ul>
+        </article>
+
+        <article class="card card-full">
+          <div class="icon icon-green">♻</div>
+          <h3>Raccolta rifiuti a Gela</h3>
+          <div class="rifiuti-panel">
+            <div>
+              <p>
+                Ti chiediamo di separare correttamente i rifiuti durante il soggiorno:
+                organico, carta/cartone, plastica/metalli, vetro e indifferenziato.
+              </p>
+              <ul>
+                <li>Segui il calendario ufficiale della raccolta porta a porta di Gela.</li>
+                <li>Non lasciare sacchi dei rifiuti dentro l’appartamento alla partenza.</li>
+                <li>Non esporre sacchi fuori orario o senza rispettare la tipologia prevista.</li>
+                <li>Se hai dubbi, scrivici su WhatsApp prima di buttare i rifiuti.</li>
+              </ul>
+              <div class="ok-box">
+                <strong>Contatti servizio rifiuti</strong><br />
+                Call center da fisso: 800 912221<br />
+                Da cellulare: 0933 1932533<br />
+                Emergenze servizio: 800 947 437
+              </div>
+              <div class="btns">
+                <a class="btn btn-gold" href="https://impiantisrrato4clsud.it/calendario-gela/" target="_blank" rel="noreferrer">
+                  Apri calendario ufficiale
+                </a>
+              </div>
+            </div>
+            <div class="calendar-frame">
+              <img
+                src="https://impiantisrrato4clsud.it/wp-content/uploads/2023/09/calendario_gela-750x572.jpg"
+                alt="Calendario raccolta differenziata porta a porta Gela"
+                loading="lazy"
+              />
+              <div class="calendar-caption">
+                Calendario porta a porta Gela pubblicato da Impianti S.R.R. ATO 4 Caltanissetta Provincia Sud.
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="icon">🍳</div>
+          <h3>Uso cucina e casa</h3>
+          <ul>
+            <li>Usa la cucina con attenzione e non lasciare fornelli accesi incustoditi.</li>
+            <li>Non gettare olio, fondi di caffè o residui solidi nel lavandino.</li>
+            <li>Spegni climatizzatore e luci quando esci.</li>
+            <li>Usa climatizzatore con porte e finestre chiuse.</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <div class="icon">🅿</div>
+          <h3>Parcheggio</h3>
+          <p>Il parcheggio è disponibile nelle vicinanze su strada, secondo disponibilità.</p>
+          <p>Controlla sempre eventuali divieti, strisce, passi carrabili e segnaletica presente.</p>
         </article>
 
         <article class="card">
@@ -350,17 +546,38 @@
           <h3>Emergenze</h3>
           <p>Per emergenze gravi chiama il <strong>112</strong>.</p>
           <p>Per problemi legati all’appartamento contattaci su WhatsApp.</p>
-          <p>Telefono: 3476308456</p>
+          <p><strong>Telefono:</strong> 3476308456</p>
+          <a class="btn btn-red" href="tel:112">Chiama 112</a>
+        </article>
+
+        <article class="card card-wide">
+          <div class="icon">ℹ</div>
+          <h3>Prenotazione e portali</h3>
+          <p>
+            Se hai prenotato tramite un portale, puoi consultare la prenotazione
+            anche dal tuo account Booking o Airbnb. Per informazioni dirette puoi
+            scriverci su WhatsApp.
+          </p>
+          <div class="btns">
+            <a class="btn btn-gold" href="https://www.booking.com/Share-OQe9T5" target="_blank" rel="noreferrer">
+              Apri Booking
+            </a>
+            <a class="btn btn-white" href="https://www.airbnb.it/rooms/1267419022190887817" target="_blank" rel="noreferrer">
+              Apri Airbnb
+            </a>
+          </div>
         </article>
 
         <article class="card">
-          <div class="icon">ℹ</div>
-          <h3>Prenotazione</h3>
-          <p>Puoi gestire la prenotazione tramite Booking.</p>
-          <p>Per informazioni dirette puoi scriverci su WhatsApp.</p>
-          <a class="btn btn-gold" href="https://www.booking.com/Share-OQe9T5" target="_blank" rel="noreferrer">
-            Apri Booking
-          </a>
+          <div class="icon">✓</div>
+          <h3>Registrazione ospiti</h3>
+          <p>
+            Se non hai ancora completato la registrazione dati ospiti, usa il link
+            ricevuto su WhatsApp o email.
+          </p>
+          <p>
+            La registrazione è necessaria per gli adempimenti previsti durante il soggiorno.
+          </p>
         </article>
       </section>
 
@@ -387,4 +604,3 @@
     </div>
   </body>
 </html>
-
