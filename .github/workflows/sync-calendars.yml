@@ -1,0 +1,41 @@
+﻿name: Sync calendari Gelone
+
+on:
+  schedule:
+    # Ogni giorno alle 05:10 UTC, cioè 07:10 in Italia con ora legale.
+    - cron: "10 5 * * *"
+  workflow_dispatch:
+
+jobs:
+  sync-calendars:
+    name: Sincronizza Booking e Airbnb
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Chiama endpoint sincronizzazione calendari
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "ERRORE: secret GitHub CRON_SECRET mancante."
+            exit 1
+          fi
+
+          response="$(curl -sS -w '\nHTTP_STATUS:%{http_code}' \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "User-Agent: github-actions-calendar-sync" \
+            "https://www.gelone.it/api/cron-sync-calendars")"
+
+          echo "$response"
+
+          status="$(echo "$response" | sed -n 's/^HTTP_STATUS://p')"
+
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            echo "ERRORE: sincronizzazione fallita con HTTP $status"
+            exit 1
+          fi
+
+          echo "Sincronizzazione completata con HTTP $status"
