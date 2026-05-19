@@ -528,7 +528,7 @@ export default function Admin() {
   const [units, setUnits] = useState(DEFAULT_UNITS);
   const [unitForm, setUnitForm] = useState(() => createUnitForm(DEFAULT_UNIT));
   const [settings, setSettings] = useState(defaultSettings);
-  const [activeTab, setActiveTab] = useState("calendar");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedUnitId, setSelectedUnitId] = useState(UNIT_ID);
   const [selectedBookingId, setSelectedBookingId] = useState("");
   const [bookingSearch, setBookingSearch] = useState("");
@@ -3397,7 +3397,10 @@ wifiName: settings.wifiName || "",
         </div>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <TabButton active={activeTab === "calendar"} onClick={() => setActiveTab("calendar")}>
+                    <TabButton active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")}>
+            Dashboard
+          </TabButton>
+<TabButton active={activeTab === "calendar"} onClick={() => setActiveTab("calendar")}>
             Prenotazioni
           </TabButton>
           <TabButton active={activeTab === "new"} onClick={() => setActiveTab("new")}>
@@ -4901,6 +4904,165 @@ wifiName: settings.wifiName || "",
               <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
                 Questo registro è interno: serve per controllare le azioni operative
                 fatte dal pannello Admin.
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeTab === "dashboard" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Dashboard operativa
+              </p>
+              <h2 className="mt-2 font-serif text-3xl">
+                Cosa devo controllare oggi
+              </h2>
+              <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                Vista semplice per usare il PMS senza cercare tra le schede:
+                urgenze, attività future, saldi, WelcoMate e stato sincronizzazione calendari.
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-4">
+                <StatCard
+                  title="Urgenze"
+                  value={(controlsStats.urgentActionRows || []).length}
+                  icon={Lock}
+                  subtitle="Da controllare subito"
+                />
+                <StatCard
+                  title="Futuri"
+                  value={(controlsStats.futureActionRows || []).length}
+                  icon={CalendarDays}
+                  subtitle="Da tenere sotto controllo"
+                />
+                <StatCard
+                  title="Saldi aperti"
+                  value={formatEuro(controlsStats.openBalanceTotal)}
+                  icon={CreditCard}
+                  subtitle={controlsStats.openBalances.length + " prenotazioni"}
+                />
+                <StatCard
+                  title="WelcoMate"
+                  value={controlsStats.welcomateToSend.length}
+                  icon={MessageCircle}
+                  subtitle="Da inviare o controllare"
+                />
+                <StatCard
+                  title="Richieste"
+                  value={controlsStats.requestsToConfirm.length}
+                  icon={Mail}
+                  subtitle="Da confermare"
+                />
+                <StatCard
+                  title="Prenotazioni attive"
+                  value={stats.active}
+                  icon={ShieldCheck}
+                  subtitle="Totale attive"
+                />
+                <StatCard
+                  title="Pagate"
+                  value={stats.paid}
+                  icon={CreditCard}
+                  subtitle="Incassate o caparra"
+                />
+                <StatCard
+                  title="Sync automatica"
+                  value={latestAutomaticSyncLog?.ok === false ? "Errore" : latestAutomaticSyncLog ? "OK" : "-"}
+                  icon={Wifi}
+                  subtitle={latestAutomaticSyncLog ? formatDateTime(latestAutomaticSyncLog.createdAt) : "Nessun log"}
+                />
+              </div>
+
+              <div className="mt-8 grid gap-5 lg:grid-cols-2">
+                <div className="rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                  <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                    Situazione
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                    Riepilogo operativo
+                  </h3>
+
+                  <div className="mt-5 space-y-3">
+                    {(controlsStats.urgentActionRows || []).length === 0 ? (
+                      <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
+                        Nessuna urgenza immediata.
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900">
+                        Ci sono urgenze da controllare subito.
+                      </div>
+                    )}
+
+                    {(controlsStats.futureActionRows || []).length > 0 && (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                        Ci sono attività future da tenere sotto controllo.
+                      </div>
+                    )}
+
+                    {latestAutomaticSyncLog ? (
+                      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-900">
+                        Ultima sync automatica: {formatDateTime(latestAutomaticSyncLog.createdAt)}
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                        Nessun log di sync automatica trovato.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                  <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                    Azioni rapide
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                    Apri la sezione giusta
+                  </h3>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <SmallButton
+                      onClick={() => setActiveTab("calendar")}
+                      className="bg-[#0a1d35] px-5 py-3 text-white"
+                    >
+                      Prenotazioni
+                    </SmallButton>
+                    <SmallButton
+                      onClick={() => setActiveTab("checks")}
+                      className="bg-[#9b6b25] px-5 py-3 text-white"
+                    >
+                      Controlli
+                    </SmallButton>
+                    <SmallButton
+                      onClick={() => setActiveTab("checkin")}
+                      className="bg-green-700 px-5 py-3 text-white"
+                    >
+                      Check-in
+                    </SmallButton>
+                    <SmallButton
+                      onClick={() => setActiveTab("preparation")}
+                      className="bg-[#0a1d35] px-5 py-3 text-white"
+                    >
+                      Pulizie
+                    </SmallButton>
+                    <SmallButton
+                      onClick={() => setActiveTab("economy")}
+                      className="bg-green-700 px-5 py-3 text-white"
+                    >
+                      Economia
+                    </SmallButton>
+                    <SmallButton
+                      onClick={() => setActiveTab("settings")}
+                      className="bg-[#9b6b25] px-5 py-3 text-white"
+                    >
+                      Sync calendari
+                    </SmallButton>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-[#e4d8c2] bg-white p-4 text-sm leading-6 text-[#555]">
+                    La Dashboard non modifica nulla. Serve solo per vedere subito cosa richiede attenzione.
+                  </div>
+                </div>
               </div>
             </div>
           </section>
