@@ -1467,6 +1467,8 @@ export default function Admin() {
       missingPriceRows,
       missingContactRows,
       actionRows: actionRows.slice(0, 40),
+      urgentActionRows: actionRows.filter((item) => item.priority === "Alta").slice(0, 40),
+      futureActionRows: actionRows.filter((item) => item.priority !== "Alta").slice(0, 40),
       openBalanceTotal: openBalances.reduce((sum, booking) => sum + Number(booking.balanceDue || 0), 0),
     };
   }, [bookings]);
