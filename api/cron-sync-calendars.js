@@ -1,4 +1,5 @@
 ﻿import syncCalendarsHandler from "./sync-calendars.js";
+import { FieldValue, getFirebaseAdminDb } from "./_firebaseAdmin.js";
 
 function json(res, status, payload) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -33,6 +34,57 @@ function createMemoryResponse() {
   };
 }
 
+function toNumber(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
+async function saveCronSyncLog(req, entry) {
+  const adminDb = getFirebaseAdminDb();
+  const payload = entry?.payload || {};
+  const totals = payload?.totals || {};
+  const userAgent = getHeader(req, "user-agent");
+  const triggerSource = userAgent.includes("github-actions")
+    ? "github_actions"
+    : "vercel_cron";
+
+  await adminDb.collection("maintenanceLogs").add({
+    type: "calendar_sync",
+    action: "automatic_calendar_sync",
+    mode: "automatic",
+
+    // Admin.jsx legge questo valore per mostrare "Ultima sincronizzazione automatica".
+    source: "vercel_cron",
+
+    triggerSource,
+    requestUserAgent: userAgent.slice(0, 200),
+
+    ok: Boolean(entry?.ok),
+    unitId: payload?.unitId || "lunarossa1",
+    unitName: payload?.unitName || "Gelone Lungomare",
+
+    imported: toNumber(totals.imported || payload?.importedBookings),
+    skippedConflict: toNumber(totals.skippedConflict || payload?.skippedNights),
+    skippedIgnored: toNumber(totals.skippedIgnored),
+    cancelledStale: toNumber(totals.cancelledStale),
+    movedNightsDeleted: toNumber(totals.movedNightsDeleted),
+
+    totals,
+    message:
+      entry?.message ||
+      (entry?.ok
+        ? "Sincronizzazione automatica completata."
+        : "Sincronizzazione automatica non completata."),
+
+    syncStatusCode: toNumber(entry?.syncStatusCode),
+    startedAt: entry?.startedAt || "",
+    finishedAt: entry?.finishedAt || "",
+
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     return json(res, 405, {
@@ -52,14 +104,25 @@ export default async function handler(req, res) {
     });
   }
 
+  const startedAt = new Date().toISOString();
+
   if (!syncSecret) {
+    const finishedAt = new Date().toISOString();
+
+    await saveCronSyncLog(req, {
+      ok: false,
+      startedAt,
+      finishedAt,
+      syncStatusCode: 500,
+      payload: null,
+      message: "SYNC_SECRET non configurato.",
+    });
+
     return json(res, 500, {
       ok: false,
       message: "SYNC_SECRET non configurato.",
     });
   }
-
-  const startedAt = new Date().toISOString();
 
   try {
     const memoryRes = createMemoryResponse();
@@ -83,6 +146,15 @@ export default async function handler(req, res) {
     const statusCode = Number(syncResponse?.statusCode || 500);
 
     if (statusCode < 200 || statusCode >= 300 || !payload?.ok) {
+      await saveCronSyncLog(req, {
+        ok: false,
+        startedAt,
+        finishedAt,
+        syncStatusCode: statusCode,
+        payload,
+        message: payload?.message || "Sincronizzazione automatica non completata.",
+      });
+
       return json(res, 500, {
         ok: false,
         source: "cron-sync-calendars",
@@ -93,6 +165,15 @@ export default async function handler(req, res) {
         syncResult: payload,
       });
     }
+
+    await saveCronSyncLog(req, {
+      ok: true,
+      startedAt,
+      finishedAt,
+      syncStatusCode: statusCode,
+      payload,
+      message: "Sincronizzazione automatica completata.",
+    });
 
     return json(res, 200, {
       ok: true,
