@@ -4327,7 +4327,7 @@ wifiName: settings.wifiName || "",
                       Lista priorità
                     </h3>
                     <p className="mt-2 text-sm leading-6 text-[#555]">
-                      Le priorità alte sono quelle più vicine al check-in o più delicate.
+                      Le urgenze sono vicine al check-in o delicate. Le attività future restano visibili ma separate, così non sembrano emergenze di oggi.
                     </p>
                   </div>
                 </div>
@@ -4349,21 +4349,93 @@ wifiName: settings.wifiName || "",
                       {controlsStats.actionRows.length === 0 && (
                         <tr>
                           <td colSpan="6" className="py-8 text-center text-[#555]">
-                            Nessuna azione urgente trovata.
+                            Nessuna azione urgente o futura trovata.
                           </td>
                         </tr>
                       )}
 
-                      {controlsStats.actionRows.map((item) => (
+                      {controlsStats.urgentActionRows.length > 0 && (
+                        <tr>
+                          <td colSpan="6" className="bg-red-50 px-4 py-3 font-bold text-red-900">
+                            Urgenti · da controllare subito
+                          </td>
+                        </tr>
+                      )}
+
+                      {controlsStats.urgentActionRows.map((item) => (
                         <tr key={item.id} className="border-b border-[#f0e6d5] align-top">
                           <td className="py-4">
-                            <Pill
-                              className={
-                                item.priority === "Alta"
-                                  ? "border-red-200 bg-red-50 text-red-900"
-                                  : "border-amber-200 bg-amber-50 text-amber-900"
-                              }
-                            >
+                            <Pill className="border-red-200 bg-red-50 text-red-900">
+                              {item.priority}
+                            </Pill>
+                          </td>
+                          <td className="py-4 font-semibold">{item.type}</td>
+                          <td className="py-4">{item.booking.guestName || "-"}</td>
+                          <td className="py-4">
+                            {formatDate(item.booking.checkIn)} - {formatDate(item.booking.checkOut)}
+                          </td>
+                          <td className="py-4 text-sm text-[#555]">{item.detail}</td>
+                          <td className="py-4">
+                            <div className="flex flex-wrap gap-2">
+                              <SmallButton
+                                onClick={() => {
+                                  setSelectedBookingId(item.booking.id);
+                                  setActiveTab("calendar");
+                                }}
+                                className="bg-[#0a1d35] text-white"
+                              >
+                                Apri dettagli
+                              </SmallButton>
+
+                              {item.action === "confirm" && (
+                                <SmallButton
+                                  onClick={() => confirmBooking(item.booking)}
+                                  className="bg-green-700 text-white"
+                                >
+                                  Conferma
+                                </SmallButton>
+                              )}
+
+                              {item.action === "balance" && (
+                                <SmallButton
+                                  onClick={() =>
+                                    setManualPaymentStatus(
+                                      item.booking,
+                                      "paid",
+                                      "saldo_pagato_da_controlli"
+                                    )
+                                  }
+                                  className="bg-green-700 text-white"
+                                >
+                                  Segna saldo pagato
+                                </SmallButton>
+                              )}
+
+                              {item.action === "welcomate" && (
+                                <SmallButton
+                                  onClick={() => copyWelcomateAndMarkSent(item.booking)}
+                                  className="bg-[#9b6b25] text-white"
+                                >
+                                  Copia WelcoMate
+                                </SmallButton>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+
+                      {controlsStats.futureActionRows.length > 0 && (
+                        <tr>
+                          <td colSpan="6" className="bg-amber-50 px-4 py-3 font-bold text-amber-900">
+                            Futuri · da tenere sotto controllo
+                          </td>
+                        </tr>
+                      )}
+
+                      {controlsStats.futureActionRows.map((item) => (
+                        <tr key={item.id} className="border-b border-[#f0e6d5] align-top">
+                          <td className="py-4">
+                            <Pill className="border-amber-200 bg-amber-50 text-amber-900">
                               {item.priority}
                             </Pill>
                           </td>
