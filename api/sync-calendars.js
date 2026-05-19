@@ -9,6 +9,19 @@ import { DEFAULT_UNIT_ID, getUnitConfig, sanitizeUnitId } from "./_units.js";
 const ADMIN_EMAILS = ["romitoorazio@gmail.com", "romitofrancesco1@gmail.com"];
 const FETCH_TIMEOUT_MS = 15000;
 
+// Protezione anti-cancellazioni di massa nella sync iCal.
+// Se piu' del 30% delle prenotazioni esterne attive di una sorgente
+// risulta "sparito" dal feed in una singola sync, blocchiamo tutte le
+// cancellazioni di quella sorgente per evitare disastri quando
+// Booking/Airbnb restituiscono un feed vuoto o parziale.
+const MAX_STALE_EXTERNAL_DELETE_RATIO = 0.30;
+// Soglia minima di prenotazioni esterne attive precedenti prima di
+// applicare il controllo sul rapporto. Con prev < 2 la guard non scatta,
+// cosi' una singola cancellazione legittima passa normalmente.
+const MIN_PREVIOUS_FOR_RATIO_CHECK = 2;
+const STALE_GUARD_MESSAGE =
+  "Sync protetta: troppi eventi esterni risultano spariti dal feed. Nessuna cancellazione applicata.";
+
 const SOURCE_CONFIGS = [
   {
     key: "booking_ical",
@@ -284,24 +297,85 @@ async function deleteMovedNightsForBooking(adminDb, unitId, bookingId, previousC
   return deleted;
 }
 
-async function cancelStaleExternalBookings(adminDb, unitId, sourceConfig, activeExternalKeys) {
+async function cancelStaleExternalBookings(adminDb, unitId, sourceConfig, activeExternalKeys, options = {}) {
+  const mode = options.mode || "automatic";
   const snapshot = await adminDb
     .collection("bookings")
     .where("source", "==", sourceConfig.key)
     .get();
 
-  let cancelled = 0;
+  // Pre-scansione: identifica le prenotazioni esterne attive previously
+  // appartenenti a questa unit + sorgente, e quelle "stale" (non piu' nel feed).
+  const candidates = [];
+  let previousActiveCount = 0;
 
   for (const bookingSnapshot of snapshot.docs) {
     const data = bookingSnapshot.data();
 
     const bookingUnitId = sanitizeUnitId(data?.unitId || DEFAULT_UNIT_ID) || DEFAULT_UNIT_ID;
     if (bookingUnitId !== unitId) continue;
-
     if (!data?.externalKey) continue;
     if (!isActiveStatus(data?.status)) continue;
+
+    previousActiveCount += 1;
+
     if (activeExternalKeys.has(data.externalKey)) continue;
 
+    candidates.push({ ref: bookingSnapshot.ref, id: bookingSnapshot.id, data });
+  }
+
+  const staleCount = candidates.length;
+  const staleRatio = previousActiveCount > 0 ? staleCount / previousActiveCount : 0;
+
+  // Guard: se ho almeno MIN_PREVIOUS_FOR_RATIO_CHECK prenotazioni attive
+  // precedenti e il rapporto stale/prev supera la soglia, NON cancello nulla
+  // e registro un log visibile nell'Admin.
+  if (
+    previousActiveCount >= MIN_PREVIOUS_FOR_RATIO_CHECK &&
+    staleRatio > MAX_STALE_EXTERNAL_DELETE_RATIO
+  ) {
+    try {
+      const isManual = mode === "manual";
+      await adminDb.collection("maintenanceLogs").add({
+        type: "calendar_sync",
+        // Allineato a cron-sync-calendars.js per restare visibile nei pannelli Admin.
+        action: isManual ? "manual_calendar_sync" : "automatic_calendar_sync",
+        mode: isManual ? "manual_guard" : "automatic_guard",
+        // Admin.jsx mostra "Ultima sincronizzazione automatica" filtrando source === "vercel_cron".
+        source: isManual ? "admin_manual_sync" : "vercel_cron",
+        triggerSource: isManual ? "admin_manual_sync" : "vercel_cron",
+        // Diagnostica: quale feed esterno ha fatto scattare la guard.
+        icalSource: sourceConfig.key,
+        sourceLabel: sourceConfig.label,
+        unitId,
+        ok: false,
+        message: STALE_GUARD_MESSAGE,
+        guardTriggered: true,
+        previousActiveCount,
+        staleCount,
+        staleRatio,
+        staleThreshold: MAX_STALE_EXTERNAL_DELETE_RATIO,
+        cancelledStale: 0,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    } catch (logError) {
+      console.error("Errore scrittura log guard sync calendars:", logError);
+    }
+
+    return {
+      cancelled: 0,
+      guardTriggered: true,
+      previousActiveCount,
+      staleCount,
+      staleRatio,
+      staleThreshold: MAX_STALE_EXTERNAL_DELETE_RATIO,
+    };
+  }
+
+  let cancelled = 0;
+
+  for (const candidate of candidates) {
+    const data = candidate.data;
     const nights = getNightDates(data.checkIn, data.checkOut);
     const nightRefs = nights.map((night) => adminDb.collection("nights").doc(`${unitId}_${night}`));
     const nightSnapshots = nightRefs.length > 0 ? await adminDb.getAll(...nightRefs) : [];
@@ -312,13 +386,13 @@ async function cancelStaleExternalBookings(adminDb, unitId, sourceConfig, active
       if (!nightSnapshot.exists) return;
       const nightData = nightSnapshot.data();
 
-      if (nightData?.bookingId === bookingSnapshot.id) {
+      if (nightData?.bookingId === candidate.id) {
         batch.delete(nightRefs[index]);
       }
     });
 
     batch.set(
-      bookingSnapshot.ref,
+      candidate.ref,
       {
         status: "cancelled",
         staleExternal: true,
@@ -334,7 +408,14 @@ async function cancelStaleExternalBookings(adminDb, unitId, sourceConfig, active
     cancelled += 1;
   }
 
-  return cancelled;
+  return {
+    cancelled,
+    guardTriggered: false,
+    previousActiveCount,
+    staleCount,
+    staleRatio,
+    staleThreshold: MAX_STALE_EXTERNAL_DELETE_RATIO,
+  };
 }
 
 export default async function handler(req, res) {
@@ -358,6 +439,10 @@ export default async function handler(req, res) {
     }
 
     const settings = await readPrivateSettings(adminDb, unit.id);
+    // mode passato a cancelStaleExternalBookings: "manual" se l'invocazione
+    // arriva da un admin loggato (Firebase ID token), altrimenti "automatic"
+    // (cron via secret).
+    const callMode = authResult.mode === "firebase" ? "manual" : "automatic";
     const totals = {
       imported: 0,
       skippedNoUrl: 0,
@@ -366,6 +451,8 @@ export default async function handler(req, res) {
       cancelledStale: 0,
       movedNightsDeleted: 0,
       skippedIgnored: 0,
+      staleGuardTriggered: false,
+      staleGuardSources: [],
       sources: {},
     };
 
@@ -379,6 +466,11 @@ export default async function handler(req, res) {
         movedNightsDeleted: 0,
         skippedIgnored: 0,
         urlPresent: Boolean(url),
+        guardTriggered: false,
+        previousActiveCount: 0,
+        staleCount: 0,
+        staleRatio: 0,
+        staleThreshold: MAX_STALE_EXTERNAL_DELETE_RATIO,
       };
 
       if (!url) {
@@ -399,9 +491,24 @@ export default async function handler(req, res) {
       const activeExternalKeys = new Set(events.map((event) => event.externalKey));
 
       if (rawEvents.length > 0) {
-        const cancelledStale = await cancelStaleExternalBookings(adminDb, unit.id, sourceConfig, activeExternalKeys);
-        totals.cancelledStale += cancelledStale;
-        totals.sources[sourceConfig.key].cancelledStale += cancelledStale;
+        const staleResult = await cancelStaleExternalBookings(
+          adminDb,
+          unit.id,
+          sourceConfig,
+          activeExternalKeys,
+          { mode: callMode }
+        );
+        totals.cancelledStale += staleResult.cancelled;
+        totals.sources[sourceConfig.key].cancelledStale += staleResult.cancelled;
+        totals.sources[sourceConfig.key].guardTriggered = staleResult.guardTriggered;
+        totals.sources[sourceConfig.key].previousActiveCount = staleResult.previousActiveCount;
+        totals.sources[sourceConfig.key].staleCount = staleResult.staleCount;
+        totals.sources[sourceConfig.key].staleRatio = staleResult.staleRatio;
+        totals.sources[sourceConfig.key].staleThreshold = staleResult.staleThreshold;
+        if (staleResult.guardTriggered) {
+          totals.staleGuardTriggered = true;
+          totals.staleGuardSources.push(sourceConfig.key);
+        }
       }
 
       for (const event of events) {
@@ -524,14 +631,20 @@ export default async function handler(req, res) {
       }
     }
 
-    return json(res, 200, {
+    const responsePayload = {
       ok: true,
       unitId: unit.id,
       unitName: unit.publicName || unit.name,
       totals,
       importedBookings: totals.imported,
       skippedNights: totals.skippedConflict,
-    });
+    };
+
+    if (totals.staleGuardTriggered) {
+      responsePayload.warning = STALE_GUARD_MESSAGE;
+    }
+
+    return json(res, 200, responsePayload);
   } catch (error) {
     console.error("Errore sync-calendars:", error);
     return json(res, 500, {
