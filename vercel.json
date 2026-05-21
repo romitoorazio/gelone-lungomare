@@ -102,6 +102,38 @@
   ],
   "rewrites": [
     {
+      "source": "/service-32",
+      "destination": "/api/gone"
+    },
+    {
+      "source": "/service-21",
+      "destination": "/api/gone"
+    },
+    {
+      "source": "/service-6",
+      "destination": "/api/gone"
+    },
+    {
+      "source": "/login",
+      "destination": "/api/gone"
+    },
+    {
+      "source": "/recover",
+      "destination": "/api/gone"
+    },
+    {
+      "source": "/booking/request",
+      "destination": "/api/gone"
+    },
+    {
+      "source": "/page/:path*",
+      "destination": "/api/gone"
+    },
+    {
+      "source": "/users/view",
+      "destination": "/api/gone"
+    },
+    {
       "source": "/admin",
       "destination": "/index.html"
     },
