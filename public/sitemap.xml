@@ -1,9 +1,42 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+
   <url>
     <loc>https://www.gelone.it/</loc>
     <lastmod>2026-05-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+
+    <image:image>
+      <image:loc>https://www.gelone.it/images/terrazza-gelone.jpg</image:loc>
+      <image:title>Terrazza vista mare Gelone Lungomare a Gela</image:title>
+      <image:caption>Terrazza della locazione turistica Gelone Lungomare a Gela vicino al mare.</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://www.gelone.it/images/vista-mare-gelone.jpg</image:loc>
+      <image:title>Vista mare da Gelone Lungomare Gela</image:title>
+      <image:caption>Vista mare dall'alloggio Gelone Lungomare, appartamento per brevi soggiorni a Gela.</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://www.gelone.it/images/interni-gelone.jpg</image:loc>
+      <image:title>Interni appartamento Gelone Lungomare Gela</image:title>
+      <image:caption>Interni della locazione turistica a Gela per 2 persone con camera, bagno e cucina.</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://www.gelone.it/images/hero-gelone-poster.jpg</image:loc>
+      <image:title>Gelone Lungomare locazione turistica vicino al lungomare di Gela</image:title>
+      <image:caption>Foto principale di Gelone Lungomare, alloggio turistico vicino al lungomare di Gela.</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://www.gelone.it/images/hero-gelone-fusa.png</image:loc>
+      <image:title>Gelone Lungomare casa vacanza a Gela</image:title>
+      <image:caption>Immagine principale della struttura Gelone Lungomare, casa vacanza e locazione turistica a Gela.</image:caption>
+    </image:image>
   </url>
 </urlset>
