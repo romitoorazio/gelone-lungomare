@@ -117,7 +117,18 @@
       "source": "/login",
       "destination": "/api/gone"
     },
-    {
+    {"redirects": [
+  {
+    "source": "/service-32",
+    "destination": "/",
+    "permanent": true
+  },
+  {
+    "source": "/users/view",
+    "destination": "/",
+    "permanent": true
+  }
+],
       "source": "/recover",
       "destination": "/api/gone"
     },
