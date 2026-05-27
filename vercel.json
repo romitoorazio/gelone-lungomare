@@ -1,16 +1,4 @@
 ﻿{
-  "redirects": [
-    {
-      "source": "/service-32",
-      "destination": "/",
-      "permanent": true
-    },
-    {
-      "source": "/users/view",
-      "destination": "/",
-      "permanent": true
-    }
-  ],
   "headers": [
     {
       "source": "/reviews/add",
@@ -40,6 +28,15 @@
       ]
     },
     {
+      "source": "/service-32",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
       "source": "/service-21",
       "headers": [
         {
@@ -50,6 +47,15 @@
     },
     {
       "source": "/service-6",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/users/view",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -96,6 +102,10 @@
   ],
   "rewrites": [
     {
+      "source": "/service-32",
+      "destination": "/api/gone"
+    },
+    {
       "source": "/service-21",
       "destination": "/api/gone"
     },
@@ -117,6 +127,10 @@
     },
     {
       "source": "/page/:path*",
+      "destination": "/api/gone"
+    },
+    {
+      "source": "/users/view",
       "destination": "/api/gone"
     },
     {
