@@ -943,6 +943,261 @@ export default function App() {
   return (
     <main className="site-shell">
       <style>{css}</style>
+      <style>{`
+        /* multi-unit-selector-final */
+        #alloggi.units-showcase {
+          padding: clamp(48px, 7vw, 90px) 18px !important;
+          background: #faf6ee !important;
+          overflow: hidden !important;
+        }
+
+        #alloggi .units-intro {
+          max-width: 980px !important;
+          margin: 0 auto 26px !important;
+          text-align: center !important;
+        }
+
+        #alloggi .units-intro p {
+          max-width: 760px !important;
+          margin: 14px auto 0 !important;
+          color: #555 !important;
+          font-size: 16px !important;
+          line-height: 1.7 !important;
+        }
+
+        #alloggi .units-intro p::before {
+          content: none !important;
+          display: none !important;
+        }
+
+        .unit-showcase-grid,
+        .unit-showcase-card,
+        .unit-photo-button,
+        .unit-card-body,
+        .unit-card-topline,
+        .unit-card-actions {
+          all: unset;
+          box-sizing: border-box;
+        }
+
+        .multi-unit-picker {
+          width: min(1120px, 100%) !important;
+          margin: 0 auto 24px !important;
+          display: flex !important;
+          gap: 12px !important;
+          overflow-x: auto !important;
+          padding: 6px 2px 12px !important;
+          scrollbar-width: thin !important;
+        }
+
+        .unit-picker-button {
+          flex: 0 0 auto !important;
+          min-width: 220px !important;
+          border: 1px solid #e4d8c2 !important;
+          border-radius: 18px !important;
+          background: #fff !important;
+          color: #0a1d35 !important;
+          padding: 14px 16px !important;
+          text-align: left !important;
+          cursor: pointer !important;
+          box-shadow: 0 10px 30px rgba(10, 29, 53, 0.06) !important;
+        }
+
+        .unit-picker-button strong {
+          display: block !important;
+          font-size: 16px !important;
+          line-height: 1.25 !important;
+          overflow-wrap: anywhere !important;
+        }
+
+        .unit-picker-button span {
+          display: block !important;
+          margin-top: 4px !important;
+          color: #9b6b25 !important;
+          font-size: 12px !important;
+          font-weight: 800 !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.08em !important;
+        }
+
+        .unit-picker-button.active {
+          border-color: #0a1d35 !important;
+          background: #0a1d35 !important;
+          color: #fff !important;
+        }
+
+        .unit-picker-button.active span {
+          color: #f5c84b !important;
+        }
+
+        .selected-unit-panel {
+          width: min(1120px, 100%) !important;
+          margin: 0 auto !important;
+          display: grid !important;
+          grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr) !important;
+          gap: 0 !important;
+          overflow: hidden !important;
+          border: 1px solid #e4d8c2 !important;
+          border-radius: 32px !important;
+          background: #fff !important;
+          box-shadow: 0 24px 70px rgba(10, 29, 53, 0.12) !important;
+        }
+
+        .selected-unit-photo {
+          position: relative !important;
+          min-height: 360px !important;
+          background: #0a1d35 !important;
+          overflow: hidden !important;
+        }
+
+        .selected-unit-photo button {
+          display: block !important;
+          width: 100% !important;
+          height: 100% !important;
+          min-height: 360px !important;
+          border: 0 !important;
+          padding: 0 !important;
+          cursor: pointer !important;
+          background: transparent !important;
+        }
+
+        .selected-unit-photo img {
+          width: 100% !important;
+          height: 100% !important;
+          min-height: 360px !important;
+          object-fit: cover !important;
+          display: block !important;
+        }
+
+        .selected-unit-photo span {
+          position: absolute !important;
+          left: 22px !important;
+          bottom: 22px !important;
+          border-radius: 999px !important;
+          background: rgba(10, 29, 53, 0.88) !important;
+          color: #fff !important;
+          padding: 11px 16px !important;
+          font-size: 13px !important;
+          font-weight: 900 !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.08em !important;
+        }
+
+        .selected-unit-content {
+          min-width: 0 !important;
+          padding: clamp(24px, 4vw, 42px) !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: center !important;
+        }
+
+        .selected-unit-eyebrow {
+          color: #9b6b25 !important;
+          font-size: 13px !important;
+          font-weight: 900 !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.16em !important;
+        }
+
+        .selected-unit-content h3 {
+          margin: 12px 0 12px !important;
+          color: #0a1d35 !important;
+          font-size: clamp(30px, 4vw, 52px) !important;
+          line-height: 1.05 !important;
+          overflow-wrap: anywhere !important;
+        }
+
+        .selected-unit-content p {
+          margin: 0 !important;
+          color: #555 !important;
+          font-size: 16px !important;
+          line-height: 1.75 !important;
+        }
+
+        .selected-unit-stats {
+          display: flex !important;
+          flex-wrap: wrap !important;
+          gap: 9px !important;
+          margin: 22px 0 !important;
+        }
+
+        .selected-unit-stats span {
+          border-radius: 999px !important;
+          border: 1px solid #e4d8c2 !important;
+          background: #faf6ee !important;
+          color: #0a1d35 !important;
+          padding: 9px 12px !important;
+          font-size: 13px !important;
+          font-weight: 800 !important;
+          white-space: nowrap !important;
+        }
+
+        .selected-unit-actions {
+          display: flex !important;
+          flex-wrap: wrap !important;
+          gap: 12px !important;
+          margin-top: 8px !important;
+        }
+
+        .selected-unit-actions button {
+          flex: 1 1 180px !important;
+          border-radius: 999px !important;
+          padding: 14px 18px !important;
+          font-weight: 900 !important;
+          cursor: pointer !important;
+        }
+
+        .selected-unit-primary {
+          border: 1px solid #0a1d35 !important;
+          background: #0a1d35 !important;
+          color: #fff !important;
+        }
+
+        .selected-unit-secondary {
+          border: 1px solid #0a1d35 !important;
+          background: #fff !important;
+          color: #0a1d35 !important;
+        }
+
+        @media (max-width: 860px) {
+          .selected-unit-panel {
+            grid-template-columns: 1fr !important;
+          }
+
+          .selected-unit-photo,
+          .selected-unit-photo button,
+          .selected-unit-photo img {
+            min-height: 270px !important;
+          }
+
+          .unit-picker-button {
+            min-width: 190px !important;
+          }
+        }
+
+        @media (max-width: 560px) {
+          #alloggi.units-showcase {
+            padding: 38px 12px !important;
+          }
+
+          .selected-unit-content {
+            padding: 22px !important;
+          }
+
+          .selected-unit-content h3 {
+            font-size: 30px !important;
+          }
+
+          .selected-unit-actions {
+            flex-direction: column !important;
+          }
+
+          .selected-unit-actions button {
+            width: 100% !important;
+            flex-basis: auto !important;
+          }
+        }
+      `}</style>
       {legalPage && (
         <LegalPage page={legalPage} onClose={() => setLegalPage("")} />
       )}
@@ -1134,78 +1389,95 @@ export default function App() {
           <SectionTitle>{publicUnits.length > 1 ? "SCEGLI IL TUO ALLOGGIO" : "IL TUO ALLOGGIO"}</SectionTitle>
           <p>
             {publicUnits.length > 1
-              ? "Scegli l'alloggio più adatto al tuo soggiorno. Ogni unità ha foto, disponibilità, tariffe e calendario separati."
+              ? "Seleziona un alloggio: foto, disponibilità, tariffe e prenotazione cambiano in base all'unità scelta."
               : "Gelone Lungomare è pensato per 2 persone, con camera da letto, bagno e cucina, vicino al lungomare di Gela."}
           </p>
         </div>
 
-        <div className={`unit-showcase-grid ${publicUnits.length === 1 ? "single" : ""}`}>
-          {publicUnits.map((unit) => {
-            const isSelected = unit.id === selectedPublicUnitId;
-            const stats = getUnitStats(unit);
-            const photoCount = getUnitPhotos(unit).length;
-            const publicUnitName = getPublicUnitName(unit);
+        {publicUnits.length > 1 && (
+          <div className="multi-unit-picker" aria-label="Seleziona alloggio">
+            {publicUnits.map((unit) => {
+              const isSelected = unit.id === selectedPublicUnitId;
+              const publicUnitName = getPublicUnitName(unit);
 
-            return (
-              <article key={unit.id} className={`unit-showcase-card ${isSelected ? "active" : ""}`}>
+              return (
                 <button
+                  key={unit.id}
                   type="button"
-                  className="unit-photo-button"
+                  className={isSelected ? "unit-picker-button active" : "unit-picker-button"}
                   onClick={() => {
                     setSelectedPublicUnitId(unit.id);
                     setAvailability(null);
                     setRequestStatus(null);
                     setCalendarRefreshKey((value) => value + 1);
-                    window.setTimeout(() => document.getElementById("foto")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
                   }}
-                  aria-label={`Guarda le foto di ${publicUnitName}`}
                 >
-                  <img src={getUnitCover(unit)} alt={publicUnitName} />
-                  <span>{photoCount > 0 ? `${photoCount} foto` : "Galleria"}</span>
+                  <strong>{publicUnitName}</strong>
+                  <span>{isSelected ? "Selezionato" : getUnitCardBadge(unit)}</span>
                 </button>
+              );
+            })}
+          </div>
+        )}
 
-                <div className="unit-card-body">
-                  <div className="unit-card-topline">
-                    <em>{isSelected ? "Alloggio selezionato" : "Disponibilità separata"}</em>
-                    <b>{getUnitCardBadge(unit)}</b>
-                  </div>
-                  <h3>{publicUnitName}</h3>
-                  <p>{getUnitDescription(unit)}</p>
-                  <div className="unit-stat-list">
-                    {stats.map((stat) => <span key={stat}>{stat}</span>)}
-                  </div>
-                  <div className="unit-card-actions">
-                    <button
-                      type="button"
-                      className="unit-primary-action"
-                      onClick={() => {
-                        setSelectedPublicUnitId(unit.id);
-                        setAvailability(null);
-                        setRequestStatus(null);
-                        setCalendarRefreshKey((value) => value + 1);
-                        window.setTimeout(() => document.getElementById("disponibilita")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-                      }}
-                    >
-                      Verifica date
-                    </button>
-                    <button
-                      type="button"
-                      className="unit-secondary-action"
-                      onClick={() => {
-                        setSelectedPublicUnitId(unit.id);
-                        setAvailability(null);
-                        setRequestStatus(null);
-                        setCalendarRefreshKey((value) => value + 1);
-                        window.setTimeout(() => document.getElementById("foto")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-                      }}
-                    >
-                      Vedi foto
-                    </button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+        <div className="selected-unit-panel">
+          <div className="selected-unit-photo">
+            <button
+              type="button"
+              onClick={() => {
+                setActivePhotoIndex(0);
+                window.setTimeout(() => document.getElementById("foto")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+              }}
+              aria-label={`Guarda le foto di ${selectedUnitName}`}
+            >
+              <img src={getUnitCover(selectedPublicUnit)} alt={selectedUnitName} />
+              <span>
+                {getUnitPhotos(selectedPublicUnit).length > 0
+                  ? `${getUnitPhotos(selectedPublicUnit).length} foto`
+                  : "Galleria"}
+              </span>
+            </button>
+          </div>
+
+          <div className="selected-unit-content">
+            <div className="selected-unit-eyebrow">
+              {publicUnits.length > 1 ? "Alloggio selezionato" : "Alloggio"}
+            </div>
+            <h3>{selectedUnitName}</h3>
+            <p>{getUnitDescription(selectedPublicUnit)}</p>
+
+            <div className="selected-unit-stats">
+              {getUnitStats(selectedPublicUnit).map((stat) => (
+                <span key={stat}>{stat}</span>
+              ))}
+            </div>
+
+            <div className="selected-unit-actions">
+              <button
+                type="button"
+                className="selected-unit-primary"
+                onClick={() => {
+                  setAvailability(null);
+                  setRequestStatus(null);
+                  setCalendarRefreshKey((value) => value + 1);
+                  window.setTimeout(() => document.getElementById("disponibilita")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+                }}
+              >
+                Verifica disponibilità
+              </button>
+
+              <button
+                type="button"
+                className="selected-unit-secondary"
+                onClick={() => {
+                  setActivePhotoIndex(0);
+                  window.setTimeout(() => document.getElementById("foto")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+                }}
+              >
+                Vedi foto
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
