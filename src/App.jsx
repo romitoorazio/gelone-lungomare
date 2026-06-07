@@ -1133,8 +1133,9 @@ export default function App() {
           <p className="eyebrow">Alloggi Gelone</p>
           <SectionTitle>{publicUnits.length > 1 ? "SCEGLI IL TUO ALLOGGIO" : "IL TUO ALLOGGIO"}</SectionTitle>
           <p>
-            Oggi trovi Gelone Lungomare, alloggio per 2 persone vicino al lungomare di Gela.
-            Le future unità compariranno qui solo quando saranno attive e visibili dal pannello admin.
+            {publicUnits.length > 1
+              ? "Scegli l'alloggio più adatto al tuo soggiorno. Ogni unità ha foto, disponibilità, tariffe e calendario separati."
+              : "Gelone Lungomare è pensato per 2 persone, con camera da letto, bagno e cucina, vicino al lungomare di Gela."}
           </p>
         </div>
 

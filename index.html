@@ -157,6 +157,198 @@
       #alloggio.amenities > div {
         gap: 0 !important;
       }
+
+      /* Fix professionale multi-unità: evita che più alloggi rompano la pagina pubblica */
+      #alloggi.units-showcase {
+        padding: clamp(48px, 7vw, 92px) 20px;
+        background: #faf6ee;
+      }
+
+      #alloggi .units-intro {
+        max-width: 980px;
+        margin: 0 auto 28px;
+        text-align: center;
+      }
+
+      #alloggi .units-intro p {
+        font-size: 16px !important;
+        line-height: 1.7 !important;
+        max-width: 760px;
+        margin: 14px auto 0;
+        color: #555;
+      }
+
+      #alloggi .units-intro p::before {
+        content: none !important;
+        display: none !important;
+      }
+
+      .unit-showcase-grid {
+        width: min(1180px, 100%);
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 24px;
+        align-items: stretch;
+      }
+
+      .unit-showcase-grid.single {
+        grid-template-columns: minmax(0, 760px);
+        justify-content: center;
+      }
+
+      .unit-showcase-card {
+        display: flex;
+        min-width: 0;
+        height: 100%;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid #e4d8c2;
+        border-radius: 28px;
+        background: #fff;
+        box-shadow: 0 18px 50px rgba(10, 29, 53, 0.08);
+      }
+
+      .unit-showcase-card.active {
+        border-color: #c89b3c;
+        box-shadow: 0 22px 60px rgba(10, 29, 53, 0.14);
+      }
+
+      .unit-photo-button {
+        position: relative;
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 10;
+        padding: 0;
+        overflow: hidden;
+        border: 0;
+        background: #0a1d35;
+        cursor: pointer;
+      }
+
+      .unit-photo-button img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .unit-photo-button span {
+        position: absolute;
+        right: 14px;
+        bottom: 14px;
+        border-radius: 999px;
+        background: rgba(10, 29, 53, 0.86);
+        color: #fff;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .unit-card-body {
+        display: flex;
+        flex: 1;
+        min-width: 0;
+        flex-direction: column;
+        padding: 22px;
+      }
+
+      .unit-card-topline {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+        color: #9b6b25;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .unit-card-body h3 {
+        margin: 14px 0 10px;
+        color: #0a1d35;
+        font-size: clamp(22px, 2.2vw, 30px);
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+      }
+
+      .unit-card-body p {
+        margin: 0;
+        color: #555;
+        line-height: 1.65;
+      }
+
+      .unit-stat-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      .unit-stat-list span {
+        border-radius: 999px;
+        border: 1px solid #e4d8c2;
+        background: #faf6ee;
+        color: #0a1d35;
+        padding: 8px 11px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .unit-card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: auto;
+        padding-top: 20px;
+      }
+
+      .unit-primary-action,
+      .unit-secondary-action {
+        flex: 1 1 160px;
+        border-radius: 999px;
+        padding: 13px 16px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .unit-primary-action {
+        border: 1px solid #0a1d35;
+        background: #0a1d35;
+        color: #fff;
+      }
+
+      .unit-secondary-action {
+        border: 1px solid #0a1d35;
+        background: #fff;
+        color: #0a1d35;
+      }
+
+      @media (max-width: 720px) {
+        #alloggi.units-showcase {
+          padding: 42px 14px;
+        }
+
+        .unit-showcase-grid,
+        .unit-showcase-grid.single {
+          grid-template-columns: 1fr;
+          gap: 18px;
+        }
+
+        .unit-card-body {
+          padding: 18px;
+        }
+
+        .unit-card-actions {
+          flex-direction: column;
+        }
+
+        .unit-primary-action,
+        .unit-secondary-action {
+          width: 100%;
+          flex-basis: auto;
+        }
+      }
     </style>
   </head>
 
