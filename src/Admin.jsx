@@ -2686,6 +2686,40 @@ wifiName: settings.wifiName || "",
     }
   }
 
+  function getManualPaymentActionLabel(manualAction, paymentStatus) {
+    if (manualAction?.includes("caparra")) return "Caparra incassata";
+    if (manualAction?.includes("saldo")) return "Saldo pagato";
+    if (paymentStatus === "deposit_paid") return "Caparra incassata";
+    if (paymentStatus === "paid") return "Prenotazione saldata";
+    if (paymentStatus === "unpaid") return "Pagamento azzerato / non pagato";
+    return getPaymentLabel(paymentStatus);
+  }
+
+  function getManualPaymentSuggestedAmount(booking, paymentStatus) {
+    const total = Number(booking?.totalPrice || 0);
+    const deposit = Number(booking?.depositAmount || 0);
+    const currentStatus = String(booking?.paymentStatus || "").toLowerCase();
+
+    if (paymentStatus === "deposit_paid") {
+      return deposit > 0 ? deposit : total;
+    }
+
+    if (paymentStatus === "paid") {
+      if (currentStatus === "deposit_paid") {
+        return Math.max(total - deposit, 0);
+      }
+
+      return total;
+    }
+
+    return 0;
+  }
+
+  function parseManualMoney(value) {
+    const number = Number(String(value || "").replace(",", "."));
+    return Number.isFinite(number) ? Math.round(number * 100) / 100 : NaN;
+  }
+
   async function setManualPaymentStatus(booking, paymentStatus, manualAction) {
     clearMessages();
 
@@ -2699,19 +2733,161 @@ wifiName: settings.wifiName || "",
       return;
     }
 
+    const currentPaymentStatus = String(booking.paymentStatus || "unpaid").toLowerCase();
+    const nextPaymentStatus = String(paymentStatus || "unpaid").toLowerCase();
+
+    if (currentPaymentStatus === "paid" && nextPaymentStatus === "paid") {
+      setError("Controllo anti-errore: questa prenotazione risulta già saldata.");
+      return;
+    }
+
+    if (currentPaymentStatus === "paid" && nextPaymentStatus === "deposit_paid") {
+      setError("Controllo anti-errore: questa prenotazione è già saldata, non puoi segnarla solo come caparra.");
+      return;
+    }
+
+    if (currentPaymentStatus === "deposit_paid" && nextPaymentStatus === "deposit_paid") {
+      setError("Controllo anti-errore: la caparra risulta già incassata.");
+      return;
+    }
+
+    if (currentPaymentStatus === "unpaid" && nextPaymentStatus === "unpaid") {
+      setError("Controllo anti-errore: questa prenotazione risulta già non pagata.");
+      return;
+    }
+
+    const actionLabel = getManualPaymentActionLabel(manualAction, nextPaymentStatus);
+    const suggestedAmount = getManualPaymentSuggestedAmount(booking, nextPaymentStatus);
+    let manualPaymentMethod = "";
+    let manualPaymentReference = "";
+    let manualPaymentNote = "";
+    let manualPaymentAmount = 0;
+
+    if (["deposit_paid", "paid"].includes(nextPaymentStatus)) {
+      const method = window.prompt(
+        actionLabel +
+          "\n\nMetodo pagamento obbligatorio.\nEsempi: contanti, POS, bonifico, Booking, Airbnb, Stripe manuale.",
+        booking.manualPaymentMethod || ""
+      );
+
+      if (method === null) {
+        setMessage("Aggiornamento pagamento interrotto.");
+        return;
+      }
+
+      manualPaymentMethod = String(method || "").trim();
+
+      if (manualPaymentMethod.length < 2) {
+        setError("Pagamento non aggiornato: devi inserire il metodo di pagamento.");
+        return;
+      }
+
+      const reference = window.prompt(
+        actionLabel +
+          "\n\nRiferimento pagamento obbligatorio.\nEsempi: ricevuta POS, CRO bonifico, numero operazione, incasso contanti del giorno.",
+        booking.manualPaymentReference || ""
+      );
+
+      if (reference === null) {
+        setMessage("Aggiornamento pagamento interrotto.");
+        return;
+      }
+
+      manualPaymentReference = String(reference || "").trim();
+
+      if (manualPaymentReference.length < 2) {
+        setError("Pagamento non aggiornato: devi inserire un riferimento pagamento.");
+        return;
+      }
+
+      const amountText = window.prompt(
+        actionLabel +
+          "\n\nImporto registrato:",
+        suggestedAmount > 0 ? String(suggestedAmount).replace(".", ",") : ""
+      );
+
+      if (amountText === null) {
+        setMessage("Aggiornamento pagamento interrotto.");
+        return;
+      }
+
+      manualPaymentAmount = parseManualMoney(amountText);
+
+      if (!Number.isFinite(manualPaymentAmount) || manualPaymentAmount <= 0) {
+        setError("Pagamento non aggiornato: importo non valido.");
+        return;
+      }
+
+      const note = window.prompt(
+        actionLabel +
+          "\n\nNota interna facoltativa:",
+        booking.manualPaymentNote || ""
+      );
+
+      if (note === null) {
+        setMessage("Aggiornamento pagamento interrotto.");
+        return;
+      }
+
+      manualPaymentNote = String(note || "").trim();
+    }
+
+    if (nextPaymentStatus === "unpaid") {
+      const reason = window.prompt(
+        "Motivo obbligatorio per segnare questa prenotazione come NON pagata:\n\nEsempi: errore inserimento, pagamento stornato, link scaduto, incasso non confermato."
+      );
+
+      if (reason === null) {
+        setMessage("Aggiornamento pagamento interrotto.");
+        return;
+      }
+
+      manualPaymentNote = String(reason || "").trim();
+
+      if (manualPaymentNote.length < 5) {
+        setError("Pagamento non aggiornato: devi inserire un motivo chiaro, almeno 5 caratteri.");
+        return;
+      }
+
+      manualPaymentMethod = "azzeramento manuale";
+      manualPaymentReference = manualPaymentNote;
+      manualPaymentAmount = 0;
+    }
+
     const confirmed = window.confirm(
-      "Vuoi aggiornare manualmente il pagamento di " +
-        (booking.guestName || "questa prenotazione") +
-        " come: " +
-        getPaymentLabel(paymentStatus) +
-        "?"
+      "Confermi aggiornamento pagamento manuale?\n\n" +
+        "Ospite: " +
+        (booking.guestName || "-") +
+        "\nAzione: " +
+        actionLabel +
+        "\nStato precedente: " +
+        getPaymentLabel(currentPaymentStatus) +
+        "\nNuovo stato: " +
+        getPaymentLabel(nextPaymentStatus) +
+        "\nMetodo: " +
+        (manualPaymentMethod || "-") +
+        "\nRiferimento: " +
+        (manualPaymentReference || "-") +
+        "\nImporto: " +
+        formatEuro(manualPaymentAmount) +
+        "\n\nIl movimento sarà salvato nel log attività."
     );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      setMessage("Aggiornamento pagamento interrotto.");
+      return;
+    }
 
     try {
       await updateDoc(doc(db, "bookings", booking.id), {
-        paymentStatus,
+        paymentStatus: nextPaymentStatus,
+        manualPaymentAction: manualAction || "",
+        manualPaymentActionLabel: actionLabel,
+        manualPaymentPreviousStatus: currentPaymentStatus,
+        manualPaymentMethod,
+        manualPaymentReference,
+        manualPaymentNote,
+        manualPaymentAmount,
         manualPaymentUpdatedAt: serverTimestamp(),
         manualPaymentUpdatedBy: user?.email || "",
         updatedAt: serverTimestamp(),
@@ -2719,24 +2895,41 @@ wifiName: settings.wifiName || "",
 
       setDetailForm((current) => ({
         ...current,
-        paymentStatus,
+        paymentStatus: nextPaymentStatus,
       }));
 
       await addActivityLog("updated_manual_payment", booking, {
         manualAction,
-        paymentStatus,
-        paymentLabel: getPaymentLabel(paymentStatus),
+        actionLabel,
+        previousPaymentStatus: currentPaymentStatus,
+        previousPaymentLabel: getPaymentLabel(currentPaymentStatus),
+        paymentStatus: nextPaymentStatus,
+        paymentLabel: getPaymentLabel(nextPaymentStatus),
+        manualPaymentMethod,
+        manualPaymentReference,
+        manualPaymentNote,
+        manualPaymentAmount,
         totalPrice: booking.totalPrice ?? null,
         depositAmount: booking.depositAmount ?? null,
+        adminEmail: user?.email || "",
         source: "manual_admin",
       });
 
-      setMessage("Pagamento manuale aggiornato: " + getPaymentLabel(paymentStatus) + ".");
+      setMessage(
+        "Pagamento manuale aggiornato: " +
+          getPaymentLabel(nextPaymentStatus) +
+          " · " +
+          manualPaymentMethod +
+          " · " +
+          formatEuro(manualPaymentAmount) +
+          "."
+      );
     } catch (err) {
       console.error(err);
       setError("Errore durante l'aggiornamento manuale del pagamento.");
     }
   }
+
 
   async function setPaymentStatus(booking, paymentStatus) {
     clearMessages();
