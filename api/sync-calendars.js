@@ -109,6 +109,47 @@ function getNightDates(checkIn, checkOut) {
   return nights;
 }
 
+function daysBetweenDates(fromDateString, toDateString) {
+  if (!isValidDate(fromDateString) || !isValidDate(toDateString)) return 0;
+
+  const [fy, fm, fd] = fromDateString.split("-").map(Number);
+  const [ty, tm, td] = toDateString.split("-").map(Number);
+  const from = Date.UTC(fy, fm - 1, fd);
+  const to = Date.UTC(ty, tm - 1, td);
+
+  return Math.round((to - from) / 86400000);
+}
+
+function todayUtcDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isAirbnbRollingAvailabilityFence(event) {
+  if (!event || event.source !== "airbnb_ical") return false;
+  if (!Array.isArray(event.nights) || event.nights.length !== 1) return false;
+
+  const daysAhead = daysBetweenDates(todayUtcDateString(), event.checkIn);
+
+  if (daysAhead < 360 || daysAhead > 370) return false;
+
+  const text = String(
+    (event.sourceSummary || "") + " " + (event.sourceDescription || "")
+  ).toLowerCase();
+
+  const looksLikeRealReservation =
+    text.includes("reservation") ||
+    text.includes("prenotazione") ||
+    text.includes("confirmed") ||
+    text.includes("confermata") ||
+    text.includes("guest") ||
+    text.includes("ospite") ||
+    text.includes("phone") ||
+    text.includes("telefono") ||
+    text.includes("@");
+
+  return !looksLikeRealReservation;
+}
+
 function unfoldIcsLines(text) {
   const normalized = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const lines = normalized.split("\n");
@@ -480,13 +521,26 @@ export default async function handler(req, res) {
 
       const icsText = await fetchIcs(url);
       const rawEvents = parseIcsEvents(icsText);
-      const events = rawEvents
+      const normalizedEvents = rawEvents
         .map((event) => normalizeExternalEvent(event, sourceConfig))
         .filter(Boolean);
 
-      const skippedInvalid = Math.max(0, rawEvents.length - events.length);
+      const ignoredRollingAvailabilityFence = normalizedEvents.filter((event) =>
+        isAirbnbRollingAvailabilityFence(event)
+      );
+
+      const events = normalizedEvents.filter(
+        (event) => !isAirbnbRollingAvailabilityFence(event)
+      );
+
+      const skippedInvalid = Math.max(0, rawEvents.length - normalizedEvents.length);
       totals.skippedInvalid += skippedInvalid;
       totals.sources[sourceConfig.key].skippedInvalid += skippedInvalid;
+
+      if (ignoredRollingAvailabilityFence.length > 0) {
+        totals.skippedIgnored += ignoredRollingAvailabilityFence.length;
+        totals.sources[sourceConfig.key].skippedIgnored += ignoredRollingAvailabilityFence.length;
+      }
 
       const activeExternalKeys = new Set(events.map((event) => event.externalKey));
 
