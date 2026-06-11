@@ -540,6 +540,7 @@ export default function Admin() {
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [syncLogs, setSyncLogs] = useState([]);
+  const [siteVisits, setSiteVisits] = useState([]);
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [cleanupResult, setCleanupResult] = useState(null);
   const [manualCopy, setManualCopy] = useState({ title: "", text: "" });
@@ -868,15 +869,22 @@ export default function Admin() {
           .filter((item) => item.type === "calendar_sync")
           .slice(0, 80);
 
+        const siteVisitRows = rows
+          .filter((item) => item.type === "site_visit")
+          .sort((a, b) => String(b.hourKey || "").localeCompare(String(a.hourKey || "")))
+          .slice(0, 300);
+
         setActivityLogs(adminRows);
         setInternalRecords(recordRows);
         setSyncLogs(syncRows);
+        setSiteVisits(siteVisitRows);
       },
       (err) => {
         console.warn("Log attivita non caricati:", err);
         setActivityLogs([]);
         setInternalRecords([]);
         setSyncLogs([]);
+        setSiteVisits([]);
       }
     );
 
@@ -3635,6 +3643,9 @@ wifiName: settings.wifiName || "",
           <TabButton active={activeTab === "logs"} onClick={() => setActiveTab("logs")}>
             Log attivita
           </TabButton>
+          <TabButton active={activeTab === "visits"} onClick={() => setActiveTab("visits")}>
+            Visite sito
+          </TabButton>
         </div>
 
         {message && (
@@ -5013,7 +5024,89 @@ wifiName: settings.wifiName || "",
               </div>
             </div>
           </section>
+        )}        {activeTab === "visits" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Visite sito
+              </p>
+              <h2 className="mt-2 font-serif text-3xl">Chi visita il sito</h2>
+              <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                Qui vedi le visite registrate dal sito pubblico. L'IP non viene salvato in chiaro:
+                viene mostrato solo mascherato.
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <div className="rounded-3xl border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                  <p className="text-sm text-[#8a6a3d]">Record caricati</p>
+                  <p className="mt-2 text-3xl font-black">{siteVisits.length}</p>
+                </div>
+
+                <div className="rounded-3xl border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                  <p className="text-sm text-[#8a6a3d]">Telefono</p>
+                  <p className="mt-2 text-3xl font-black">
+                    {siteVisits.filter((visit) => visit.device === "telefono").length}
+                  </p>
+                </div>
+
+                <div className="rounded-3xl border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                  <p className="text-sm text-[#8a6a3d]">PC</p>
+                  <p className="mt-2 text-3xl font-black">
+                    {siteVisits.filter((visit) => visit.device === "pc").length}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-8 overflow-x-auto rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                <h3 className="text-2xl font-bold text-[#0a1d35]">Ultime visite sito registrate</h3>
+
+                <table className="mt-5 w-full min-w-[1000px] border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                      <th className="py-3">Quando</th>
+                      <th className="py-3">Citta</th>
+                      <th className="py-3">Paese</th>
+                      <th className="py-3">Dispositivo</th>
+                      <th className="py-3">Browser</th>
+                      <th className="py-3">Provenienza</th>
+                      <th className="py-3">IP mascherato</th>
+                      <th className="py-3">Viste</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {siteVisits.length === 0 && (
+                      <tr>
+                        <td colSpan={8} className="py-8 text-center text-[#555]">
+                          Nessuna visita ancora registrata. Apri il sito pubblico da telefono e poi aggiorna questa pagina.
+                        </td>
+                      </tr>
+                    )}
+
+                    {siteVisits.slice(0, 120).map((visit) => (
+                      <tr key={visit.id} className="border-b border-[#f0e6d5] align-top">
+                        <td className="py-4">{String(visit.hourKey || visit.dateKey || "-").replace("T", " ")}</td>
+                        <td className="py-4">{visit.city || "-"}</td>
+                        <td className="py-4">{visit.country || "-"}</td>
+                        <td className="py-4">{visit.device || "-"}</td>
+                        <td className="py-4">{visit.browser || "-"}</td>
+                        <td className="py-4">{visit.referrerCategory || "diretto"}</td>
+                        <td className="py-4">{visit.ipMasked || "-"}</td>
+                        <td className="py-4 font-bold">{visit.timesSeen || 1}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900">
+                  Questo registro non identifica il nome della persona se non compila una richiesta prenotazione.
+                </div>
+              </div>
+            </div>
+          </section>
         )}
+
+
 
         {activeTab === "logs" && (
           <section className="mt-8 space-y-6">
