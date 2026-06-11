@@ -119,13 +119,39 @@ function getVisitorOs(userAgent) {
 
 function getReferrerCategory(referrer) {
   const value = String(referrer || "").toLowerCase();
+
+  const hasAny = (...items) => items.some((item) => value.includes(item));
+
+  if (hasAny("utm_source=whatsapp", "source=whatsapp", "ref=whatsapp", "wa.me", "whatsapp")) {
+    return "WhatsApp";
+  }
+
+  if (hasAny("utm_source=google", "source=google", "google.")) {
+    return "Google";
+  }
+
+  if (hasAny("utm_source=facebook", "source=facebook", "facebook.com", "fbclid")) {
+    return "Facebook";
+  }
+
+  if (hasAny("utm_source=instagram", "source=instagram", "instagram.com", "igsh")) {
+    return "Instagram";
+  }
+
+  if (hasAny("utm_source=booking", "source=booking", "booking.")) {
+    return "Booking";
+  }
+
+  if (hasAny("utm_source=airbnb", "source=airbnb", "airbnb.")) {
+    return "Airbnb";
+  }
+
   if (!value) return "diretto";
-  if (value.includes("google.")) return "Google";
-  if (value.includes("booking.")) return "Booking";
-  if (value.includes("airbnb.")) return "Airbnb";
-  if (value.includes("whatsapp")) return "WhatsApp";
-  if (value.includes("facebook") || value.includes("instagram")) return "Social";
-  if (value.includes("gelone.it")) return "interno";
+
+  if (value.includes("gelone.it")) {
+    return "interno";
+  }
+
   return "altro";
 }
 
