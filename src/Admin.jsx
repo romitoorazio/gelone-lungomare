@@ -2418,6 +2418,79 @@ wifiName: settings.wifiName || "",
     }
   }
 
+  async function sendProfessionalBookingEmail(booking, emailType = "availability_confirmed", options = {}) {
+    if (!options.silent) {
+      clearMessages();
+    }
+
+    if (!booking?.id) {
+      if (!options.silent) setError("Prenotazione non valida.");
+      return null;
+    }
+
+    if (!booking.guestEmail) {
+      if (!options.silent) setError("Email ospite mancante.");
+      return null;
+    }
+
+    try {
+      const token = await getIdToken(user, true);
+      const response = await fetch("/api/send-booking-email", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          emailType,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.ok) {
+        await addActivityLog("professional_email_failed", booking, {
+          emailType,
+          emailTo: booking.guestEmail || "",
+          reason: data?.message || "Errore invio email professionale.",
+        });
+
+        if (!options.silent) {
+          setError(data?.message || "Errore durante l'invio dell'email professionale.");
+        }
+
+        return null;
+      }
+
+      await addActivityLog("professional_email_sent", booking, {
+        emailType,
+        emailTo: data.emailTo || booking.guestEmail || "",
+        emailId: data.emailId || "",
+      });
+
+      if (!options.silent) {
+        setMessage("Email professionale inviata a " + (data.emailTo || booking.guestEmail) + ".");
+      }
+
+      return data;
+    } catch (err) {
+      console.error(err);
+
+      await addActivityLog("professional_email_failed", booking, {
+        emailType,
+        emailTo: booking.guestEmail || "",
+        reason: err?.message || "Errore tecnico.",
+      });
+
+      if (!options.silent) {
+        setError("Errore tecnico durante l'invio dell'email professionale.");
+      }
+
+      return null;
+    }
+  }
+
   async function confirmBooking(booking) {
     clearMessages();
 
@@ -5505,6 +5578,41 @@ wifiName: settings.wifiName || "",
                   )}
                 </div>
 
+
+                <div className="mt-6 rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#9b6b25]">
+                        Email professionale ospite
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-[#555]">
+                        Invia una conferma disponibilità professionale in HTML, con riepilogo soggiorno,
+                        condizioni, contatti e tracciamento nel registro attività.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      {selectedBooking.guestEmail ? (
+                        <SmallButton
+                          onClick={() =>
+                            sendProfessionalBookingEmail(
+                              selectedBooking,
+                              "availability_confirmed"
+                            )
+                          }
+                          className="bg-[#0a1d35] px-6 py-4 text-white"
+                        >
+                          <Mail size={18} />
+                          Email conferma
+                        </SmallButton>
+                      ) : (
+                        <Pill className="border-amber-200 bg-amber-50 text-amber-900">
+                          Email ospite mancante
+                        </Pill>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
                 <div className="mt-6 rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
