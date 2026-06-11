@@ -136,9 +136,7 @@ async function logPublicVisit(adminDb, req, { unitId, unitName, start, end }) {
     const hourKey = now.toISOString().slice(0, 13);
     const userAgent = getHeader(req, "user-agent").slice(0, 500);
     const ip = getClientIp(req);
- now.toISOString().slice(0, 10);
-    const hourKey = now.toISOString().slice(0, 13);
-    const userAgent =    const referrer = getHeader(req, "referer").slice(0, 500);
+    const referrer = getHeader(req, "referer").slice(0, 500);
     const country = getHeader(req, "x-vercel-ip-country") || getHeader(req, "cf-ipcountry") || "";
     const region = getHeader(req, "x-vercel-ip-country-region") || "";
     const city = safeDecode(getHeader(req, "x-vercel-ip-city"));
