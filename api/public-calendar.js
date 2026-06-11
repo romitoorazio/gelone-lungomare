@@ -1,4 +1,5 @@
-import { getFirebaseAdminDb } from "./_firebaseAdmin.js";
+import crypto from "crypto";
+import { getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
 import { DEFAULT_UNIT_ID, bookingUnitId, getPublicUnitConfig } from "./_units.js";
 
 function isValidDate(value) {
@@ -50,6 +51,128 @@ function getNightDates(checkIn, checkOut) {
 function getQuery(req, key) {
   const value = req.query?.[key];
   return Array.isArray(value) ? value[0] : value;
+}
+
+function safeDecode(value) {
+  try {
+    return decodeURIComponent(String(value || ""));
+  } catch {
+    return String(value || "");
+  }
+}
+
+function getHeader(req, key) {
+  const value = req.headers?.[String(key).toLowerCase()];
+  return Array.isArray(value) ? value[0] : String(value || "").trim();
+}
+
+function getClientIp(req) {
+  const forwarded = getHeader(req, "x-forwarded-for").split(",")[0].trim();
+  return forwarded || getHeader(req, "x-real-ip") || String(req.socket?.remoteAddress || "").trim();
+}
+
+function hashValue(value) {
+  return crypto.createHash("sha256").update(String(value || "")).digest("hex").slice(0, 32);
+}
+
+function maskIp(ip) {
+  const value = String(ip || "").trim();
+
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(value)) {
+    const parts = value.split(".");
+    return parts[0] + "." + parts[1] + "." + parts[2] + ".0";
+  }
+
+  if (value.includes(":")) {
+    return value.split(":").slice(0, 4).join(":") + "::";
+  }
+
+  return "";
+}
+
+function getVisitorDevice(userAgent) {
+  const ua = String(userAgent || "").toLowerCase();
+  if (/bot|crawler|spider|preview|facebookexternalhit|whatsapp|telegram/.test(ua)) return "bot/preview";
+  if (/ipad|tablet/.test(ua)) return "tablet";
+  if (/mobile|iphone|android/.test(ua)) return "telefono";
+  return "pc";
+}
+
+function getVisitorBrowser(userAgent) {
+  const ua = String(userAgent || "").toLowerCase();
+  if (ua.includes("edg/")) return "Edge";
+  if (ua.includes("chrome/") && !ua.includes("edg/")) return "Chrome";
+  if (ua.includes("safari/") && !ua.includes("chrome/")) return "Safari";
+  if (ua.includes("firefox/")) return "Firefox";
+  return "Altro";
+}
+
+function getVisitorOs(userAgent) {
+  const ua = String(userAgent || "").toLowerCase();
+  if (ua.includes("iphone") || ua.includes("ipad")) return "iOS";
+  if (ua.includes("android")) return "Android";
+  if (ua.includes("windows")) return "Windows";
+  if (ua.includes("mac os")) return "macOS";
+  if (ua.includes("linux")) return "Linux";
+  return "Altro";
+}
+
+function getReferrerCategory(referrer) {
+  const value = String(referrer || "").toLowerCase();
+  if (!value) return "diretto";
+  if (value.includes("google.")) return "Google";
+  if (value.includes("booking.")) return "Booking";
+  if (value.includes("airbnb.")) return "Airbnb";
+  if (value.includes("whatsapp")) return "WhatsApp";
+  if (value.includes("facebook") || value.includes("instagram")) return "Social";
+  if (value.includes("gelone.it")) return "interno";
+  return "altro";
+}
+
+async function logPublicVisit(adminDb, req, { unitId, unitName, start, end }) {
+  try {
+    const now = new Date();
+    const dateKey = now.toISOString().slice(0, 10);
+    const hourKey = now.toISOString().slice(0, 13);
+    const userAgent = getHeader(req, "user-agent").slice(0, 500);
+    const ip = getClientIp(req);
+ now.toISOString().slice(0, 10);
+    const hourKey = now.toISOString().slice(0, 13);
+    const userAgent =    const referrer = getHeader(req, "referer").slice(0, 500);
+    const country = getHeader(req, "x-vercel-ip-country") || getHeader(req, "cf-ipcountry") || "";
+    const region = getHeader(req, "x-vercel-ip-country-region") || "";
+    const city = safeDecode(getHeader(req, "x-vercel-ip-city"));
+    const visitKey = hashValue(dateKey + "|" + hourKey + "|" + unitId + "|" + ip + "|" + userAgent);
+
+    await adminDb.collection("maintenanceLogs").doc("site_visit_" + dateKey + "_" + visitKey).set(
+      {
+        type: "site_visit",
+        source: "public_calendar",
+        unitId,
+        unitName,
+        dateKey,
+        hourKey,
+        lastSeenAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        timesSeen: FieldValue.increment(1),
+        ipMasked: maskIp(ip),
+        ipHash: hashValue(ip),
+        country,
+        region,
+        city,
+        device: getVisitorDevice(userAgent),
+        browser: getVisitorBrowser(userAgent),
+        os: getVisitorOs(userAgent),
+        referrer,
+        referrerCategory: getReferrerCategory(referrer),
+        userAgent,
+        calendarRange: { start, end },
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    console.warn("Log visita sito non salvato:", error?.message || error);
+  }
 }
 
 function toMillis(value) {
@@ -189,6 +312,13 @@ export default async function handler(req, res) {
         message: "Intervallo troppo lungo.",
       });
     }
+
+    await logPublicVisit(adminDb, req, {
+      unitId,
+      unitName: unit.publicName || unit.name,
+      start,
+      end,
+    });
 
     const statusByDate = new Map();
 
