@@ -152,6 +152,7 @@ async function logPublicVisit(adminDb, req, { unitId, unitName, start, end }) {
         unitName,
         dateKey,
         hourKey,
+        createdAt: FieldValue.serverTimestamp(),
         lastSeenAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         timesSeen: FieldValue.increment(1),
