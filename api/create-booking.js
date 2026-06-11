@@ -21,7 +21,6 @@ function getNightDates(checkIn, checkOut) {
 
   const start = new Date(Date.UTC(startYear, startMonth - 1, startDay));
   const end = new Date(Date.UTC(endYear, endMonth - 1, endDay));
-
   const cursor = new Date(start);
 
   while (cursor < end) {
@@ -163,7 +162,6 @@ function isExpiredPending(data) {
   }
 
   const expiresAtMillis = toMillis(data?.expiresAt);
-
   return Boolean(expiresAtMillis && expiresAtMillis <= Date.now());
 }
 
@@ -194,7 +192,6 @@ function bookingOverlaps(data, checkIn, checkOut) {
 
 async function hasBookingConflict(adminDb, unitId, checkIn, checkOut) {
   const snapshot = await adminDb.collection("bookings").get();
-
   let conflict = false;
 
   snapshot.forEach((doc) => {
@@ -232,6 +229,15 @@ function formatDateForEmail(value) {
 
   const [year, month, day] = text.split("-");
   return `${day}/${month}/${year}`;
+}
+
+function escapeHtmlForEmail(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 async function sendNotificationEmail(booking, unit) {
@@ -324,6 +330,16 @@ async function sendGuestRequestEmail(booking, unit) {
       })
     : "entro 24 ore";
 
+  const safeGuestName = escapeHtmlForEmail(booking.guestName || "ospite");
+  const safeUnitName = escapeHtmlForEmail(unitName);
+  const safeCheckIn = escapeHtmlForEmail(formatDateForEmail(booking.checkIn));
+  const safeCheckOut = escapeHtmlForEmail(formatDateForEmail(booking.checkOut));
+  const safeNightsText = escapeHtmlForEmail(nightsText);
+  const safeGuests = escapeHtmlForEmail(booking.guests || "-");
+  const safeTotal = escapeHtmlForEmail(formatEuroForEmail(booking.totalPrice));
+  const safeDeposit = escapeHtmlForEmail(formatEuroForEmail(booking.depositAmount));
+  const safeHoldExpiresAt = escapeHtmlForEmail(holdExpiresAt);
+
   const subject = `Richiesta ricevuta - ${unitName}`;
 
   const text = `
@@ -361,6 +377,60 @@ Grazie,
 Gelone Lungomare
 `.trim();
 
+  const html = `<!doctype html>
+<html>
+  <body style="margin:0;background:#f4efe6;font-family:Arial,Helvetica,sans-serif;color:#0a1d35;">
+    <div style="max-width:720px;margin:0 auto;padding:28px 14px;">
+      <div style="background:#ffffff;border-radius:28px;overflow:hidden;border:1px solid #e4d8c2;box-shadow:0 18px 60px rgba(10,29,53,0.10);">
+        <div style="background:#0a1d35;padding:30px 24px;text-align:center;">
+          <div style="color:#f5c84b;text-transform:uppercase;letter-spacing:0.16em;font-size:12px;font-weight:800;">Gelone Lungomare</div>
+          <h1 style="margin:12px 0 0;color:#ffffff;font-family:Georgia,serif;font-size:32px;line-height:1.1;">Richiesta ricevuta</h1>
+          <p style="margin:14px auto 0;color:#dbe6f4;font-size:15px;line-height:1.6;max-width:520px;">Abbiamo ricevuto la tua richiesta e la struttura la controllerà al più presto.</p>
+        </div>
+        <div style="padding:30px 26px;">
+          <p style="font-size:18px;line-height:1.7;margin:0 0 18px;">Ciao <strong>${safeGuestName}</strong>,</p>
+          <p style="font-size:16px;line-height:1.75;margin:0 0 22px;color:#4f5b67;">Grazie per la richiesta di prenotazione per <strong>${safeUnitName}</strong>. Le date risultano bloccate temporaneamente in attesa di conferma da parte della struttura.</p>
+
+          <div style="border:1px solid #e4d8c2;border-radius:22px;overflow:hidden;margin:24px 0;">
+            <div style="background:#faf6ee;padding:16px 18px;font-weight:900;color:#9b6b25;text-transform:uppercase;letter-spacing:0.08em;font-size:12px;">Riepilogo richiesta</div>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:15px;">
+              <tr><td style="padding:14px 18px;border-bottom:1px solid #f0e6d5;color:#6b5b46;">Alloggio</td><td style="padding:14px 18px;border-bottom:1px solid #f0e6d5;text-align:right;font-weight:800;">${safeUnitName}</td></tr>
+              <tr><td style="padding:14px 18px;border-bottom:1px solid #f0e6d5;color:#6b5b46;">Arrivo</td><td style="padding:14px 18px;border-bottom:1px solid #f0e6d5;text-align:right;font-weight:800;">${safeCheckIn}</td></tr>
+              <tr><td style="padding:14px 18px;border-bottom:1px solid #f0e6d5;color:#6b5b46;">Partenza</td><td style="padding:14px 18px;border-bottom:1px solid #f0e6d5;text-align:right;font-weight:800;">${safeCheckOut}</td></tr>
+              <tr><td style="padding:14px 18px;border-bottom:1px solid #f0e6d5;color:#6b5b46;">Durata</td><td style="padding:14px 18px;border-bottom:1px solid #f0e6d5;text-align:right;font-weight:800;">${safeNightsText}</td></tr>
+              <tr><td style="padding:14px 18px;border-bottom:1px solid #f0e6d5;color:#6b5b46;">Ospiti</td><td style="padding:14px 18px;border-bottom:1px solid #f0e6d5;text-align:right;font-weight:800;">${safeGuests}</td></tr>
+              <tr><td style="padding:14px 18px;border-bottom:1px solid #f0e6d5;color:#6b5b46;">Totale stimato</td><td style="padding:14px 18px;border-bottom:1px solid #f0e6d5;text-align:right;font-weight:800;">${safeTotal}</td></tr>
+              <tr><td style="padding:14px 18px;color:#6b5b46;">Caparra indicativa</td><td style="padding:14px 18px;text-align:right;font-weight:800;">${safeDeposit}</td></tr>
+            </table>
+          </div>
+
+          <div style="margin:26px 0;padding:20px;border-radius:18px;background:#0a1d35;color:#ffffff;">
+            <strong style="color:#f5c84b;">Stato della richiesta</strong><br>
+            <span style="line-height:1.7;">La richiesta è in attesa di conferma. Le date possono restare bloccate temporaneamente fino a: <strong>${safeHoldExpiresAt}</strong>.</span>
+          </div>
+
+          <div style="font-size:13px;line-height:1.65;color:#6b5b46;background:#faf6ee;border-radius:18px;padding:18px;">
+            <strong style="color:#0a1d35;">Condizioni cancellazione prenotazioni dirette</strong><br>
+            Rimborso totale fino a 14 giorni prima del check-in. Da 13 a 7 giorni prima del check-in viene trattenuta la caparra confirmatoria. Negli ultimi 6 giorni, no-show o partenza anticipata: importi non rimborsabili salvo diverso accordo scritto.
+          </div>
+
+          <div style="border:1px solid #e4d8c2;border-radius:18px;padding:18px;margin:24px 0;">
+            <h2 style="font-size:18px;margin:0 0 12px;color:#0a1d35;">Contatti</h2>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:15px;">
+              <tr><td style="padding:10px 0;color:#6b5b46;">WhatsApp</td><td style="padding:10px 0;text-align:right;"><a href="https://wa.me/393476308456" style="color:#0a1d35;font-weight:800;">3476308456</a></td></tr>
+              <tr><td style="padding:10px 0;color:#6b5b46;">Telefono</td><td style="padding:10px 0;text-align:right;"><a href="tel:+393479461999" style="color:#0a1d35;font-weight:800;">3479461999</a></td></tr>
+              <tr><td style="padding:10px 0;color:#6b5b46;">Email</td><td style="padding:10px 0;text-align:right;"><a href="mailto:info@gelone.it" style="color:#0a1d35;font-weight:800;">info@gelone.it</a></td></tr>
+            </table>
+          </div>
+
+          <p style="margin:26px 0 0;font-size:16px;line-height:1.7;">Grazie,<br><strong>Gelone Lungomare</strong></p>
+        </div>
+      </div>
+      <p style="text-align:center;color:#8a7a66;font-size:12px;margin:18px 0 0;">Gelone Lungomare · Via Pascoli 1 · 93012 Gela (CL)</p>
+    </div>
+  </body>
+</html>`;
+
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -372,6 +442,7 @@ Gelone Lungomare
       to: [booking.guestEmail],
       subject,
       text,
+      html,
     }),
   });
 
