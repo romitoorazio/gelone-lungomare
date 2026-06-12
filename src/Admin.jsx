@@ -1325,12 +1325,29 @@ export default function Admin() {
         const completedChecks = preparationCheckKeys.filter((key) => Boolean(checks[key]));
         const ready = status === "completed" && completedChecks.length === preparationCheckKeys.length;
 
-        return checkOut >= today || !ready;
+        return !ready;
       })
       .map((booking) => {
+        const rawNextBooking =
+          activeRows.find(
+            (item) =>
+              item.id !== booking.id &&
+              String(item.checkIn || "") >= String(booking.checkOut || "")
+          ) || null;
+
+        const nextArrivalGapDays =
+          rawNextBooking && booking.checkOut && rawNextBooking.checkIn
+            ? Math.round(
+                (parseDateAsUTC(rawNextBooking.checkIn).getTime() -
+                  parseDateAsUTC(booking.checkOut).getTime()) /
+                  (24 * 60 * 60 * 1000)
+              )
+            : null;
+
         const nextBooking =
-          activeRows.find((item) => String(item.checkIn || "") >= String(booking.checkOut || "")) ||
-          null;
+          nextArrivalGapDays !== null && nextArrivalGapDays >= 0 && nextArrivalGapDays <= 7
+            ? rawNextBooking
+            : null;
 
         const status = booking.preparationStatus || "to_do";
         const checks = booking.preparationChecks || {};
@@ -1345,6 +1362,8 @@ export default function Admin() {
           preparationTotalChecks: checkKeys.length,
           preparationReady: status === "completed" && completedChecks.length === checkKeys.length,
           nextBooking,
+          nextArrivalGapDays,
+          hasFarNextBooking: Boolean(rawNextBooking && !nextBooking),
           isTodayCheckout: String(booking.checkOut || "") === today,
           isSameDayTurnover: nextBooking?.checkIn === booking.checkOut,
         };
@@ -4136,8 +4155,8 @@ wifiName: settings.wifiName || "",
               </p>
               <h2 className="mt-2 font-serif text-3xl">Preparazione alloggio</h2>
               <p className="mt-3 max-w-3xl leading-7 text-[#555]">
-                Lista operativa dei check-out e delle pulizie da completare prima del prossimo arrivo.
-                Qui controlli bagno, cucina, biancheria, chiavi e verifica finale.
+                Lista operativa delle pulizie da completare dopo il check-out.
+                Il prossimo arrivo viene mostrato solo se è vicino, entro 7 giorni, così non mischia prenotazioni lontane.
               </p>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -4165,8 +4184,8 @@ wifiName: settings.wifiName || "",
                     <thead>
                       <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
                         <th className="py-3">Check-out</th>
-                        <th className="py-3">Ospite uscita</th>
-                        <th className="py-3">Prossimo arrivo</th>
+                        <th className="py-3">Pulizia per ospite</th>
+                        <th className="py-3">Arrivo vicino</th>
                         <th className="py-3">Stato</th>
                         <th className="py-3">Controlli</th>
                         <th className="py-3">Nota</th>
@@ -4178,7 +4197,7 @@ wifiName: settings.wifiName || "",
                       {preparationStats.rows.length === 0 && (
                         <tr>
                           <td colSpan="7" className="py-8 text-center text-[#555]">
-                            Nessuna pulizia programmata nei prossimi 14 giorni.
+                            Nessuna pulizia da completare.
                           </td>
                         </tr>
                       )}
@@ -4221,7 +4240,9 @@ wifiName: settings.wifiName || "",
                                   </div>
                                 </div>
                               ) : (
-                                "-"
+                                <div className="text-sm leading-6 text-[#555]">
+                                  Nessun arrivo entro 7 giorni
+                                </div>
                               )}
                             </td>
                             <td className="py-4">
