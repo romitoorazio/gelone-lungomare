@@ -204,6 +204,266 @@ async function saveCronSyncLog(req, entry) {
   });
 }
 
+
+function getRomeDate(offsetDays = 0) {
+  const date = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Rome",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  return year + "-" + month + "-" + day;
+}
+
+function formatArrivalEuro(value) {
+  return new Intl.NumberFormat("it-IT", {
+    style: "currency",
+    currency: "EUR",
+  }).format(Number(value || 0));
+}
+
+function arrivalLabel(value) {
+  const raw = String(value || "");
+
+  const labels = {
+    confirmed_direct: "Confermata diretta",
+    confirmed: "Confermata",
+    booking: "Booking",
+    airbnb: "Airbnb",
+    imported_ical: "iCal",
+    request: "Richiesta",
+    pending: "In attesa",
+    cancelled: "Annullata",
+    blocked: "Blocco",
+    paid: "Pagato",
+    unpaid: "Non pagato",
+    deposit_paid: "Caparra pagata",
+    to_send: "Da inviare",
+    sent: "Inviato",
+    completed: "Completato",
+  };
+
+  return labels[raw] || raw || "-";
+}
+
+function canNotifyArrival(booking) {
+  const status = String(booking.status || "");
+  return !["cancelled", "blocked", "request", "pending"].includes(status);
+}
+
+async function getArrivalUnitNames(adminDb) {
+  const names = new Map();
+
+  try {
+    const snapshot = await adminDb.collection("units").get();
+
+    snapshot.docs.forEach((doc) => {
+      const data = doc.data() || {};
+      names.set(doc.id, data.name || data.publicName || data.internalName || doc.id);
+    });
+  } catch (error) {
+    console.warn("Nome unità non leggibile:", error);
+  }
+
+  return names;
+}
+
+async function getArrivalReminderEmail(adminDb) {
+  const envEmail = String(process.env.ARRIVAL_REMINDER_EMAIL || "").trim();
+  if (envEmail) return envEmail;
+
+  try {
+    const pmsSettings = await adminDb.collection("privateSettings").doc("pms").get();
+    const pmsEmail = String(pmsSettings.data()?.notificationEmail || "").trim();
+    if (pmsEmail) return pmsEmail;
+  } catch (error) {
+    console.warn("Email arrivi non leggibile da privateSettings/pms:", error);
+  }
+
+  return "romitoorazio@gmail.com";
+}
+
+async function loadArrivalBookings(adminDb, tomorrow) {
+  const snapshot = await adminDb
+    .collection("bookings")
+    .where("checkIn", "==", tomorrow)
+    .get();
+
+  const unitNames = await getArrivalUnitNames(adminDb);
+
+  return snapshot.docs
+    .map((doc) => {
+      const data = doc.data() || {};
+      const unitId = data.unitId || "lunarossa1";
+
+      return {
+        id: doc.id,
+        ...data,
+        unitId,
+        unitName: data.unitName || unitNames.get(unitId) || unitId,
+      };
+    })
+    .filter(canNotifyArrival)
+    .sort((a, b) => {
+      const unitCompare = String(a.unitName || "").localeCompare(String(b.unitName || ""));
+      if (unitCompare !== 0) return unitCompare;
+      return String(a.guestName || "").localeCompare(String(b.guestName || ""));
+    });
+}
+
+async function sendArrivalReminderEmail(adminDb, tomorrow, arrivals) {
+  const resendApiKey = String(process.env.RESEND_API_KEY || "").trim();
+  const emailFrom = String(process.env.EMAIL_FROM || "").trim();
+
+  if (!resendApiKey || !emailFrom) {
+    throw new Error("RESEND_API_KEY o EMAIL_FROM mancanti su Vercel.");
+  }
+
+  const toEmail = await getArrivalReminderEmail(adminDb);
+
+  const rowsText = arrivals
+    .map((booking) => {
+      return [
+        "Alloggio: " + booking.unitName,
+        "Ospite: " + (booking.guestName || "Ospite"),
+        "Telefono: " + (booking.guestPhone || "-"),
+        "Arrivo: " + (booking.checkIn || "-"),
+        "Partenza: " + (booking.checkOut || "-"),
+        "Notti: " + (booking.nights || "-"),
+        "Pagamento: " + arrivalLabel(booking.paymentStatus),
+        "WelcoMate: " + arrivalLabel(booking.welcomateStatus),
+        "Prezzo: " + formatArrivalEuro(booking.totalPrice || 0),
+      ].join("\n");
+    })
+    .join("\n\n---\n\n");
+
+  const subject = "Gelone - Arrivi di domani " + tomorrow + " (" + arrivals.length + ")";
+
+  const textBody =
+    "Promemoria arrivi di domani\n\n" +
+    "Data arrivo: " + tomorrow + "\n" +
+    "Arrivi: " + arrivals.length + "\n\n" +
+    rowsText;
+
+  const html =
+    '<div style="font-family:Arial,sans-serif;color:#0a1d35;line-height:1.5;">' +
+    '<h2>Promemoria arrivi di domani</h2>' +
+    '<p>Domani <strong>' + escapeHtml(tomorrow) + '</strong> sono previsti <strong>' + arrivals.length + '</strong> arrivi.</p>' +
+    '<pre style="white-space:pre-wrap;background:#faf6ee;padding:14px;border-radius:12px;">' + escapeHtml(rowsText) + '</pre>' +
+    '</div>';
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + resendApiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: emailFrom,
+      to: [toEmail],
+      subject,
+      text: textBody,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const responseText = await response.text().catch(() => "");
+    throw new Error("Resend errore " + response.status + ": " + responseText);
+  }
+
+  return toEmail;
+}
+
+async function runArrivalReminder(options = {}) {
+  const send = Boolean(options.send);
+  const source = options.source || "manual";
+  const adminDb = getFirebaseAdminDb();
+  const today = getRomeDate(0);
+  const tomorrow = getRomeDate(1);
+  const arrivals = await loadArrivalBookings(adminDb, tomorrow);
+
+  if (arrivals.length === 0) {
+    return {
+      ok: true,
+      today,
+      tomorrow,
+      sent: false,
+      message: "Nessun arrivo domani.",
+      arrivals: [],
+    };
+  }
+
+  if (!send) {
+    return {
+      ok: true,
+      today,
+      tomorrow,
+      sent: false,
+      message: "Anteprima. Aggiungi &send=1 per inviare la mail.",
+      arrivals: arrivals.map((booking) => ({
+        id: booking.id,
+        unitId: booking.unitId,
+        unitName: booking.unitName,
+        guestName: booking.guestName || "",
+        guestPhone: booking.guestPhone || "",
+        checkIn: booking.checkIn || "",
+        checkOut: booking.checkOut || "",
+        nights: booking.nights || "",
+        paymentStatus: booking.paymentStatus || "",
+        welcomateStatus: booking.welcomateStatus || "",
+        totalPrice: booking.totalPrice || 0,
+      })),
+    };
+  }
+
+  const reminderId = "arrival_reminder_" + tomorrow;
+  const reminderRef = adminDb.collection("maintenanceLogs").doc(reminderId);
+  const existingReminder = await reminderRef.get();
+
+  if (existingReminder.exists) {
+    return {
+      ok: true,
+      today,
+      tomorrow,
+      sent: false,
+      message: "Promemoria arrivi già inviato.",
+      arrivals: arrivals.length,
+    };
+  }
+
+  const emailTo = await sendArrivalReminderEmail(adminDb, tomorrow, arrivals);
+
+  await reminderRef.set({
+    type: "arrival_reminder",
+    action: "arrival_reminder_email",
+    source,
+    ok: true,
+    today,
+    tomorrow,
+    arrivalsCount: arrivals.length,
+    emailTo,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  return {
+    ok: true,
+    today,
+    tomorrow,
+    sent: true,
+    emailTo,
+    arrivals: arrivals.length,
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     return json(res, 405, {
@@ -215,12 +475,27 @@ export default async function handler(req, res) {
   const cronSecret = String(process.env.CRON_SECRET || "").trim();
   const syncSecret = String(process.env.SYNC_SECRET || "").trim();
   const authorization = getHeader(req, "authorization");
+  const querySecret = String(req.query?.secret || "").trim();
 
-  if (!cronSecret || authorization !== `Bearer ${cronSecret}`) {
+  const authorizedByCron = Boolean(cronSecret) && (authorization === `Bearer ${cronSecret}` || querySecret === cronSecret);
+  const authorizedBySync = Boolean(syncSecret) && querySecret === syncSecret;
+
+  if (!authorizedByCron && !authorizedBySync) {
     return json(res, 401, {
       ok: false,
       message: "Cron non autorizzato.",
     });
+  }
+
+  const mode = String(req.query?.mode || req.query?.action || "").trim();
+
+  if (mode === "arrival-reminders" || mode === "arrivals") {
+    const result = await runArrivalReminder({
+      send: String(req.query?.send || "") === "1",
+      source: "manual_api",
+    });
+
+    return json(res, 200, result);
   }
 
   const startedAt = new Date().toISOString();
@@ -300,12 +575,29 @@ export default async function handler(req, res) {
       message: "Sincronizzazione automatica completata.",
     });
 
+    let arrivalReminderResult = null;
+
+    try {
+      arrivalReminderResult = await runArrivalReminder({
+        send: true,
+        source: "automatic_after_calendar_sync",
+      });
+    } catch (arrivalError) {
+      console.warn("Promemoria arrivi non inviato:", arrivalError);
+      arrivalReminderResult = {
+        ok: false,
+        sent: false,
+        message: arrivalError?.message || "Promemoria arrivi non inviato.",
+      };
+    }
+
     return json(res, 200, {
       ok: true,
       source: "cron-sync-calendars",
       startedAt,
       finishedAt,
       syncResult: payload,
+      arrivalReminder: arrivalReminderResult,
     });
   } catch (error) {
     console.error("Errore cron-sync-calendars:", error);
