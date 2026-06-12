@@ -764,10 +764,15 @@ export default function Admin() {
 
   const filteredBookings = useMemo(() => {
     const text = bookingSearch.trim().toLowerCase();
+    const today = getToday();
 
     return bookings.filter((booking) => {
-      if (statusFilter === "active" && booking.status === "cancelled") {
-        return false;
+      const checkOut = String(booking.checkOut || "");
+      const isPastBooking = checkOut && checkOut < today;
+
+      if (statusFilter === "active") {
+        if (booking.status === "cancelled") return false;
+        if (isPastBooking) return false;
       }
 
       if (statusFilter !== "all" && statusFilter !== "active") {
@@ -898,7 +903,11 @@ export default function Admin() {
   }, [isAdmin, selectedUnitId]);
 
   const stats = useMemo(() => {
-    const active = bookings.filter((item) => item.status !== "cancelled");
+    const today = getToday();
+    const active = bookings.filter((item) => {
+      const checkOut = String(item.checkOut || "");
+      return item.status !== "cancelled" && (!checkOut || checkOut >= today);
+    });
     const confirmed = active.filter((item) =>
       ["confirmed_direct", "booking", "airbnb", "imported_ical"].includes(
         item.status
