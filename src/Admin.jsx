@@ -563,6 +563,8 @@ export default function Admin() {
     guestName: "",
     guestEmail: "",
     guestPhone: "",
+    checkIn: "",
+    checkOut: "",
     totalPrice: "",
     depositAmount: "",
     paymentStatus: "unpaid",
@@ -727,6 +729,8 @@ export default function Admin() {
         guestName: "",
         guestEmail: "",
         guestPhone: "",
+        checkIn: "",
+        checkOut: "",
         totalPrice: "",
         depositAmount: "",
         paymentStatus: "unpaid",
@@ -740,6 +744,8 @@ export default function Admin() {
       guestName: selectedBooking.guestName || "",
       guestEmail: selectedBooking.guestEmail || "",
       guestPhone: selectedBooking.guestPhone || "",
+      checkIn: selectedBooking.checkIn || "",
+      checkOut: selectedBooking.checkOut || "",
       totalPrice:
         selectedBooking.totalPrice === null || selectedBooking.totalPrice === undefined
           ? ""
@@ -2666,11 +2672,109 @@ wifiName: settings.wifiName || "",
       return;
     }
 
+    const oldCheckIn = String(selectedBooking.checkIn || "");
+    const oldCheckOut = String(selectedBooking.checkOut || "");
+    const newCheckIn = String(detailForm.checkIn || "").trim();
+    const newCheckOut = String(detailForm.checkOut || "").trim();
+    const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+
+    if (!isoDate.test(newCheckIn) || !isoDate.test(newCheckOut)) {
+      setError("Date non valide. Usa il formato AAAA-MM-GG.");
+      return;
+    }
+
+    if (newCheckOut <= newCheckIn) {
+      setError("La partenza deve essere successiva all'arrivo.");
+      return;
+    }
+
+    const datesChanged = newCheckIn !== oldCheckIn || newCheckOut !== oldCheckOut;
+
+    if (datesChanged && ["cancelled", "blocked"].includes(String(selectedBooking.status || ""))) {
+      setError("Non puoi modificare le date di una prenotazione annullata o di un blocco.");
+      return;
+    }
+
+    const oldNights = getNightDates(oldCheckIn, oldCheckOut);
+    const newNights = getNightDates(newCheckIn, newCheckOut);
+
+    if (datesChanged && newNights.length === 0) {
+      setError("Intervallo date non valido.");
+      return;
+    }
+
+    const unitId = selectedBooking.unitId || selectedUnitId;
+    const addedNights = newNights.filter((night) => !oldNights.includes(night));
+    const releasedNights = oldNights.filter((night) => !newNights.includes(night));
+
     try {
-      await updateDoc(doc(db, "bookings", selectedBooking.id), {
+      if (datesChanged) {
+        const occupied = [];
+
+        for (const night of addedNights) {
+          const nightSnap = await getDoc(doc(db, "nights", unitId + "_" + night));
+
+          if (nightSnap.exists()) {
+            const data = nightSnap.data() || {};
+            if (data.bookingId && data.bookingId !== selectedBooking.id) {
+              occupied.push(night);
+            }
+          }
+        }
+
+        if (occupied.length > 0) {
+          setError(
+            "Non posso modificare: queste nuove notti risultano già occupate: " +
+              occupied.map(formatDate).join(", ")
+          );
+          return;
+        }
+
+        const externalWarning =
+          ["booking", "airbnb", "booking_ical", "airbnb_ical", "imported_ical"].includes(
+            String(selectedBooking.source || selectedBooking.status || "")
+          )
+            ? "\n\nATTENZIONE: se arriva da Booking/Airbnb, modifica anche lì. Una sincronizzazione futura potrebbe rimettere le vecchie date."
+            : "";
+
+        const confirmed = window.confirm(
+          "Confermi modifica date?\n\n" +
+            "Ospite: " +
+            (selectedBooking.guestName || "-") +
+            "\nDa: " +
+            formatDate(oldCheckIn) +
+            " → " +
+            formatDate(oldCheckOut) +
+            " (" +
+            oldNights.length +
+            " notti)" +
+            "\nA: " +
+            formatDate(newCheckIn) +
+            " → " +
+            formatDate(newCheckOut) +
+            " (" +
+            newNights.length +
+            " notti)" +
+            "\n\nNotti liberate: " +
+            releasedNights.length +
+            "\nNotti nuove occupate: " +
+            addedNights.length +
+            externalWarning
+        );
+
+        if (!confirmed) {
+          setMessage("Modifica date interrotta.");
+          return;
+        }
+      }
+
+      const bookingUpdate = {
         guestName: detailForm.guestName || "",
         guestEmail: detailForm.guestEmail || "",
         guestPhone: detailForm.guestPhone || "",
+        checkIn: newCheckIn,
+        checkOut: newCheckOut,
+        nights: newNights.length,
         totalPrice: cleanMoneyValue(detailForm.totalPrice),
         depositAmount: cleanMoneyValue(detailForm.depositAmount),
         paymentStatus: detailForm.paymentStatus || "unpaid",
@@ -2678,16 +2782,63 @@ wifiName: settings.wifiName || "",
         notes: detailForm.notes || "",
         internalNotes: detailForm.internalNotes || "",
         updatedAt: serverTimestamp(),
-      });
+      };
 
-      await addActivityLog("updated_booking_details", selectedBooking, {
+      if (datesChanged) {
+        bookingUpdate.previousCheckIn = oldCheckIn;
+        bookingUpdate.previousCheckOut = oldCheckOut;
+        bookingUpdate.dateChangedAt = serverTimestamp();
+        bookingUpdate.dateChangedBy = user?.email || "";
+
+        const batch = writeBatch(db);
+
+        oldNights.forEach((night) => {
+          batch.delete(doc(db, "nights", unitId + "_" + night));
+        });
+
+        batch.update(doc(db, "bookings", selectedBooking.id), bookingUpdate);
+
+        newNights.forEach((night) => {
+          batch.set(
+            doc(db, "nights", unitId + "_" + night),
+            {
+              unitId,
+              date: night,
+              bookingId: selectedBooking.id,
+              status: selectedBooking.status || "confirmed_direct",
+              source: selectedBooking.source || "manual",
+              guestName: detailForm.guestName || selectedBooking.guestName || "Prenotazione",
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        });
+
+        await batch.commit();
+      } else {
+        await updateDoc(doc(db, "bookings", selectedBooking.id), bookingUpdate);
+      }
+
+      await addActivityLog(datesChanged ? "updated_booking_dates" : "updated_booking_details", selectedBooking, {
         paymentStatus: detailForm.paymentStatus || "unpaid",
         welcomateStatus: detailForm.welcomateStatus || "to_send",
         totalPrice: cleanMoneyValue(detailForm.totalPrice),
         depositAmount: cleanMoneyValue(detailForm.depositAmount),
+        previousCheckIn: oldCheckIn,
+        previousCheckOut: oldCheckOut,
+        checkIn: newCheckIn,
+        checkOut: newCheckOut,
+        previousNights: oldNights.length,
+        newNights: newNights.length,
+        releasedNights,
+        addedNights,
       });
 
-      setMessage("Dettagli prenotazione aggiornati.");
+      setMessage(
+        datesChanged
+          ? "Dettagli e date prenotazione aggiornati."
+          : "Dettagli prenotazione aggiornati."
+      );
     } catch (err) {
       console.error(err);
       setError("Errore durante il salvataggio dei dettagli.");
@@ -5761,6 +5912,28 @@ wifiName: settings.wifiName || "",
                       value={detailForm.guestEmail}
                       onChange={(event) =>
                         setDetailForm({ ...detailForm, guestEmail: event.target.value })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    />
+                  </FormField>
+
+                  <FormField label="Arrivo">
+                    <input
+                      type="date"
+                      value={detailForm.checkIn}
+                      onChange={(event) =>
+                        setDetailForm({ ...detailForm, checkIn: event.target.value })
+                      }
+                      className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
+                    />
+                  </FormField>
+
+                  <FormField label="Partenza">
+                    <input
+                      type="date"
+                      value={detailForm.checkOut}
+                      onChange={(event) =>
+                        setDetailForm({ ...detailForm, checkOut: event.target.value })
                       }
                       className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                     />
