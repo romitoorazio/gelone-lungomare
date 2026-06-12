@@ -768,7 +768,7 @@ export default function Admin() {
 
     return bookings.filter((booking) => {
       const checkOut = String(booking.checkOut || "");
-      const isPastBooking = checkOut && checkOut < today;
+      const isPastBooking = checkOut && checkOut <= today;
 
       if (statusFilter === "active") {
         if (booking.status === "cancelled") return false;
@@ -906,7 +906,7 @@ export default function Admin() {
     const today = getToday();
     const active = bookings.filter((item) => {
       const checkOut = String(item.checkOut || "");
-      return item.status !== "cancelled" && (!checkOut || checkOut >= today);
+      return item.status !== "cancelled" && (!checkOut || checkOut > today);
     });
     const confirmed = active.filter((item) =>
       ["confirmed_direct", "booking", "airbnb", "imported_ical"].includes(
@@ -1299,6 +1299,10 @@ export default function Admin() {
     limitDate.setUTCDate(limitDate.getUTCDate() + 14);
     const limit = limitDate.toISOString().slice(0, 10);
 
+    const pastLimitDate = parseDateAsUTC(today);
+    pastLimitDate.setUTCDate(pastLimitDate.getUTCDate() - 30);
+    const pastLimit = pastLimitDate.toISOString().slice(0, 10);
+
     const activeStatuses = ["confirmed_direct", "booking", "airbnb", "imported_ical"];
 
     const activeRows = bookings
@@ -1306,10 +1310,22 @@ export default function Admin() {
       .filter((booking) => activeStatuses.includes(booking.status))
       .sort((a, b) => String(a.checkIn || "").localeCompare(String(b.checkIn || "")));
 
+    const preparationCheckKeys = ["cleaning", "bathroom", "kitchen", "linen", "keys", "finalCheck"];
+
     const rows = activeRows
       .filter((booking) => {
         const checkOut = String(booking.checkOut || "");
-        return checkOut >= today && checkOut <= limit;
+
+        if (!checkOut || checkOut < pastLimit || checkOut > limit) {
+          return false;
+        }
+
+        const status = booking.preparationStatus || "to_do";
+        const checks = booking.preparationChecks || {};
+        const completedChecks = preparationCheckKeys.filter((key) => Boolean(checks[key]));
+        const ready = status === "completed" && completedChecks.length === preparationCheckKeys.length;
+
+        return checkOut >= today || !ready;
       })
       .map((booking) => {
         const nextBooking =
@@ -1318,7 +1334,7 @@ export default function Admin() {
 
         const status = booking.preparationStatus || "to_do";
         const checks = booking.preparationChecks || {};
-        const checkKeys = ["cleaning", "bathroom", "kitchen", "linen", "keys", "finalCheck"];
+        const checkKeys = preparationCheckKeys;
         const completedChecks = checkKeys.filter((key) => Boolean(checks[key]));
 
         return {
@@ -3743,7 +3759,7 @@ wifiName: settings.wifiName || "",
       </header>
 
       <section className="mx-auto max-w-7xl px-5 py-8">
-        <div className="grid gap-4 md:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-7">
           <StatCard title="Attive" value={stats.active} icon={CalendarDays} />
           <StatCard title="Confermate" value={stats.confirmed} icon={ShieldCheck} />
           <StatCard title="Richieste" value={stats.pending} icon={RefreshCcw} />
@@ -3754,6 +3770,12 @@ wifiName: settings.wifiName || "",
             value={stats.welcomateToCheck}
             icon={MessageCircle}
             subtitle="Da controllare"
+          />
+          <StatCard
+            title="Pulizie"
+            value={preparationStats.notReadyRows.length}
+            icon={Wifi}
+            subtitle="Da fare"
           />
         </div>
 
@@ -5395,6 +5417,12 @@ wifiName: settings.wifiName || "",
                   subtitle="Da inviare o controllare"
                 />
                 <StatCard
+                  title="Pulizie"
+                  value={preparationStats.notReadyRows.length}
+                  icon={Wifi}
+                  subtitle="Da fare"
+                />
+                <StatCard
                   title="Richieste"
                   value={controlsStats.requestsToConfirm.length}
                   icon={Mail}
@@ -5443,6 +5471,26 @@ wifiName: settings.wifiName || "",
                     {(controlsStats.futureActionRows || []).length > 0 && (
                       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
                         Ci sono attività future da tenere sotto controllo.
+                      </div>
+                    )}
+
+                    {preparationStats.notReadyRows.length > 0 && (
+                      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900">
+                        <div className="font-bold">
+                          Pulizie da fare: {preparationStats.notReadyRows.length}
+                        </div>
+                        <div className="mt-2 space-y-1 text-sm">
+                          {preparationStats.notReadyRows.slice(0, 4).map((booking) => (
+                            <button
+                              key={booking.id}
+                              type="button"
+                              onClick={() => setActiveTab("preparation")}
+                              className="block text-left underline"
+                            >
+                              {formatDate(booking.checkOut)} · {booking.guestName || "Ospite"} · {getPreparationLabel(booking.preparationStatus)}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
 
