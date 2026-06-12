@@ -525,6 +525,7 @@ export default function Admin() {
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [bookings, setBookings] = useState([]);
+  const [allBookings, setAllBookings] = useState([]);
   const [units, setUnits] = useState(DEFAULT_UNITS);
   const [unitForm, setUnitForm] = useState(() => createUnitForm(DEFAULT_UNIT));
   const [settings, setSettings] = useState(defaultSettings);
@@ -646,6 +647,33 @@ export default function Admin() {
     );
 
     return () => unsubscribeUnits();
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+
+    const allBookingsQuery = query(
+      collection(db, "bookings"),
+      orderBy("checkIn", "asc")
+    );
+
+    const unsubscribeAllBookings = onSnapshot(
+      allBookingsQuery,
+      (snapshot) => {
+        const rows = snapshot.docs.map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }));
+
+        setAllBookings(rows);
+      },
+      (err) => {
+        console.error("Errore lettura prenotazioni globali:", err);
+        setAllBookings([]);
+      }
+    );
+
+    return () => unsubscribeAllBookings();
   }, [isAdmin]);
 
   useEffect(() => {
@@ -936,6 +964,127 @@ export default function Admin() {
     };
   }, [bookings]);
 
+
+  const structureStats = useMemo(() => {
+    const today = getToday();
+    const confirmedStatuses = ["confirmed_direct", "booking", "airbnb", "imported_ical"];
+    const preparationCheckKeys = ["cleaning", "bathroom", "kitchen", "linen", "keys", "finalCheck"];
+
+    const pastLimitDate = parseDateAsUTC(today);
+    pastLimitDate.setUTCDate(pastLimitDate.getUTCDate() - 30);
+    const pastLimit = pastLimitDate.toISOString().slice(0, 10);
+
+    const futureLimitDate = parseDateAsUTC(today);
+    futureLimitDate.setUTCDate(futureLimitDate.getUTCDate() + 14);
+    const futureLimit = futureLimitDate.toISOString().slice(0, 10);
+
+    const unitNameById = new Map(units.map((unit) => [unit.id, unit.name]));
+
+    const realRows = allBookings.filter(
+      (booking) => booking.status !== "cancelled" && booking.status !== "blocked"
+    );
+
+    const activeRows = realRows.filter((booking) => {
+      const checkOut = String(booking.checkOut || "");
+      return !checkOut || checkOut > today;
+    });
+
+    const confirmedRows = activeRows.filter((booking) =>
+      confirmedStatuses.includes(booking.status)
+    );
+
+    const allConfirmedRows = realRows.filter((booking) =>
+      confirmedStatuses.includes(booking.status)
+    );
+
+    const getTotal = (booking) => Number(booking.totalPrice || 0);
+    const getDeposit = (booking) => Number(booking.depositAmount || 0);
+    const getCleaningCost = (booking) => Number(booking.cleaningCost || 0);
+
+    const getPaidAmount = (booking) => {
+      if (booking.paymentStatus === "paid") return getTotal(booking);
+      if (booking.paymentStatus === "deposit_paid") return getDeposit(booking);
+      return 0;
+    };
+
+    const revenue = allConfirmedRows.reduce((sum, booking) => sum + getTotal(booking), 0);
+    const collected = realRows.reduce((sum, booking) => sum + getPaidAmount(booking), 0);
+    const cleaningCostTotal = realRows.reduce(
+      (sum, booking) => sum + getCleaningCost(booking),
+      0
+    );
+
+    const cleaningRows = realRows
+      .filter((booking) => confirmedStatuses.includes(booking.status))
+      .filter((booking) => {
+        const checkOut = String(booking.checkOut || "");
+
+        if (!checkOut || checkOut < pastLimit || checkOut > futureLimit) {
+          return false;
+        }
+
+        const status = booking.preparationStatus || "to_do";
+        const checks = booking.preparationChecks || {};
+        const completedChecks = preparationCheckKeys.filter((key) => Boolean(checks[key]));
+        const ready = status === "completed" && completedChecks.length === preparationCheckKeys.length;
+
+        return !ready;
+      })
+      .map((booking) => ({
+        ...booking,
+        unitName: unitNameById.get(booking.unitId || UNIT_ID) || booking.unitId || UNIT_ID,
+      }))
+      .sort((a, b) => String(a.checkOut || "").localeCompare(String(b.checkOut || "")));
+
+    const unitRows = units
+      .map((unit) => {
+        const rows = realRows.filter((booking) => (booking.unitId || UNIT_ID) === unit.id);
+        const active = rows.filter((booking) => {
+          const checkOut = String(booking.checkOut || "");
+          return !checkOut || checkOut > today;
+        });
+        const confirmed = active.filter((booking) => confirmedStatuses.includes(booking.status));
+        const unitRevenue = rows
+          .filter((booking) => confirmedStatuses.includes(booking.status))
+          .reduce((sum, booking) => sum + getTotal(booking), 0);
+        const unitCollected = rows.reduce((sum, booking) => sum + getPaidAmount(booking), 0);
+        const unitCleaningCost = rows.reduce((sum, booking) => sum + getCleaningCost(booking), 0);
+        const unitCleaningRows = cleaningRows.filter((booking) => (booking.unitId || UNIT_ID) === unit.id);
+
+        return {
+          id: unit.id,
+          name: unit.name,
+          active: active.length,
+          confirmed: confirmed.length,
+          revenue: unitRevenue,
+          collected: unitCollected,
+          cleaningCost: unitCleaningCost,
+          netRevenue: unitRevenue - unitCleaningCost,
+          cleaningTodo: unitCleaningRows.length,
+        };
+      })
+      .filter(
+        (unit) =>
+          unit.active > 0 ||
+          unit.confirmed > 0 ||
+          unit.revenue > 0 ||
+          unit.collected > 0 ||
+          unit.cleaningCost > 0 ||
+          unit.cleaningTodo > 0
+      );
+
+    return {
+      active: activeRows.length,
+      confirmed: confirmedRows.length,
+      revenue,
+      collected,
+      cleaningCostTotal,
+      netRevenue: revenue - cleaningCostTotal,
+      cleaningTodo: cleaningRows.length,
+      unitRows,
+      cleaningRows,
+    };
+  }, [allBookings, units]);
 
   const economyStats = useMemo(() => {
     const today = getToday();
@@ -3866,6 +4015,9 @@ wifiName: settings.wifiName || "",
                     <TabButton active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")}>
             Dashboard
           </TabButton>
+          <TabButton active={activeTab === "structure"} onClick={() => setActiveTab("structure")}>
+            Totale struttura
+          </TabButton>
 <TabButton active={activeTab === "calendar"} onClick={() => setActiveTab("calendar")}>
             Prenotazioni
           </TabButton>
@@ -3952,6 +4104,128 @@ wifiName: settings.wifiName || "",
               className="mt-4 min-h-56 w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 text-sm leading-6"
             />
           </div>
+        )}
+
+        {activeTab === "structure" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                Tutti gli alloggi
+              </p>
+              <h2 className="mt-2 font-serif text-3xl">Panoramica totale struttura</h2>
+              <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                Qui vedi il totale di tutti gli alloggi interni: ricavi, incassato, costi pulizie,
+                utile netto e pulizie ancora da completare.
+              </p>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-6">
+                <StatCard title="Attive" value={structureStats.active} icon={CalendarDays} subtitle="Tutti gli alloggi" />
+                <StatCard title="Confermate" value={structureStats.confirmed} icon={ShieldCheck} subtitle="Soggiorni futuri" />
+                <StatCard title="Ricavi" value={formatEuro(structureStats.revenue)} icon={CreditCard} subtitle="Prenotazioni confermate" />
+                <StatCard title="Incassato" value={formatEuro(structureStats.collected)} icon={CreditCard} subtitle="Pagamenti registrati" />
+                <StatCard title="Pulizie" value={formatEuro(structureStats.cleaningCostTotal)} icon={Wifi} subtitle="Costi registrati" />
+                <StatCard title="Utile netto" value={formatEuro(structureStats.netRevenue)} icon={ShieldCheck} subtitle="Ricavi meno pulizie" />
+              </div>
+
+              <div className="mt-8 grid gap-6 lg:grid-cols-2">
+                <div className="rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                  <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                    Riepilogo per alloggio
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                    Andamento unità
+                  </h3>
+
+                  <div className="mt-5 overflow-x-auto">
+                    <table className="w-full min-w-[760px] border-collapse text-left">
+                      <thead>
+                        <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                          <th className="py-3">Alloggio</th>
+                          <th className="py-3">Attive</th>
+                          <th className="py-3">Ricavi</th>
+                          <th className="py-3">Pulizie</th>
+                          <th className="py-3">Netto</th>
+                          <th className="py-3">Da pulire</th>
+                          <th className="py-3">Azioni</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {structureStats.unitRows.length === 0 && (
+                          <tr>
+                            <td colSpan="7" className="py-8 text-center text-[#555]">
+                              Nessun dato economico globale registrato.
+                            </td>
+                          </tr>
+                        )}
+
+                        {structureStats.unitRows.map((unit) => (
+                          <tr key={unit.id} className="border-b border-[#f0e6d5] align-top">
+                            <td className="py-4 font-semibold">{unit.name}</td>
+                            <td className="py-4">{unit.active}</td>
+                            <td className="py-4">{formatEuro(unit.revenue)}</td>
+                            <td className="py-4">{formatEuro(unit.cleaningCost)}</td>
+                            <td className="py-4 font-bold text-[#0a1d35]">{formatEuro(unit.netRevenue)}</td>
+                            <td className="py-4">{unit.cleaningTodo}</td>
+                            <td className="py-4">
+                              <SmallButton
+                                onClick={() => {
+                                  setSelectedUnitId(unit.id);
+                                  setActiveTab("dashboard");
+                                }}
+                                className="bg-[#0a1d35] text-white"
+                              >
+                                Apri
+                              </SmallButton>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                  <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                    Pulizie globali
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                    Da completare: {structureStats.cleaningTodo}
+                  </h3>
+
+                  <div className="mt-5 space-y-3">
+                    {structureStats.cleaningRows.length === 0 && (
+                      <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
+                        Nessuna pulizia aperta su tutti gli alloggi.
+                      </div>
+                    )}
+
+                    {structureStats.cleaningRows.slice(0, 10).map((booking) => (
+                      <div key={booking.id} className="rounded-2xl border border-[#e4d8c2] bg-white p-4">
+                        <div className="font-bold text-[#0a1d35]">
+                          {formatDate(booking.checkOut)} · {booking.unitName}
+                        </div>
+                        <div className="mt-1 text-sm text-[#555]">
+                          {booking.guestName || "Ospite"} · {getPreparationLabel(booking.preparationStatus)}
+                        </div>
+                        <div className="mt-3">
+                          <SmallButton
+                            onClick={() => {
+                              setSelectedUnitId(booking.unitId || UNIT_ID);
+                              setActiveTab("preparation");
+                            }}
+                            className="bg-[#0a1d35] text-white"
+                          >
+                            Vai a pulizie
+                          </SmallButton>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
         )}
 
         {activeTab === "internal" && (
@@ -4364,6 +4638,13 @@ wifiName: settings.wifiName || "",
                                   className="bg-[#9b6b25] text-white"
                                 >
                                   Nota
+                                </SmallButton>
+
+                                <SmallButton
+                                  onClick={() => updateCleaningCost(booking)}
+                                  className="bg-green-700 text-white"
+                                >
+                                  Costo €
                                 </SmallButton>
 
                                 <SmallButton
