@@ -2057,6 +2057,70 @@ export default function Admin() {
     }
   }
 
+
+  async function updateCleaningCost(booking) {
+    clearMessages();
+
+    if (!booking?.id) {
+      setError("Prenotazione non valida.");
+      return;
+    }
+
+    const currentAmount =
+      booking.cleaningCost === null || booking.cleaningCost === undefined
+        ? ""
+        : String(booking.cleaningCost).replace(".", ",");
+
+    const amountText = window.prompt(
+      "Costo pulizia per " +
+        (booking.guestName || "questa prenotazione") +
+        ":\n\nInserisci importo in euro. Esempio: 30",
+      currentAmount
+    );
+
+    if (amountText === null) {
+      setMessage("Costo pulizia non modificato.");
+      return;
+    }
+
+    const amount = cleanMoneyValue(amountText);
+
+    if (!Number.isFinite(amount) || amount < 0) {
+      setError("Costo pulizia non valido.");
+      return;
+    }
+
+    const note = window.prompt(
+      "Nota facoltativa sul costo pulizia:",
+      booking.cleaningCostNote || ""
+    );
+
+    if (note === null) {
+      setMessage("Costo pulizia non modificato.");
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "bookings", booking.id), {
+        cleaningCost: amount,
+        cleaningCostNote: String(note || "").trim(),
+        cleaningCostUpdatedAt: serverTimestamp(),
+        cleaningCostUpdatedBy: user?.email || "",
+        updatedAt: serverTimestamp(),
+      });
+
+      await addActivityLog("updated_cleaning_cost", booking, {
+        cleaningCost: amount,
+        cleaningCostNote: String(note || "").trim(),
+      });
+
+      setMessage("Costo pulizia salvato: " + formatEuro(amount) + ".");
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante il salvataggio del costo pulizia.");
+    }
+  }
+
   async function addActivityLog(action, booking = null, details = {}) {
     try {
       await addDoc(collection(db, "maintenanceLogs"), {
