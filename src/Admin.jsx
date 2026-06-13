@@ -1086,6 +1086,174 @@ export default function Admin() {
     };
   }, [allBookings, units]);
 
+
+  const availabilityCalendar = useMemo(() => {
+    const month = availabilityMonth || getToday().slice(0, 7);
+    const selectedDate =
+      availabilitySelectedDate && availabilitySelectedDate.startsWith(month)
+        ? availabilitySelectedDate
+        : month + "-01";
+
+    const visibleUnits = units
+      .filter((unit) => unit.active !== false)
+      .map((unit) => ({
+        ...unit,
+        displayName: unit.publicName || unit.name || unit.id,
+      }));
+
+    const monthStart = parseDateAsUTC(month + "-01");
+    const monthEnd = new Date(monthStart);
+    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
+
+    const firstGridDay = new Date(monthStart);
+    const weekday = firstGridDay.getUTCDay() || 7;
+    firstGridDay.setUTCDate(firstGridDay.getUTCDate() - (weekday - 1));
+
+    const lastGridDay = new Date(monthEnd);
+    const lastWeekday = lastGridDay.getUTCDay() || 7;
+    lastGridDay.setUTCDate(lastGridDay.getUTCDate() + (7 - lastWeekday));
+
+    const days = [];
+    const cursor = new Date(firstGridDay);
+
+    while (cursor < lastGridDay) {
+      const date = cursor.toISOString().slice(0, 10);
+      days.push({
+        date,
+        label: formatDate(date).slice(0, 5),
+        inMonth: date.startsWith(month),
+        isToday: date === getToday(),
+        isSelected: date === selectedDate,
+      });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    const activeBookings = allBookings.filter((booking) => {
+      const status = String(booking.status || "");
+      if (status === "cancelled") return false;
+      if (!booking.checkIn || !booking.checkOut) return false;
+      return String(booking.checkOut) >= month + "-01" && String(booking.checkIn) < monthEnd.toISOString().slice(0, 10);
+    });
+
+    const bookingForUnitDate = (unitId, date) => {
+      return (
+        activeBookings.find((booking) => {
+          const bookingUnitId = booking.unitId || UNIT_ID;
+          return (
+            bookingUnitId === unitId &&
+            String(booking.checkIn || "") <= date &&
+            String(booking.checkOut || "") > date
+          );
+        }) || null
+      );
+    };
+
+    const getCellStatus = (booking) => {
+      if (!booking) {
+        return {
+          label: "Libero",
+          shortLabel: "Libero",
+          className: "border-green-200 bg-green-50 text-green-900",
+          priority: 0,
+        };
+      }
+
+      const status = String(booking.status || "");
+
+      if (status === "blocked") {
+        return {
+          label: "Blocco",
+          shortLabel: "Blocco",
+          className: "border-slate-300 bg-slate-100 text-slate-900",
+          priority: 3,
+        };
+      }
+
+      if (status === "pending_direct" || status === "pending") {
+        return {
+          label: "Richiesta",
+          shortLabel: "Rich.",
+          className: "border-amber-300 bg-amber-50 text-amber-900",
+          priority: 2,
+        };
+      }
+
+      return {
+        label: "Occupato",
+        shortLabel: "Occ.",
+        className: "border-red-200 bg-red-50 text-red-900",
+        priority: 4,
+      };
+    };
+
+    const rows = days.map((day) => {
+      const cells = visibleUnits.map((unit) => {
+        const booking = bookingForUnitDate(unit.id, day.date);
+        const statusInfo = getCellStatus(booking);
+
+        return {
+          unit,
+          booking,
+          ...statusInfo,
+        };
+      });
+
+      return {
+        ...day,
+        cells,
+        occupiedCount: cells.filter((cell) => cell.booking && String(cell.booking.status || "") !== "blocked").length,
+        blockedCount: cells.filter((cell) => String(cell.booking?.status || "") === "blocked").length,
+        requestCount: cells.filter((cell) => ["pending_direct", "pending"].includes(String(cell.booking?.status || ""))).length,
+        freeCount: cells.filter((cell) => !cell.booking).length,
+      };
+    });
+
+    const selectedRows = visibleUnits.map((unit) => {
+      const booking = bookingForUnitDate(unit.id, selectedDate);
+      const statusInfo = getCellStatus(booking);
+      const totalPrice = Number(booking?.totalPrice || 0);
+      const depositAmount = Number(booking?.depositAmount || 0);
+      const paidAmount =
+        booking?.paymentStatus === "paid"
+          ? totalPrice
+          : booking?.paymentStatus === "deposit_paid"
+            ? depositAmount
+            : 0;
+
+      return {
+        unit,
+        booking,
+        ...statusInfo,
+        totalPrice,
+        depositAmount,
+        paidAmount,
+        balanceDue: Math.max(totalPrice - paidAmount, 0),
+      };
+    });
+
+    const monthRows = rows.filter((row) => row.inMonth);
+    const totalSlots = monthRows.length * visibleUnits.length;
+    const occupiedSlots = monthRows.reduce((sum, row) => sum + row.occupiedCount, 0);
+    const blockedSlots = monthRows.reduce((sum, row) => sum + row.blockedCount, 0);
+    const requestSlots = monthRows.reduce((sum, row) => sum + row.requestCount, 0);
+    const freeSlots = Math.max(totalSlots - occupiedSlots - blockedSlots - requestSlots, 0);
+
+    return {
+      month,
+      selectedDate,
+      units: visibleUnits,
+      rows,
+      selectedRows,
+      stats: {
+        totalSlots,
+        freeSlots,
+        occupiedSlots,
+        blockedSlots,
+        requestSlots,
+      },
+    };
+  }, [allBookings, availabilityMonth, availabilitySelectedDate, units]);
+
   const economyStats = useMemo(() => {
     const today = getToday();
     const currentMonth = today.slice(0, 7);
@@ -4018,6 +4186,9 @@ wifiName: settings.wifiName || "",
           <TabButton active={activeTab === "structure"} onClick={() => setActiveTab("structure")}>
             Totale struttura
           </TabButton>
+          <TabButton active={activeTab === "availability"} onClick={() => setActiveTab("availability")}>
+            Calendario disponibilità
+          </TabButton>
 <TabButton active={activeTab === "calendar"} onClick={() => setActiveTab("calendar")}>
             Prenotazioni
           </TabButton>
@@ -4222,6 +4393,233 @@ wifiName: settings.wifiName || "",
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+
+        {activeTab === "availability" && (
+          <section className="mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
+                    Calendario disponibilità
+                  </p>
+                  <h2 className="mt-2 font-serif text-3xl">Tutti gli alloggi</h2>
+                  <p className="mt-3 max-w-3xl leading-7 text-[#555]">
+                    Vista unica di tutte le date libere, occupate, richieste e bloccate.
+                    Clicca una data per vedere sotto ospite, importo, pagamento, origine e dettagli.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <input
+                    type="month"
+                    value={availabilityCalendar.month}
+                    onChange={(event) => {
+                      const nextMonth = event.target.value || getToday().slice(0, 7);
+                      setAvailabilityMonth(nextMonth);
+                      setAvailabilitySelectedDate(nextMonth + "-01");
+                    }}
+                    className="rounded-full border border-[#d7c49f] bg-[#faf6ee] px-5 py-3 font-semibold text-[#0a1d35]"
+                  />
+
+                  <SmallButton
+                    onClick={() => {
+                      const today = getToday();
+                      setAvailabilityMonth(today.slice(0, 7));
+                      setAvailabilitySelectedDate(today);
+                    }}
+                    className="bg-[#0a1d35] text-white"
+                  >
+                    Oggi
+                  </SmallButton>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-5">
+                <StatCard title="Liberi" value={availabilityCalendar.stats.freeSlots} icon={ShieldCheck} subtitle="Notti/alloggi" />
+                <StatCard title="Occupati" value={availabilityCalendar.stats.occupiedSlots} icon={CalendarDays} subtitle="Prenotazioni" />
+                <StatCard title="Richieste" value={availabilityCalendar.stats.requestSlots} icon={RefreshCcw} subtitle="Da confermare" />
+                <StatCard title="Blocchi" value={availabilityCalendar.stats.blockedSlots} icon={Lock} subtitle="Non vendibili" />
+                <StatCard title="Alloggi" value={availabilityCalendar.units.length} icon={Building2} subtitle="Nel calendario" />
+              </div>
+
+              <div className="mt-8 overflow-x-auto rounded-[1.5rem] border border-[#e4d8c2]">
+                <table className="w-full min-w-[1100px] border-collapse bg-white text-left">
+                  <thead>
+                    <tr className="border-b border-[#e4d8c2] bg-[#faf6ee] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                      <th className="w-32 px-4 py-3">Data</th>
+                      {availabilityCalendar.units.map((unit) => (
+                        <th key={unit.id} className="px-4 py-3">
+                          {unit.displayName}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {availabilityCalendar.rows.map((row) => (
+                      <tr
+                        key={row.date}
+                        className={
+                          "border-b border-[#f0e6d5] " +
+                          (!row.inMonth ? "opacity-40 " : "") +
+                          (row.isSelected ? "bg-[#fff4d8]" : "")
+                        }
+                      >
+                        <td className="px-4 py-3 align-top">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAvailabilitySelectedDate(row.date);
+                              setAvailabilityMonth(row.date.slice(0, 7));
+                            }}
+                            className={
+                              "w-full rounded-2xl px-3 py-2 text-left font-bold transition " +
+                              (row.isSelected ? "bg-[#0a1d35] text-white" : "bg-[#faf6ee] text-[#0a1d35]")
+                            }
+                          >
+                            <span>{row.label}</span>
+                            {row.isToday && <span className="ml-2 text-xs">Oggi</span>}
+                          </button>
+                        </td>
+
+                        {row.cells.map((cell) => (
+                          <td key={cell.unit.id} className="px-4 py-3 align-top">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAvailabilitySelectedDate(row.date);
+                                setAvailabilityMonth(row.date.slice(0, 7));
+                              }}
+                              className={
+                                "w-full rounded-2xl border px-3 py-3 text-left text-sm font-bold transition hover:scale-[1.01] " +
+                                cell.className
+                              }
+                            >
+                              <div>{cell.shortLabel}</div>
+                              {cell.booking && (
+                                <div className="mt-1 line-clamp-2 text-xs font-semibold opacity-80">
+                                  {cell.booking.status === "blocked"
+                                    ? cell.booking.notes || "Blocco manuale"
+                                    : cell.booking.guestName || "Prenotazione"}
+                                </div>
+                              )}
+                            </button>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-8 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
+                      Dettaglio giorno
+                    </p>
+                    <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                      {formatDate(availabilityCalendar.selectedDate)}
+                    </h3>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 text-xs font-bold">
+                    <Pill className="border-green-200 bg-green-50 text-green-900">Libero</Pill>
+                    <Pill className="border-red-200 bg-red-50 text-red-900">Occupato</Pill>
+                    <Pill className="border-amber-300 bg-amber-50 text-amber-900">Richiesta</Pill>
+                    <Pill className="border-slate-300 bg-slate-100 text-slate-900">Blocco</Pill>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  {availabilityCalendar.selectedRows.map((row) => {
+                    const booking = row.booking;
+                    const whatsappNumber = normalizePhoneForWhatsApp(booking?.guestPhone);
+
+                    return (
+                      <div
+                        key={row.unit.id}
+                        className={"rounded-2xl border bg-white p-5 " + row.className}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.18em] opacity-70">
+                              {row.unit.displayName}
+                            </p>
+                            <h4 className="mt-1 text-xl font-bold">
+                              {booking ? row.label : "Libero"}
+                            </h4>
+                          </div>
+                          <Pill className={row.className}>{row.label}</Pill>
+                        </div>
+
+                        {!booking ? (
+                          <div className="mt-4 rounded-2xl bg-green-50 p-4 text-sm text-green-900">
+                            Nessuna prenotazione o blocco per questa data.
+                          </div>
+                        ) : (
+                          <div className="mt-4 space-y-4 text-sm text-[#0a1d35]">
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <DetailRow label="Ospite / motivo" value={booking.guestName || booking.notes || "Prenotazione"} />
+                              <DetailRow label="Telefono" value={booking.guestPhone || "-"} />
+                              <DetailRow label="Origine" value={getSourceLabel(booking.source)} />
+                              <DetailRow label="Stato" value={getStatusLabel(booking.status)} />
+                              <DetailRow label="Arrivo" value={formatDate(booking.checkIn)} />
+                              <DetailRow label="Partenza" value={formatDate(booking.checkOut)} />
+                              <DetailRow label="Notti" value={booking.nights || getNightsCount(booking.checkIn, booking.checkOut)} />
+                              <DetailRow label="Prezzo" value={formatEuro(row.totalPrice)} />
+                              <DetailRow label="Pagamento" value={getPaymentLabel(booking.paymentStatus)} />
+                              <DetailRow label="Saldo residuo" value={formatEuro(row.balanceDue)} />
+                              <DetailRow label="WelcoMate" value={getWelcomateLabel(booking.welcomateStatus)} />
+                              <DetailRow label="Email" value={booking.guestEmail || "-"} />
+                            </div>
+
+                            {(booking.notes || booking.internalNotes) && (
+                              <div className="rounded-2xl bg-[#faf6ee] p-4 leading-6">
+                                <div className="font-bold text-[#9b6b25]">Note</div>
+                                <div className="mt-1">{booking.internalNotes || booking.notes}</div>
+                              </div>
+                            )}
+
+                            <div className="flex flex-wrap gap-2">
+                              {booking.status !== "blocked" && (
+                                <SmallButton
+                                  onClick={() => {
+                                    setSelectedUnitId(booking.unitId || row.unit.id);
+                                    setSelectedBookingId(booking.id);
+                                    setActiveTab("calendar");
+                                  }}
+                                  className="bg-[#0a1d35] text-white"
+                                >
+                                  Apri dettagli
+                                </SmallButton>
+                              )}
+
+                              {whatsappNumber && booking.status !== "blocked" && (
+                                <a
+                                  href={`https://wa.me/${whatsappNumber}?text=${buildWhatsAppMessage(
+                                    booking,
+                                    settings
+                                  )}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white"
+                                >
+                                  WhatsApp
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
