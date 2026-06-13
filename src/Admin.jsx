@@ -2441,6 +2441,105 @@ export default function Admin() {
     }
   }
 
+
+  async function deleteSelectedUnit() {
+    clearMessages();
+
+    const id = sanitizeUnitId(selectedUnitId);
+    const unitToDelete = units.find((unit) => unit.id === id) || null;
+    const unitName = unitToDelete?.publicName || unitToDelete?.name || id;
+
+    if (!id || !unitToDelete) {
+      setError("Seleziona una unità valida da eliminare.");
+      return;
+    }
+
+    if (id === UNIT_ID) {
+      setError("Non puoi eliminare l'unità principale Lunarossa 1. Puoi solo modificarla o disattivarla.");
+      return;
+    }
+
+    const linkedRows = allBookings.filter((booking) => {
+      const bookingUnitId = booking.unitId || UNIT_ID;
+      const status = String(booking.status || "");
+      return bookingUnitId === id && status !== "cancelled";
+    });
+
+    if (linkedRows.length > 0) {
+      setError(
+        "Non posso eliminare " +
+          unitName +
+          " perché ha " +
+          linkedRows.length +
+          " prenotazioni o blocchi collegati. Prima annulla/elimina quelle righe, poi riprova."
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Vuoi eliminare definitivamente questa unità?\n\n" +
+        "Unità: " +
+        unitName +
+        "\nID: " +
+        id +
+        "\n\nL'unità sparirà dall'admin e dal calendario multi-alloggio."
+    );
+
+    if (!confirmed) {
+      setMessage("Eliminazione unità annullata.");
+      return;
+    }
+
+    const typed = window.prompt(
+      "Per confermare scrivi ELIMINA\n\nUnità: " + unitName
+    );
+
+    if (String(typed || "").trim().toUpperCase() !== "ELIMINA") {
+      setMessage("Eliminazione unità annullata.");
+      return;
+    }
+
+    const nextUnits = units
+      .filter((unit) => unit.id !== id)
+      .sort((a, b) => {
+        const orderA = Number(a.sortOrder || 999);
+        const orderB = Number(b.sortOrder || 999);
+        if (orderA === orderB) return String(a.name || "").localeCompare(String(b.name || ""));
+        return orderA - orderB;
+      });
+
+    if (nextUnits.length === 0) {
+      setError("Non puoi eliminare tutte le unità. Deve restare almeno un alloggio.");
+      return;
+    }
+
+    try {
+      await setDoc(
+        doc(db, "settings", "units"),
+        {
+          items: nextUnits,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      await addActivityLog("deleted_unit", null, {
+        deletedUnitId: id,
+        deletedUnitName: unitName,
+        remainingUnits: nextUnits.length,
+      });
+
+      const nextSelectedUnit = nextUnits[0] || DEFAULT_UNIT;
+      setUnits(nextUnits);
+      setSelectedUnitId(nextSelectedUnit.id || UNIT_ID);
+      setUnitForm(createUnitForm(nextSelectedUnit));
+      setMessage("Unità eliminata: " + unitName + ".");
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante l'eliminazione dell'unità.");
+    }
+  }
+
   async function addActivityLog(action, booking = null, details = {}) {
     try {
       await addDoc(collection(db, "maintenanceLogs"), {
@@ -4413,7 +4512,7 @@ wifiName: settings.wifiName || "",
                   </p>
                   <h2 className="mt-2 font-serif text-3xl">Tutti gli alloggi</h2>
                   <p className="mt-3 max-w-3xl leading-7 text-[#555]">
-                    Vista unica di tutte le date libere, occupate, richieste e bloccate.
+                    Vista professionale di disponibilità, occupazioni, richieste e blocchi di tutti gli alloggi.
                     Clicca una data per vedere sotto ospite, importo, pagamento, origine e dettagli.
                   </p>
                 </div>
@@ -4451,10 +4550,10 @@ wifiName: settings.wifiName || "",
                 <StatCard title="Alloggi" value={availabilityCalendar.units.length} icon={Building2} subtitle="Nel calendario" />
               </div>
 
-              <div className="mt-8 overflow-x-auto rounded-[1.5rem] border border-[#e4d8c2]">
-                <table className="w-full min-w-[1100px] border-collapse bg-white text-left">
+              <div className="mt-8 overflow-x-auto rounded-[2rem] border border-[#d7c49f] bg-white shadow-sm">
+                <table className="w-full min-w-[1200px] border-separate border-spacing-0 bg-white text-left text-sm">
                   <thead>
-                    <tr className="border-b border-[#e4d8c2] bg-[#faf6ee] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                    <tr className="sticky top-0 z-10 border-b border-[#e4d8c2] bg-[#faf6ee] text-sm uppercase tracking-[0.15em] text-[#9b6b25] shadow-sm">
                       <th className="w-32 px-4 py-3">Data</th>
                       {availabilityCalendar.units.map((unit) => (
                         <th key={unit.id} className="px-4 py-3">
@@ -4500,7 +4599,7 @@ wifiName: settings.wifiName || "",
                                 setAvailabilityMonth(row.date.slice(0, 7));
                               }}
                               className={
-                                "w-full rounded-2xl border px-3 py-3 text-left text-sm font-bold transition hover:scale-[1.01] " +
+                                "min-h-[76px] w-full rounded-2xl border px-3 py-3 text-left text-sm font-bold shadow-sm transition hover:scale-[1.01] " +
                                 cell.className
                               }
                             >
@@ -7550,6 +7649,17 @@ wifiName: settings.wifiName || "",
                   >
                     Annulla modifiche
                   </button>
+
+                  {selectedUnitId !== UNIT_ID && (
+                    <button
+                      type="button"
+                      onClick={deleteSelectedUnit}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-red-900 px-6 py-4 font-bold text-white"
+                    >
+                      <Trash2 size={18} />
+                      Elimina unità
+                    </button>
+                  )}
                 </div>
               </form>
             </div>
