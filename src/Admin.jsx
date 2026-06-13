@@ -1087,6 +1087,9 @@ export default function Admin() {
   }, [allBookings, units]);
 
 
+  const [availabilityMonth, setAvailabilityMonth] = useState(() => getToday().slice(0, 7));
+  const [availabilitySelectedDate, setAvailabilitySelectedDate] = useState(() => getToday());
+
   const availabilityCalendar = useMemo(() => {
     const month = availabilityMonth || getToday().slice(0, 7);
     const selectedDate =
