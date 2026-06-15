@@ -6872,6 +6872,97 @@ wifiName: settings.wifiName || "",
                 </div>
 
 
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
+                    <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#9b6b25]">
+                      Email conferma ospite
+                    </p>
+                    <p className="mt-2 text-xl font-bold text-[#0a1d35]">
+                      {selectedBooking.confirmationEmailSent
+                        ? "Inviata"
+                        : selectedBooking.confirmationEmail?.attemptedAt ||
+                            selectedBooking.confirmationEmail?.error
+                          ? "Non inviata"
+                          : "Non ancora inviata"}
+                    </p>
+                    <div className="mt-3 space-y-2 text-sm leading-6 text-[#555]">
+                      <p>
+                        <strong>A:</strong>{" "}
+                        {selectedBooking.confirmationEmail?.to ||
+                          selectedBooking.confirmationEmail?.guestEmail ||
+                          selectedBooking.guestEmail ||
+                          "-"}
+                      </p>
+                      <p>
+                        <strong>Data:</strong>{" "}
+                        {formatDateTime(
+                          selectedBooking.confirmationEmailSentAt ||
+                            selectedBooking.confirmationEmail?.sentAt ||
+                            selectedBooking.confirmationEmail?.attemptedAt
+                        )}
+                      </p>
+                      {!selectedBooking.confirmationEmailSent &&
+                        (selectedBooking.confirmationEmailLastError ||
+                          selectedBooking.confirmationEmail?.error ||
+                          selectedBooking.confirmationEmail?.reason) && (
+                          <p className="rounded-2xl bg-white px-3 py-2 text-amber-800">
+                            <strong>Nota:</strong>{" "}
+                            {selectedBooking.confirmationEmailLastError ||
+                              selectedBooking.confirmationEmail?.error ||
+                              selectedBooking.confirmationEmail?.reason}
+                          </p>
+                        )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
+                    <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#9b6b25]">
+                      Email annullamento ospite
+                    </p>
+                    <p className="mt-2 text-xl font-bold text-[#0a1d35]">
+                      {selectedBooking.cancellationEmailSent
+                        ? "Inviata"
+                        : selectedBooking.cancellationEmail?.attemptedAt ||
+                            selectedBooking.cancellationEmail?.error
+                          ? "Non inviata"
+                          : "Non ancora inviata"}
+                    </p>
+                    <div className="mt-3 space-y-2 text-sm leading-6 text-[#555]">
+                      <p>
+                        <strong>A:</strong>{" "}
+                        {selectedBooking.cancellationEmail?.to ||
+                          selectedBooking.cancellationEmail?.guestEmail ||
+                          selectedBooking.guestEmail ||
+                          "-"}
+                      </p>
+                      <p>
+                        <strong>Data:</strong>{" "}
+                        {formatDateTime(
+                          selectedBooking.cancellationEmailSentAt ||
+                            selectedBooking.cancellationEmail?.sentAt ||
+                            selectedBooking.cancellationEmail?.attemptedAt
+                        )}
+                      </p>
+                      {selectedBooking.cancellationEmail?.reason && (
+                        <p>
+                          <strong>Motivo:</strong>{" "}
+                          {selectedBooking.cancellationEmail.reason}
+                        </p>
+                      )}
+                      {!selectedBooking.cancellationEmailSent &&
+                        (selectedBooking.cancellationEmailLastError ||
+                          selectedBooking.cancellationEmail?.error) && (
+                          <p className="rounded-2xl bg-white px-3 py-2 text-amber-800">
+                            <strong>Nota:</strong>{" "}
+                            {selectedBooking.cancellationEmailLastError ||
+                              selectedBooking.cancellationEmail?.error}
+                          </p>
+                        )}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="mt-6 rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
