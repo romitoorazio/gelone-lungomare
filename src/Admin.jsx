@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import {
   getIdToken,
   onAuthStateChanged,
@@ -641,7 +641,7 @@ export default function Admin() {
         );
       },
       (err) => {
-        console.error("Errore lettura unità:", err);
+        console.error("Errore lettura unitÃ :", err);
         setUnits(DEFAULT_UNITS);
       }
     );
@@ -1824,7 +1824,7 @@ export default function Admin() {
         type: "Contatto incompleto",
         detail:
           (booking.missingPhone ? "telefono mancante" : "") +
-          (booking.missingPhone && booking.missingEmail ? " · " : "") +
+          (booking.missingPhone && booking.missingEmail ? " Â· " : "") +
           (booking.missingEmail ? "email mancante" : ""),
         action: "details",
       });
@@ -2153,7 +2153,7 @@ export default function Admin() {
     const ok = downloadCsvFile(filename, headers, csvRows);
 
     if (ok) {
-      setMessage("Export log attività creato: " + rows.length + " righe.");
+      setMessage("Export log attivitÃ  creato: " + rows.length + " righe.");
       addActivityLog("exported_activity_logs_csv", null, {
         mode,
         rows: rows.length,
@@ -2174,7 +2174,7 @@ export default function Admin() {
     }
 
     if (note.length < 5) {
-      setError("Inserisci una nota interna più dettagliata.");
+      setError("Inserisci una nota interna piÃ¹ dettagliata.");
       return;
     }
 
@@ -2450,12 +2450,12 @@ export default function Admin() {
     const unitName = unitToDelete?.publicName || unitToDelete?.name || id;
 
     if (!id || !unitToDelete) {
-      setError("Seleziona una unità valida da eliminare.");
+      setError("Seleziona una unitÃ  valida da eliminare.");
       return;
     }
 
     if (id === UNIT_ID) {
-      setError("Non puoi eliminare l'unità principale Lunarossa 1. Puoi solo modificarla o disattivarla.");
+      setError("Non puoi eliminare l'unitÃ  principale Lunarossa 1. Puoi solo modificarla o disattivarla.");
       return;
     }
 
@@ -2469,7 +2469,7 @@ export default function Admin() {
       setError(
         "Non posso eliminare " +
           unitName +
-          " perché ha " +
+          " perchÃ© ha " +
           linkedRows.length +
           " prenotazioni o blocchi collegati. Prima annulla/elimina quelle righe, poi riprova."
       );
@@ -2477,25 +2477,25 @@ export default function Admin() {
     }
 
     const confirmed = window.confirm(
-      "Vuoi eliminare definitivamente questa unità?\n\n" +
-        "Unità: " +
+      "Vuoi eliminare definitivamente questa unitÃ ?\n\n" +
+        "UnitÃ : " +
         unitName +
         "\nID: " +
         id +
-        "\n\nL'unità sparirà dall'admin e dal calendario multi-alloggio."
+        "\n\nL'unitÃ  sparirÃ  dall'admin e dal calendario multi-alloggio."
     );
 
     if (!confirmed) {
-      setMessage("Eliminazione unità annullata.");
+      setMessage("Eliminazione unitÃ  annullata.");
       return;
     }
 
     const typed = window.prompt(
-      "Per confermare scrivi ELIMINA\n\nUnità: " + unitName
+      "Per confermare scrivi ELIMINA\n\nUnitÃ : " + unitName
     );
 
     if (String(typed || "").trim().toUpperCase() !== "ELIMINA") {
-      setMessage("Eliminazione unità annullata.");
+      setMessage("Eliminazione unitÃ  annullata.");
       return;
     }
 
@@ -2509,7 +2509,7 @@ export default function Admin() {
       });
 
     if (nextUnits.length === 0) {
-      setError("Non puoi eliminare tutte le unità. Deve restare almeno un alloggio.");
+      setError("Non puoi eliminare tutte le unitÃ . Deve restare almeno un alloggio.");
       return;
     }
 
@@ -2533,10 +2533,10 @@ export default function Admin() {
       setUnits(nextUnits);
       setSelectedUnitId(nextSelectedUnit.id || UNIT_ID);
       setUnitForm(createUnitForm(nextSelectedUnit));
-      setMessage("Unità eliminata: " + unitName + ".");
+      setMessage("UnitÃ  eliminata: " + unitName + ".");
     } catch (err) {
       console.error(err);
-      setError("Errore durante l'eliminazione dell'unità.");
+      setError("Errore durante l'eliminazione dell'unitÃ .");
     }
   }
 
@@ -2768,6 +2768,10 @@ wifiName: settings.wifiName || "",
   }
 
   async function cleanupGhostNights() {
+    setError("");
+    setCleanupResult(null);
+    setMessage("Pulizia notti fantasma disattivata sul piano Vercel Hobby. Prenotazioni, calendario, email e pagamenti restano attivi.");
+    return;
     clearMessages();
 
     const selectedUnitName =
@@ -2845,7 +2849,7 @@ wifiName: settings.wifiName || "",
 
       if (occupied.length > 0) {
         setError(
-          `Almeno una notte risulta già occupata: ${occupied.map(formatDate).join(", ")}.`
+          `Almeno una notte risulta giÃ  occupata: ${occupied.map(formatDate).join(", ")}.`
         );
         return;
       }
@@ -2951,7 +2955,7 @@ wifiName: settings.wifiName || "",
 
       if (occupied.length > 0) {
         setError(
-          `Non posso bloccare: alcune notti risultano già occupate (${occupied
+          `Non posso bloccare: alcune notti risultano giÃ  occupate (${occupied
             .map(formatDate)
             .join(", ")}).`
         );
@@ -3110,7 +3114,7 @@ wifiName: settings.wifiName || "",
     const reason = window.prompt(
       "Motivo obbligatorio per annullare la prenotazione di " +
         (booking.guestName || "questo ospite") +
-        ".\n\nQuesta azione libera le notti e modifica la disponibilità pubblica." +
+        ".\n\nQuesta azione libera le notti e modifica la disponibilitÃ  pubblica." +
         buildDangerPaymentWarning(booking) +
         "\n\nScrivi il motivo dell'annullamento:"
     );
@@ -3242,9 +3246,9 @@ wifiName: settings.wifiName || "",
 
     const confirmed = window.confirm(
       "Ultima conferma.\n\n" +
-        "La prenotazione verrà eliminata definitivamente.\n" +
+        "La prenotazione verrÃ  eliminata definitivamente.\n" +
         "Le notti verranno liberate.\n" +
-        "Il log conserverà motivo, stato e pagamento precedente.\n\n" +
+        "Il log conserverÃ  motivo, stato e pagamento precedente.\n\n" +
         "Procedere?"
     );
 
@@ -3349,7 +3353,7 @@ wifiName: settings.wifiName || "",
 
         if (occupied.length > 0) {
           setError(
-            "Non posso modificare: queste nuove notti risultano già occupate: " +
+            "Non posso modificare: queste nuove notti risultano giÃ  occupate: " +
               occupied.map(formatDate).join(", ")
           );
           return;
@@ -3359,7 +3363,7 @@ wifiName: settings.wifiName || "",
           ["booking", "airbnb", "booking_ical", "airbnb_ical", "imported_ical"].includes(
             String(selectedBooking.source || selectedBooking.status || "")
           )
-            ? "\n\nATTENZIONE: se arriva da Booking/Airbnb, modifica anche lì. Una sincronizzazione futura potrebbe rimettere le vecchie date."
+            ? "\n\nATTENZIONE: se arriva da Booking/Airbnb, modifica anche lÃ¬. Una sincronizzazione futura potrebbe rimettere le vecchie date."
             : "";
 
         const confirmed = window.confirm(
@@ -3368,14 +3372,14 @@ wifiName: settings.wifiName || "",
             (selectedBooking.guestName || "-") +
             "\nDa: " +
             formatDate(oldCheckIn) +
-            " → " +
+            " â†’ " +
             formatDate(oldCheckOut) +
             " (" +
             oldNights.length +
             " notti)" +
             "\nA: " +
             formatDate(newCheckIn) +
-            " → " +
+            " â†’ " +
             formatDate(newCheckOut) +
             " (" +
             newNights.length +
@@ -3521,22 +3525,22 @@ wifiName: settings.wifiName || "",
     const nextPaymentStatus = String(paymentStatus || "unpaid").toLowerCase();
 
     if (currentPaymentStatus === "paid" && nextPaymentStatus === "paid") {
-      setError("Controllo anti-errore: questa prenotazione risulta già saldata.");
+      setError("Controllo anti-errore: questa prenotazione risulta giÃ  saldata.");
       return;
     }
 
     if (currentPaymentStatus === "paid" && nextPaymentStatus === "deposit_paid") {
-      setError("Controllo anti-errore: questa prenotazione è già saldata, non puoi segnarla solo come caparra.");
+      setError("Controllo anti-errore: questa prenotazione Ã¨ giÃ  saldata, non puoi segnarla solo come caparra.");
       return;
     }
 
     if (currentPaymentStatus === "deposit_paid" && nextPaymentStatus === "deposit_paid") {
-      setError("Controllo anti-errore: la caparra risulta già incassata.");
+      setError("Controllo anti-errore: la caparra risulta giÃ  incassata.");
       return;
     }
 
     if (currentPaymentStatus === "unpaid" && nextPaymentStatus === "unpaid") {
-      setError("Controllo anti-errore: questa prenotazione risulta già non pagata.");
+      setError("Controllo anti-errore: questa prenotazione risulta giÃ  non pagata.");
       return;
     }
 
@@ -3654,7 +3658,7 @@ wifiName: settings.wifiName || "",
         (manualPaymentReference || "-") +
         "\nImporto: " +
         formatEuro(manualPaymentAmount) +
-        "\n\nIl movimento sarà salvato nel log attività."
+        "\n\nIl movimento sarÃ  salvato nel log attivitÃ ."
     );
 
     if (!confirmed) {
@@ -3702,9 +3706,9 @@ wifiName: settings.wifiName || "",
       setMessage(
         "Pagamento manuale aggiornato: " +
           getPaymentLabel(nextPaymentStatus) +
-          " · " +
+          " Â· " +
           manualPaymentMethod +
-          " · " +
+          " Â· " +
           formatEuro(manualPaymentAmount) +
           "."
       );
@@ -3756,12 +3760,12 @@ wifiName: settings.wifiName || "",
         : paymentType;
 
     if (currentPaymentStatus === "paid") {
-      setError("Questa prenotazione risulta già saldata.");
+      setError("Questa prenotazione risulta giÃ  saldata.");
       return;
     }
 
     if (currentPaymentStatus === "deposit_paid" && effectivePaymentType === "deposit") {
-      setError("La caparra risulta già pagata. Usa il pulsante saldo da pagare.");
+      setError("La caparra risulta giÃ  pagata. Usa il pulsante saldo da pagare.");
       return;
     }
 
@@ -3915,7 +3919,7 @@ wifiName: settings.wifiName || "",
         id: nextId,
         name: `Lunarossa ${index}`,
         publicName: `Gelone Lungomare - Lunarossa ${index}`,
-        description: "Nuova unità da completare",
+        description: "Nuova unitÃ  da completare",
         cin: "",
         cir: "",
         active: false,
@@ -3929,7 +3933,7 @@ wifiName: settings.wifiName || "",
       })
     );
 
-    setMessage("Scheda nuova unità pronta. Completa i dati e premi Salva unità.");
+    setMessage("Scheda nuova unitÃ  pronta. Completa i dati e premi Salva unitÃ .");
   }
 
   async function saveUnit(event) {
@@ -3944,7 +3948,7 @@ wifiName: settings.wifiName || "",
     }
 
     if (!unitForm.name.trim()) {
-      setError("Inserisci il nome dell'unità.");
+      setError("Inserisci il nome dell'unitÃ .");
       return;
     }
 
@@ -3984,10 +3988,10 @@ wifiName: settings.wifiName || "",
       );
 
       setSelectedUnitId(id);
-      setMessage("Unità salvata. Lunarossa 1 resta invariata e le future unità avranno calendari separati.");
+      setMessage("UnitÃ  salvata. Lunarossa 1 resta invariata e le future unitÃ  avranno calendari separati.");
     } catch (err) {
       console.error(err);
-      setError("Errore durante il salvataggio dell'unità.");
+      setError("Errore durante il salvataggio dell'unitÃ .");
     }
   }
 
@@ -4071,7 +4075,7 @@ wifiName: settings.wifiName || "",
     setUnits(nextUnits);
     setSelectedUnitId(id);
     setUnitForm(createUnitForm(normalizedUnit));
-    setMessage(successMessage || "Foto salvate. La galleria dell'unità è aggiornata.");
+    setMessage(successMessage || "Foto salvate. La galleria dell'unitÃ  Ã¨ aggiornata.");
   }
 
   async function handleCloudinaryPhotoUpload() {
@@ -4079,12 +4083,12 @@ wifiName: settings.wifiName || "",
 
     const id = sanitizeUnitId(unitForm.id || selectedUnitId);
     if (!id) {
-      setError("Prima inserisci un ID tecnico valido per l'unità.");
+      setError("Prima inserisci un ID tecnico valido per l'unitÃ .");
       return;
     }
 
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
-      setError("Cloudinary non è configurato. Controlla cloud name e upload preset.");
+      setError("Cloudinary non Ã¨ configurato. Controlla cloud name e upload preset.");
       return;
     }
 
@@ -4104,7 +4108,7 @@ wifiName: settings.wifiName || "",
         await persistUnitPhotos(
           id,
           nextPhotos,
-          `${uploadedPhotos.length} foto caricata/e con Cloudinary e salvata/e nella scheda unità.`
+          `${uploadedPhotos.length} foto caricata/e con Cloudinary e salvata/e nella scheda unitÃ .`
         );
       };
 
@@ -4177,7 +4181,7 @@ wifiName: settings.wifiName || "",
               await persistUploadedPhotos();
             } catch (persistError) {
               console.error(persistError);
-              setError("Foto caricate su Cloudinary, ma non riesco a salvarle nella scheda unità. Riprova.");
+              setError("Foto caricate su Cloudinary, ma non riesco a salvarle nella scheda unitÃ . Riprova.");
             } finally {
               setPhotoUploading(false);
             }
@@ -4211,7 +4215,7 @@ wifiName: settings.wifiName || "",
       await persistUnitPhotos(id, nextPhotos, "Foto rimossa e galleria salvata.");
     } catch (err) {
       console.error(err);
-      setError("Foto rimossa dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unità.");
+      setError("Foto rimossa dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unitÃ .");
     }
   }
 
@@ -4230,7 +4234,7 @@ wifiName: settings.wifiName || "",
       await persistUnitPhotos(id, nextPhotos, "Copertina aggiornata e salvata.");
     } catch (err) {
       console.error(err);
-      setError("Copertina aggiornata dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unità.");
+      setError("Copertina aggiornata dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unitÃ .");
     }
   }
 
@@ -4251,7 +4255,7 @@ wifiName: settings.wifiName || "",
       await persistUnitPhotos(sanitizeUnitId(unitForm.id || selectedUnitId), normalizedPhotos, "Ordine foto aggiornato e salvato.");
     } catch (err) {
       console.error(err);
-      setError("Ordine foto aggiornato dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unità.");
+      setError("Ordine foto aggiornato dalla schermata, ma non riesco a salvare la modifica. Riprova con Salva unitÃ .");
     }
   }
 
@@ -4301,7 +4305,7 @@ wifiName: settings.wifiName || "",
         <div className="mx-auto max-w-xl rounded-[2rem] border border-red-200 bg-red-50 p-8 text-red-900">
           <h1 className="font-serif text-3xl">Accesso non autorizzato</h1>
           <p className="mt-3">
-            L'email collegata non è autorizzata come amministratore.
+            L'email collegata non Ã¨ autorizzata come amministratore.
           </p>
           <button
             onClick={() => signOut(auth)}
@@ -4324,7 +4328,7 @@ wifiName: settings.wifiName || "",
             </p>
             <h1 className="font-serif text-3xl">Gelone Lungomare</h1>
             <p className="text-sm text-[#555]">
-              Admin: {user.email} · Unità: {selectedUnit.name}
+              Admin: {user.email} Â· UnitÃ : {selectedUnit.name}
             </p>
           </div>
 
@@ -4387,7 +4391,7 @@ wifiName: settings.wifiName || "",
             Totale struttura
           </TabButton>
           <TabButton active={activeTab === "availability"} onClick={() => setActiveTab("availability")}>
-            Calendario disponibilità
+            Calendario disponibilitÃ 
           </TabButton>
 <TabButton active={activeTab === "calendar"} onClick={() => setActiveTab("calendar")}>
             Prenotazioni
@@ -4411,7 +4415,7 @@ wifiName: settings.wifiName || "",
             Pulizie
           </TabButton>
           <TabButton active={activeTab === "quality"} onClick={() => setActiveTab("quality")}>
-            Qualità dati
+            QualitÃ  dati
           </TabButton>
           <TabButton active={activeTab === "internal"} onClick={() => setActiveTab("internal")}>
             Registro operativo
@@ -4420,7 +4424,7 @@ wifiName: settings.wifiName || "",
             Blocca date
           </TabButton>
           <TabButton active={activeTab === "units"} onClick={() => setActiveTab("units")}>
-            Unità alloggiative
+            UnitÃ  alloggiative
           </TabButton>
           <TabButton active={activeTab === "settings"} onClick={() => setActiveTab("settings")}>
             Impostazioni
@@ -4504,7 +4508,7 @@ wifiName: settings.wifiName || "",
                     Riepilogo per alloggio
                   </p>
                   <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
-                    Andamento unità
+                    Andamento unitÃ 
                   </h3>
 
                   <div className="mt-5 overflow-x-auto">
@@ -4574,10 +4578,10 @@ wifiName: settings.wifiName || "",
                     {structureStats.cleaningRows.slice(0, 10).map((booking) => (
                       <div key={booking.id} className="rounded-2xl border border-[#e4d8c2] bg-white p-4">
                         <div className="font-bold text-[#0a1d35]">
-                          {formatDate(booking.checkOut)} · {booking.unitName}
+                          {formatDate(booking.checkOut)} Â· {booking.unitName}
                         </div>
                         <div className="mt-1 text-sm text-[#555]">
-                          {booking.guestName || "Ospite"} · {getPreparationLabel(booking.preparationStatus)}
+                          {booking.guestName || "Ospite"} Â· {getPreparationLabel(booking.preparationStatus)}
                         </div>
                         <div className="mt-3">
                           <SmallButton
@@ -4611,10 +4615,10 @@ wifiName: settings.wifiName || "",
                       Planning multi-alloggio
                     </p>
                     <h2 className="mt-3 font-serif text-4xl">
-                      Calendario disponibilità
+                      Calendario disponibilitÃ 
                     </h2>
                     <p className="mt-3 max-w-3xl leading-7 text-white/80">
-                      Vista professionale di disponibilità, occupazioni, richieste e blocchi.
+                      Vista professionale di disponibilitÃ , occupazioni, richieste e blocchi.
                       Clicca una data o una cella per leggere subito ospite, importo, pagamento,
                       origine, telefono e stato WelcoMate.
                     </p>
@@ -4633,7 +4637,7 @@ wifiName: settings.wifiName || "",
                         }}
                         className="rounded-full border border-white/30 px-4 py-3 font-bold text-white transition hover:bg-white hover:text-[#0a1d35]"
                       >
-                        ←
+                        â†
                       </button>
 
                       <input
@@ -4658,7 +4662,7 @@ wifiName: settings.wifiName || "",
                         }}
                         className="rounded-full border border-white/30 px-4 py-3 font-bold text-white transition hover:bg-white hover:text-[#0a1d35]"
                       >
-                        →
+                        â†’
                       </button>
 
                       <button
@@ -4810,9 +4814,9 @@ wifiName: settings.wifiName || "",
 
                                           <div className="flex flex-wrap gap-1 text-[11px] font-bold opacity-80">
                                             <span>{formatDate(booking.checkIn).slice(0, 5)}</span>
-                                            <span>→</span>
+                                            <span>â†’</span>
                                             <span>{formatDate(booking.checkOut).slice(0, 5)}</span>
-                                            <span>·</span>
+                                            <span>Â·</span>
                                             <span>{booking.nights || getNightsCount(booking.checkIn, booking.checkOut)} notti</span>
                                           </div>
 
@@ -4892,7 +4896,7 @@ wifiName: settings.wifiName || "",
                           Schede alloggi
                         </p>
                         <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
-                          Dettaglio disponibilità e prenotazioni
+                          Dettaglio disponibilitÃ  e prenotazioni
                         </h3>
                       </div>
                     </div>
@@ -4998,12 +5002,12 @@ wifiName: settings.wifiName || "",
               <h2 className="mt-2 font-serif text-3xl">Registro interno avanzato</h2>
               <p className="mt-3 max-w-3xl leading-7 text-[#555]">
                 Qui puoi registrare manutenzioni, problemi ospiti, pulizie, note amministrative
-                e promemoria interni. Ogni nota resta nello storico e può essere chiusa o riaperta.
+                e promemoria interni. Ogni nota resta nello storico e puÃ² essere chiusa o riaperta.
               </p>
 
               <div className="mt-6 grid gap-4 md:grid-cols-4">
                 <StatCard title="Aperte" value={internalRecordStats.open} icon={RefreshCcw} subtitle="Da seguire" />
-                <StatCard title="Alta priorità" value={internalRecordStats.highPriority} icon={Lock} subtitle="Attenzione" />
+                <StatCard title="Alta prioritÃ " value={internalRecordStats.highPriority} icon={Lock} subtitle="Attenzione" />
                 <StatCard title="Entro 7 giorni" value={internalRecordStats.dueSoon} icon={CalendarDays} subtitle="Scadenze vicine" />
                 <StatCard title="Chiuse" value={internalRecordStats.closed} icon={ShieldCheck} subtitle="Completate" />
               </div>
@@ -5037,7 +5041,7 @@ wifiName: settings.wifiName || "",
                     </select>
                   </FormField>
 
-                  <FormField label="Priorità">
+                  <FormField label="PrioritÃ ">
                     <select
                       value={internalRecordForm.priority}
                       onChange={(event) =>
@@ -5098,7 +5102,7 @@ wifiName: settings.wifiName || "",
                         .filter((booking) => booking.status !== "cancelled")
                         .map((booking) => (
                           <option key={booking.id} value={booking.id}>
-                            {booking.guestName || "Prenotazione"} · {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
+                            {booking.guestName || "Prenotazione"} Â· {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
                           </option>
                         ))}
                     </select>
@@ -5123,7 +5127,7 @@ wifiName: settings.wifiName || "",
                             note: event.target.value,
                           })
                         }
-                        placeholder="Scrivi cosa è successo, cosa va fatto, chi deve controllare o cosa è stato deciso."
+                        placeholder="Scrivi cosa Ã¨ successo, cosa va fatto, chi deve controllare o cosa Ã¨ stato deciso."
                         className="min-h-32 w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
                       />
                     </FormField>
@@ -5144,7 +5148,7 @@ wifiName: settings.wifiName || "",
                     <thead>
                       <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
                         <th className="py-3">Stato</th>
-                        <th className="py-3">Priorità</th>
+                        <th className="py-3">PrioritÃ </th>
                         <th className="py-3">Categoria</th>
                         <th className="py-3">Titolo</th>
                         <th className="py-3">Scadenza</th>
@@ -5194,7 +5198,7 @@ wifiName: settings.wifiName || "",
                           <td className="py-4">{formatDate(record.dueDate)}</td>
                           <td className="py-4">
                             {record.linkedGuestName
-                              ? record.linkedGuestName + " · " + formatDate(record.linkedCheckIn)
+                              ? record.linkedGuestName + " Â· " + formatDate(record.linkedCheckIn)
                               : "-"}
                           </td>
                           <td className="py-4 text-sm leading-6 text-[#555]">
@@ -5238,7 +5242,7 @@ wifiName: settings.wifiName || "",
                 </div>
 
                 <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                  Il registro interno non modifica disponibilità, prenotazioni o pagamenti.
+                  Il registro interno non modifica disponibilitÃ , prenotazioni o pagamenti.
                   Serve come storico operativo e controllo interno della struttura.
                 </div>
               </div>
@@ -5255,12 +5259,12 @@ wifiName: settings.wifiName || "",
               <h2 className="mt-2 font-serif text-3xl">Preparazione alloggio</h2>
               <p className="mt-3 max-w-3xl leading-7 text-[#555]">
                 Lista operativa delle pulizie da completare dopo il check-out.
-                Il prossimo arrivo viene mostrato solo se è vicino, entro 7 giorni, così non mischia prenotazioni lontane.
+                Il prossimo arrivo viene mostrato solo se Ã¨ vicino, entro 7 giorni, cosÃ¬ non mischia prenotazioni lontane.
               </p>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
                 <StatCard title="Check-out oggi" value={preparationStats.todayRows.length} icon={CalendarDays} subtitle="Da preparare" />
-                <StatCard title="Turnover stesso giorno" value={preparationStats.sameDayRows.length} icon={RefreshCcw} subtitle="Priorità alta" />
+                <StatCard title="Turnover stesso giorno" value={preparationStats.sameDayRows.length} icon={RefreshCcw} subtitle="PrioritÃ  alta" />
                 <StatCard title="Da fare" value={preparationStats.toDoRows.length} icon={Lock} subtitle="Non iniziate" />
                 <StatCard title="In corso" value={preparationStats.inProgressRows.length} icon={Search} subtitle="Parziali" />
                 <StatCard title="Completate" value={preparationStats.completedRows.length} icon={ShieldCheck} subtitle="Pronte" />
@@ -5405,7 +5409,7 @@ wifiName: settings.wifiName || "",
                                   onClick={() => updateCleaningCost(booking)}
                                   className="bg-green-700 text-white"
                                 >
-                                  Costo €
+                                  Costo â‚¬
                                 </SmallButton>
 
                                 <SmallButton
@@ -5428,7 +5432,7 @@ wifiName: settings.wifiName || "",
 
                 <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
                   La scheda Pulizie aggiorna solo lo stato di preparazione della prenotazione.
-                  Non modifica calendario, pagamenti o disponibilità pubblica.
+                  Non modifica calendario, pagamenti o disponibilitÃ  pubblica.
                 </div>
               </div>
             </div>
@@ -5444,7 +5448,7 @@ wifiName: settings.wifiName || "",
               <h2 className="mt-2 font-serif text-3xl">Arrivi da preparare</h2>
               <p className="mt-3 max-w-3xl leading-7 text-[#555]">
                 Lista pratica degli arrivi di oggi e dei prossimi 7 giorni, con pagamento,
-                WelcoMate, qualità dati, telefono e note operative.
+                WelcoMate, qualitÃ  dati, telefono e note operative.
               </p>
 
               <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -5474,7 +5478,7 @@ wifiName: settings.wifiName || "",
                         <th className="py-3">Arrivo</th>
                         <th className="py-3">Ospite</th>
                         <th className="py-3">Telefono</th>
-                        <th className="py-3">Qualità</th>
+                        <th className="py-3">QualitÃ </th>
                         <th className="py-3">Pagamento</th>
                         <th className="py-3">Saldo</th>
                         <th className="py-3">WelcoMate</th>
@@ -5591,11 +5595,11 @@ wifiName: settings.wifiName || "",
           <section className="mt-8 space-y-6">
             <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
               <p className="text-sm uppercase tracking-[0.3em] text-[#9b6b25]">
-                Qualità dati
+                QualitÃ  dati
               </p>
               <h2 className="mt-2 font-serif text-3xl">Prenotazioni pronte o da completare</h2>
               <p className="mt-3 max-w-3xl leading-7 text-[#555]">
-                Questa sezione controlla la qualità operativa delle prenotazioni:
+                Questa sezione controlla la qualitÃ  operativa delle prenotazioni:
                 prezzo, contatti, pagamento, WelcoMate e consensi quando arrivano dal sito.
               </p>
 
@@ -5615,7 +5619,7 @@ wifiName: settings.wifiName || "",
                   Verifica operativa
                 </p>
                 <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
-                  Lista qualità dati
+                  Lista qualitÃ  dati
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-[#555]">
                   Apri le prenotazioni non pronte e completa i dati mancanti.
@@ -5625,7 +5629,7 @@ wifiName: settings.wifiName || "",
                   <table className="w-full min-w-[1100px] border-collapse text-left">
                     <thead>
                       <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
-                        <th className="py-3">Qualità</th>
+                        <th className="py-3">QualitÃ </th>
                         <th className="py-3">Ospite</th>
                         <th className="py-3">Date</th>
                         <th className="py-3">Pagamento</th>
@@ -5663,7 +5667,7 @@ wifiName: settings.wifiName || "",
                             <td className="py-4 text-sm text-[#555]">
                               {readiness.issues.length === 0
                                 ? "Nessun problema"
-                                : readiness.issues.join(" · ")}
+                                : readiness.issues.join(" Â· ")}
                             </td>
                             <td className="py-4">
                               <div className="flex flex-wrap gap-2">
@@ -5726,7 +5730,7 @@ wifiName: settings.wifiName || "",
               </p>
               <h2 className="mt-2 font-serif text-3xl">Export e sicurezza dati</h2>
               <p className="mt-3 max-w-3xl leading-7 text-[#555]">
-                Scarica copie CSV delle prenotazioni e del registro attività.
+                Scarica copie CSV delle prenotazioni e del registro attivitÃ .
                 Questi export sono utili per controllo interno, commercialista,
                 storico operativo e sicurezza.
               </p>
@@ -5735,7 +5739,7 @@ wifiName: settings.wifiName || "",
                 <StatCard title="Prenotazioni totali" value={backupStats.allBookings} icon={CalendarDays} subtitle="Attive + cancellate" />
                 <StatCard title="Future" value={backupStats.futureBookings} icon={ShieldCheck} subtitle="Attive da oggi in poi" />
                 <StatCard title="Annullate" value={backupStats.cancelledBookings} icon={Trash2} subtitle="Salvate nello storico" />
-                <StatCard title="Log attività" value={backupStats.activityLogs} icon={Search} subtitle="Ultimi log caricati" />
+                <StatCard title="Log attivitÃ " value={backupStats.activityLogs} icon={Search} subtitle="Ultimi log caricati" />
                 <StatCard title="Azioni delicate" value={backupStats.deletedOrCancelledLogs} icon={Lock} subtitle="Annullamenti/eliminazioni" />
               </div>
 
@@ -5748,7 +5752,7 @@ wifiName: settings.wifiName || "",
                     Export prenotazioni CSV
                   </h3>
                   <p className="mt-2 text-sm leading-6 text-[#555]">
-                    Esporta i record prenotazione dell'unità selezionata con date,
+                    Esporta i record prenotazione dell'unitÃ  selezionata con date,
                     ospite, stato, pagamento, totale, caparra e note.
                   </p>
 
@@ -5778,7 +5782,7 @@ wifiName: settings.wifiName || "",
 
                 <div className="rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
                   <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
-                    Registro attività
+                    Registro attivitÃ 
                   </p>
                   <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
                     Export log operativi CSV
@@ -5793,7 +5797,7 @@ wifiName: settings.wifiName || "",
                       onClick={() => exportActivityLogsCsv("all")}
                       className="bg-[#0a1d35] px-5 py-3 text-white"
                     >
-                      Esporta log attività
+                      Esporta log attivitÃ 
                     </SmallButton>
 
                     <SmallButton
@@ -5807,7 +5811,7 @@ wifiName: settings.wifiName || "",
               </div>
 
               <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                Gli export CSV vengono generati dal browser sui dati già visibili in Admin.
+                Gli export CSV vengono generati dal browser sui dati giÃ  visibili in Admin.
                 Non modificano prenotazioni, calendari o pagamenti.
               </div>
             </div>
@@ -5842,10 +5846,10 @@ wifiName: settings.wifiName || "",
                       Azioni operative
                     </p>
                     <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
-                      Lista priorità
+                      Lista prioritÃ 
                     </h3>
                     <p className="mt-2 text-sm leading-6 text-[#555]">
-                      Le urgenze sono vicine al check-in o delicate. Le attività future restano visibili ma separate, così non sembrano emergenze di oggi.
+                      Le urgenze sono vicine al check-in o delicate. Le attivitÃ  future restano visibili ma separate, cosÃ¬ non sembrano emergenze di oggi.
                     </p>
                   </div>
                 </div>
@@ -5854,7 +5858,7 @@ wifiName: settings.wifiName || "",
                   <table className="w-full min-w-[1050px] border-collapse text-left">
                     <thead>
                       <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
-                        <th className="py-3">Priorità</th>
+                        <th className="py-3">PrioritÃ </th>
                         <th className="py-3">Tipo</th>
                         <th className="py-3">Ospite</th>
                         <th className="py-3">Date</th>
@@ -5875,7 +5879,7 @@ wifiName: settings.wifiName || "",
                       {controlsStats.urgentActionRows.length > 0 && (
                         <tr>
                           <td colSpan="6" className="bg-red-50 px-4 py-3 font-bold text-red-900">
-                            Urgenti · da controllare subito
+                            Urgenti Â· da controllare subito
                           </td>
                         </tr>
                       )}
@@ -5945,7 +5949,7 @@ wifiName: settings.wifiName || "",
                       {controlsStats.futureActionRows.length > 0 && (
                         <tr>
                           <td colSpan="6" className="bg-amber-50 px-4 py-3 font-bold text-amber-900">
-                            Futuri · da tenere sotto controllo
+                            Futuri Â· da tenere sotto controllo
                           </td>
                         </tr>
                       )}
@@ -6032,7 +6036,7 @@ wifiName: settings.wifiName || "",
               <h2 className="mt-2 font-serif text-3xl">Dashboard economica</h2>
               <p className="mt-3 max-w-3xl leading-7 text-[#555]">
                 Vista interna per controllare incassi, saldi da ricevere, notti vendute
-                e valore medio delle prenotazioni dell'unità selezionata.
+                e valore medio delle prenotazioni dell'unitÃ  selezionata.
               </p>
 
               <div className="mt-6 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
@@ -6150,7 +6154,7 @@ wifiName: settings.wifiName || "",
                         <th className="py-3">Totale</th>
                         <th className="py-3">Incassato</th>
                         <th className="py-3">Da ricevere</th>
-                        <th className="py-3">Priorità</th>
+                        <th className="py-3">PrioritÃ </th>
                         <th className="py-3">Azioni</th>
                       </tr>
                     </thead>
@@ -6251,14 +6255,14 @@ wifiName: settings.wifiName || "",
                       Pulisci notti fantasma
                     </h3>
                     <p className="mt-2 leading-7 text-[#555]">
-                      Controlla la disponibilità dell'unità selezionata e cancella solo
+                      Controlla la disponibilitÃ  dell'unitÃ  selezionata e cancella solo
                       le notti isolate che non hanno una prenotazione o un blocco attivo
                       collegato.
                     </p>
                     <div className="mt-4 rounded-2xl bg-white p-4">
                       <label className="block">
                         <span className="text-xs uppercase tracking-[0.18em] text-[#9b6b25]">
-                          Scegli unità da pulire
+                          Scegli unitÃ  da pulire
                         </span>
                         <select
                           value={selectedUnitId}
@@ -6269,7 +6273,7 @@ wifiName: settings.wifiName || "",
                             <option key={unit.id} value={unit.id}>
                               {(unit.publicName || unit.name || unit.id)}
                               {unit.name && unit.publicName && unit.publicName !== unit.name
-                                ? " — " + unit.name
+                                ? " â€” " + unit.name
                                 : ""}{" "}
                               ({unit.id})
                             </option>
@@ -6277,7 +6281,7 @@ wifiName: settings.wifiName || "",
                         </select>
                       </label>
                       <p className="mt-3 text-sm leading-6 text-[#555]">
-                        La pulizia verrà eseguita solo sull'unità selezionata qui sopra.
+                        La pulizia verrÃ  eseguita solo sull'unitÃ  selezionata qui sopra.
                       </p>
                     </div>
                   </div>
@@ -6298,7 +6302,7 @@ wifiName: settings.wifiName || "",
                       Risultato pulizia
                     </p>
                     <div className="mt-4 grid gap-3 md:grid-cols-4">
-                      <DetailRow label="Unità" value={cleanupResult.unitName || cleanupResult.unitId} />
+                      <DetailRow label="UnitÃ " value={cleanupResult.unitName || cleanupResult.unitId} />
                       <DetailRow label="Controllate" value={cleanupResult.scannedCount ?? 0} />
                       <DetailRow label="Eliminate" value={cleanupResult.deletedCount ?? 0} />
                       <DetailRow label="Protette" value={cleanupResult.keptCount ?? 0} />
@@ -6316,7 +6320,7 @@ wifiName: settings.wifiName || "",
                                 key={night.id}
                                 className="rounded-xl bg-white px-3 py-2"
                               >
-                                {formatDate(night.date)} · {night.status || "-"} ·{" "}
+                                {formatDate(night.date)} Â· {night.status || "-"} Â·{" "}
                                 {night.source || "-"}
                               </div>
                             ))}
@@ -6487,7 +6491,7 @@ wifiName: settings.wifiName || "",
                           {log.details
                             ? Object.entries(log.details)
                                 .map(([key, value]) => `${key}: ${String(value)}`)
-                                .join(" · ")
+                                .join(" Â· ")
                             : "-"}
                         </td>
                       </tr>
@@ -6497,7 +6501,7 @@ wifiName: settings.wifiName || "",
               </div>
 
               <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-                Questo registro è interno: serve per controllare le azioni operative
+                Questo registro Ã¨ interno: serve per controllare le azioni operative
                 fatte dal pannello Admin.
               </div>
             </div>
@@ -6515,7 +6519,7 @@ wifiName: settings.wifiName || "",
               </h2>
               <p className="mt-3 max-w-3xl leading-7 text-[#555]">
                 Vista semplice per usare il PMS senza cercare tra le schede:
-                urgenze, attività future, saldi, WelcoMate e stato sincronizzazione calendari.
+                urgenze, attivitÃ  future, saldi, WelcoMate e stato sincronizzazione calendari.
               </p>
 
               <div className="mt-6 grid gap-4 md:grid-cols-4">
@@ -6597,7 +6601,7 @@ wifiName: settings.wifiName || "",
 
                     {(controlsStats.futureActionRows || []).length > 0 && (
                       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-                        Ci sono attività future da tenere sotto controllo.
+                        Ci sono attivitÃ  future da tenere sotto controllo.
                       </div>
                     )}
 
@@ -6614,7 +6618,7 @@ wifiName: settings.wifiName || "",
                               onClick={() => setActiveTab("preparation")}
                               className="block text-left underline"
                             >
-                              {formatDate(booking.checkOut)} · {booking.guestName || "Ospite"} · {getPreparationLabel(booking.preparationStatus)}
+                              {formatDate(booking.checkOut)} Â· {booking.guestName || "Ospite"} Â· {getPreparationLabel(booking.preparationStatus)}
                             </button>
                           ))}
                         </div>
@@ -7327,7 +7331,7 @@ wifiName: settings.wifiName || "",
           <section className="mt-8 rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
             <h2 className="font-serif text-3xl">Nuova prenotazione</h2>
             <p className="mt-2 text-[#555]">
-              Inserisci manualmente una prenotazione già confermata, oppure una
+              Inserisci manualmente una prenotazione giÃ  confermata, oppure una
               richiesta ricevuta fuori dal sito.
             </p>
 
@@ -7581,9 +7585,9 @@ wifiName: settings.wifiName || "",
             <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <h2 className="font-serif text-3xl">Unità alloggiative</h2>
+                  <h2 className="font-serif text-3xl">UnitÃ  alloggiative</h2>
                   <p className="mt-2 leading-7 text-[#555]">
-                    Base multi-unità: Lunarossa 1 resta funzionante, ma da qui puoi preparare nuove unità con ID, dati, iCal e visibilità separati.
+                    Base multi-unitÃ : Lunarossa 1 resta funzionante, ma da qui puoi preparare nuove unitÃ  con ID, dati, iCal e visibilitÃ  separati.
                   </p>
                 </div>
                 <button
@@ -7592,7 +7596,7 @@ wifiName: settings.wifiName || "",
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-[#9b6b25] px-6 py-4 font-bold text-white"
                 >
                   <Plus size={18} />
-                  Prepara nuova unità
+                  Prepara nuova unitÃ 
                 </button>
               </div>
 
@@ -7617,7 +7621,7 @@ wifiName: settings.wifiName || "",
                     <h3 className="mt-4 font-serif text-2xl">{unit.name}</h3>
                     <p className="mt-1 text-sm text-[#666]">ID: {unit.id}</p>
                     <p className="mt-3 text-sm leading-6 text-[#555]">
-                      {unit.maxGuests} ospiti · {unit.bedrooms || 0} camera/e · {unit.bathrooms || 0} bagno/i
+                      {unit.maxGuests} ospiti Â· {unit.bedrooms || 0} camera/e Â· {unit.bathrooms || 0} bagno/i
                     </p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Pill className={unit.publicVisible ? "border-blue-200 bg-blue-50 text-blue-900" : "border-slate-200 bg-slate-100 text-slate-900"}>
@@ -7633,13 +7637,13 @@ wifiName: settings.wifiName || "",
             </div>
 
             <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
-              <h3 className="font-serif text-3xl">Scheda unità</h3>
+              <h3 className="font-serif text-3xl">Scheda unitÃ </h3>
               <p className="mt-2 leading-7 text-[#555]">
-                Per ora il sito pubblico continua a vendere Lunarossa 1. Le nuove unità possono essere preparate qui e attivate nel prossimo step senza mischiare prenotazioni e calendari.
+                Per ora il sito pubblico continua a vendere Lunarossa 1. Le nuove unitÃ  possono essere preparate qui e attivate nel prossimo step senza mischiare prenotazioni e calendari.
               </p>
 
               <form onSubmit={saveUnit} className="mt-6 grid gap-4 lg:grid-cols-2">
-                <FormField label="ID tecnico unità">
+                <FormField label="ID tecnico unitÃ ">
                   <input
                     value={unitForm.id}
                     onChange={(event) =>
@@ -7718,7 +7722,7 @@ wifiName: settings.wifiName || "",
                     onChange={(event) => setUnitForm({ ...unitForm, hasKitchen: event.target.value === "yes" })}
                     className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                   >
-                    <option value="yes">Sì</option>
+                    <option value="yes">SÃ¬</option>
                     <option value="no">No</option>
                   </select>
                 </FormField>
@@ -7767,7 +7771,7 @@ wifiName: settings.wifiName || "",
                       onClick={() =>
                         copyText(
                           `https://www.gelone.it${unitForm.icalPath || `/api/ical/${unitForm.id}.ics`}`,
-                          "Link iCal unità copiato."
+                          "Link iCal unitÃ  copiato."
                         )
                       }
                       className="rounded-2xl bg-[#0a1d35] px-5 font-bold text-white"
@@ -7785,7 +7789,7 @@ wifiName: settings.wifiName || "",
                         checked={unitForm.active}
                         onChange={(event) => setUnitForm({ ...unitForm, active: event.target.checked })}
                       />
-                      Unità attiva
+                      UnitÃ  attiva
                     </label>
                     <label className="flex items-center gap-3 font-semibold">
                       <input
@@ -7805,16 +7809,16 @@ wifiName: settings.wifiName || "",
                     </label>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-[#666]">
-                    Consiglio: lascia le nuove unità in bozza finché non prepariamo foto, tariffe, iCal in ingresso e pagina pubblica multi-alloggio.
+                    Consiglio: lascia le nuove unitÃ  in bozza finchÃ© non prepariamo foto, tariffe, iCal in ingresso e pagina pubblica multi-alloggio.
                   </p>
                 </div>
 
                 <div className="rounded-[2rem] border border-[#eadbbf] bg-[#faf6ee] p-5 lg:col-span-2">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <h4 className="font-serif text-2xl">Foto unità</h4>
+                      <h4 className="font-serif text-2xl">Foto unitÃ </h4>
                       <p className="mt-1 text-sm leading-6 text-[#666]">
-                        Carica foto da computer o telefono con Cloudinary. La foto viene ottimizzata per il sito e collegata alla singola unità: Lunarossa 1 aggiorna la galleria pubblica, Lunarossa 2 resta pronta finché è in bozza.
+                        Carica foto da computer o telefono con Cloudinary. La foto viene ottimizzata per il sito e collegata alla singola unitÃ : Lunarossa 1 aggiorna la galleria pubblica, Lunarossa 2 resta pronta finchÃ© Ã¨ in bozza.
                       </p>
                     </div>
                     <button
@@ -7862,14 +7866,14 @@ wifiName: settings.wifiName || "",
                                 disabled={index === 0}
                                 className="border border-[#d7c49f] bg-white text-[#0a1d35]"
                               >
-                                â†‘ Prima
+                                Ã¢â€ â€˜ Prima
                               </SmallButton>
                               <SmallButton
                                 onClick={() => movePhoto(photo, 1)}
                                 disabled={index === (unitForm.photos || []).length - 1}
                                 className="border border-[#d7c49f] bg-white text-[#0a1d35]"
                               >
-                                â†“ Dopo
+                                Ã¢â€ â€œ Dopo
                               </SmallButton>
                             </div>
                           </div>
@@ -7878,12 +7882,12 @@ wifiName: settings.wifiName || "",
                     </div>
                   ) : (
                     <div className="mt-5 rounded-2xl border border-dashed border-[#d7c49f] bg-white p-5 text-sm leading-6 text-[#666]">
-                      Nessuna foto Cloudinary collegata a questa unità. Lunarossa 1 continua a usare le foto attuali del sito finché non carichi nuove foto.
+                      Nessuna foto Cloudinary collegata a questa unitÃ . Lunarossa 1 continua a usare le foto attuali del sito finchÃ© non carichi nuove foto.
                     </div>
                   )}
 
                   <p className="mt-4 rounded-2xl bg-white p-4 text-sm font-semibold text-[#0a1d35]">
-                    Dopo upload Cloudinary, eliminazione, copertina o ordine foto il sistema salva subito la galleria. Usa <strong>Salva unità</strong> solo se hai modificato anche testi, CIN/CIR o altri dati.
+                    Dopo upload Cloudinary, eliminazione, copertina o ordine foto il sistema salva subito la galleria. Usa <strong>Salva unitÃ </strong> solo se hai modificato anche testi, CIN/CIR o altri dati.
                   </p>
                 </div>
 
@@ -7901,7 +7905,7 @@ wifiName: settings.wifiName || "",
                     className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white"
                   >
                     <Save size={18} />
-                    Salva unità
+                    Salva unitÃ 
                   </button>
                   <button
                     type="button"
@@ -7918,7 +7922,7 @@ wifiName: settings.wifiName || "",
                       className="inline-flex items-center justify-center gap-2 rounded-full bg-red-900 px-6 py-4 font-bold text-white"
                     >
                       <Trash2 size={18} />
-                      Elimina unità
+                      Elimina unitÃ 
                     </button>
                   )}
                 </div>
@@ -7932,15 +7936,15 @@ wifiName: settings.wifiName || "",
             <div className="rounded-[2rem] border border-[#e4d8c2] bg-white p-6 shadow-sm">
               <div className="flex items-center gap-3">
                 <Building2 className="text-[#9b6b25]" />
-                <h2 className="font-serif text-3xl">Unità abitativa</h2>
+                <h2 className="font-serif text-3xl">UnitÃ  abitativa</h2>
               </div>
 
               <div className="mt-6 grid gap-4">
-                <DetailRow label="Unità attuale" value={selectedUnit.name} />
+                <DetailRow label="UnitÃ  attuale" value={selectedUnit.name} />
                 <DetailRow label="ID tecnico" value={selectedUnit.id} />
                 <p className="rounded-2xl bg-[#faf6ee] p-4 text-sm leading-7 text-[#555]">
-                  La struttura è già preparata con <strong>unitId</strong>. In
-                  futuro potremo aggiungere altre unità senza rifare il PMS da
+                  La struttura Ã¨ giÃ  preparata con <strong>unitId</strong>. In
+                  futuro potremo aggiungere altre unitÃ  senza rifare il PMS da
                   zero.
                 </p>
               </div>
@@ -8035,7 +8039,7 @@ wifiName: settings.wifiName || "",
 
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <FormField label="Prezzo diretto per notte (€)">
+                    <FormField label="Prezzo diretto per notte (â‚¬)">
                       <input
                         type="number"
                         min="0"
@@ -8048,7 +8052,7 @@ wifiName: settings.wifiName || "",
                       />
                     </FormField>
 
-                    <FormField label="Pulizie finali (€)">
+                    <FormField label="Pulizie finali (â‚¬)">
                       <input
                         type="number"
                         min="0"
@@ -8279,7 +8283,7 @@ wifiName: settings.wifiName || "",
                     </div>
                   ) : (
                     <p className="mt-4 rounded-2xl bg-white p-4 text-sm leading-6 text-[#555]">
-                      Nessuna sincronizzazione automatica registrata ancora. Verrà compilata dopo il primo passaggio del cron Vercel.
+                      Nessuna sincronizzazione automatica registrata ancora. VerrÃ  compilata dopo il primo passaggio del cron Vercel.
                     </p>
                   )}
                 </div>
@@ -8337,12 +8341,12 @@ wifiName: settings.wifiName || "",
                         label="Booking"
                         value={
                           (bookingSync.urlPresent ? "Link presente" : "Link assente") +
-                          " · " +
+                          " Â· " +
                           (bookingSync.imported || 0) +
-                          " importate · " +
+                          " importate Â· " +
                           (bookingSync.skippedConflict || 0) +
                           " conflitti protetti" +
-                          " · " +
+                          " Â· " +
                           (bookingSync.skippedIgnored || 0) +
                           " ignorate"
                         }
@@ -8351,12 +8355,12 @@ wifiName: settings.wifiName || "",
                         label="Airbnb"
                         value={
                           (airbnbSync.urlPresent ? "Link presente" : "Link assente") +
-                          " · " +
+                          " Â· " +
                           (airbnbSync.imported || 0) +
-                          " importate · " +
+                          " importate Â· " +
                           (airbnbSync.skippedConflict || 0) +
                           " conflitti protetti" +
-                          " · " +
+                          " Â· " +
                           (airbnbSync.skippedIgnored || 0) +
                           " ignorate"
                         }
@@ -8377,7 +8381,7 @@ wifiName: settings.wifiName || "",
 
                     <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm leading-6 text-green-900">
                       Sincronizzazione completata correttamente. I conflitti protetti non sono errori:
-                      indicano date già occupate che il sistema non ha sovrascritto. Gli eventi ignorati sono prenotazioni iCal annullate manualmente dall'admin.
+                      indicano date giÃ  occupate che il sistema non ha sovrascritto. Gli eventi ignorati sono prenotazioni iCal annullate manualmente dall'admin.
                     </div>
                   </div>
                 );
@@ -8389,5 +8393,6 @@ wifiName: settings.wifiName || "",
     </main>
   );
 }
+
 
 
