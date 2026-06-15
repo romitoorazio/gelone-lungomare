@@ -3085,6 +3085,65 @@ wifiName: settings.wifiName || "",
     }
   }
 
+  async function resendConfirmationEmail(booking) {
+    clearMessages();
+
+    if (!booking?.id) {
+      setError("Seleziona una prenotazione valida.");
+      return;
+    }
+
+    if (booking.status === "cancelled" || booking.status === "blocked") {
+      setError("Non puoi inviare conferma email per una prenotazione annullata o un blocco.");
+      return;
+    }
+
+    if (!String(booking.guestEmail || "").trim()) {
+      setError("Email ospite mancante. Inserisci e salva l'email prima di inviare la conferma.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Vuoi inviare la conferma prenotazione a " +
+        (booking.guestEmail || "-") +
+        "?\n\nOspite: " +
+        (booking.guestName || "-") +
+        "\nDate: " +
+        formatDate(booking.checkIn) +
+        " - " +
+        formatDate(booking.checkOut)
+    );
+
+    if (!confirmed) {
+      setMessage("Invio email conferma interrotto.");
+      return;
+    }
+
+    try {
+      const emailResult = await sendGuestBookingEmail(
+        "/api/send-confirmation-email",
+        booking,
+        { manualResend: true }
+      );
+
+      await addActivityLog("resent_confirmation_email", booking, {
+        guestEmailNotification: emailResult,
+        manualResend: true,
+      });
+
+      setMessage(
+        getEmailResultMessage(
+          emailResult,
+          "Email conferma inviata all'ospite.",
+          "Email conferma non inviata"
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante l'invio manuale della conferma email.");
+    }
+  }
+
   function hasSensitivePayment(booking) {
     return ["paid", "deposit_paid", "pending"].includes(String(booking?.paymentStatus || ""));
   }
@@ -6914,6 +6973,23 @@ wifiName: settings.wifiName || "",
                           </p>
                         )}
                     </div>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => resendConfirmationEmail(selectedBooking)}
+                        disabled={
+                          !selectedBooking?.guestEmail ||
+                          selectedBooking?.status === "cancelled" ||
+                          selectedBooking?.status === "blocked"
+                        }
+                        className="rounded-full bg-[#0a1d35] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#132f52] disabled:opacity-50"
+                      >
+                        {selectedBooking.confirmationEmailSent
+                          ? "Reinvia email conferma"
+                          : "Invia email conferma"}
+                      </button>
+                    </div>
+
                   </div>
 
                   <div className="rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
