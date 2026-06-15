@@ -6248,91 +6248,25 @@ wifiName: settings.wifiName || "",
                 notti bloccate senza prenotazione o blocco attivo collegato.
               </p>
 
-              <div className="mt-6 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
+              <div className="mt-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-5 text-amber-950">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <h3 className="text-2xl font-bold text-[#0a1d35]">
-                      Pulisci notti fantasma
+                    <h3 className="text-2xl font-bold">
+                      Pulizia notti fantasma disattivata
                     </h3>
-                    <p className="mt-2 leading-7 text-[#555]">
-                      Controlla la disponibilitÃ  dell'unitÃ  selezionata e cancella solo
-                      le notti isolate che non hanno una prenotazione o un blocco attivo
-                      collegato.
+                    <p className="mt-2 leading-7">
+                      Questa funzione tecnica è stata disattivata perché il sito usa
+                      il piano Vercel Hobby, che permette al massimo 12 funzioni API.
                     </p>
-                    <div className="mt-4 rounded-2xl bg-white p-4">
-                      <label className="block">
-                        <span className="text-xs uppercase tracking-[0.18em] text-[#9b6b25]">
-                          Scegli unitÃ  da pulire
-                        </span>
-                        <select
-                          value={selectedUnitId}
-                          onChange={(event) => setSelectedUnitId(event.target.value)}
-                          className="mt-3 w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4 font-bold text-[#0a1d35]"
-                        >
-                          {units.map((unit) => (
-                            <option key={unit.id} value={unit.id}>
-                              {(unit.publicName || unit.name || unit.id)}
-                              {unit.name && unit.publicName && unit.publicName !== unit.name
-                                ? " â€” " + unit.name
-                                : ""}{" "}
-                              ({unit.id})
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <p className="mt-3 text-sm leading-6 text-[#555]">
-                        La pulizia verrÃ  eseguita solo sull'unitÃ  selezionata qui sopra.
-                      </p>
-                    </div>
+                    <p className="mt-3 text-sm leading-6">
+                      Restano attivi prenotazioni, calendario disponibilità, email di
+                      conferma, email di annullamento, pagamenti, sincronizzazione e iCal.
+                    </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={cleanupGhostNights}
-                    disabled={cleanupLoading}
-                    className="rounded-full bg-[#0a1d35] px-6 py-4 font-bold text-white transition hover:bg-[#132f52] disabled:opacity-60"
-                  >
-                    {cleanupLoading ? "Pulizia in corso..." : "Pulisci notti fantasma"}
-                  </button>
-                </div>
-
-                {cleanupResult && (
-                  <div className="mt-5 rounded-2xl border border-[#d7c49f] bg-white p-5">
-                    <p className="text-sm uppercase tracking-[0.2em] text-[#9b6b25]">
-                      Risultato pulizia
-                    </p>
-                    <div className="mt-4 grid gap-3 md:grid-cols-4">
-                      <DetailRow label="UnitÃ " value={cleanupResult.unitName || cleanupResult.unitId} />
-                      <DetailRow label="Controllate" value={cleanupResult.scannedCount ?? 0} />
-                      <DetailRow label="Eliminate" value={cleanupResult.deletedCount ?? 0} />
-                      <DetailRow label="Protette" value={cleanupResult.keptCount ?? 0} />
-                    </div>
-
-                    {Array.isArray(cleanupResult.deletedNights) &&
-                      cleanupResult.deletedNights.length > 0 && (
-                        <div className="mt-4 rounded-2xl bg-[#faf6ee] p-4">
-                          <p className="mb-2 font-bold text-[#0a1d35]">
-                            Notti eliminate
-                          </p>
-                          <div className="space-y-2 text-sm text-[#555]">
-                            {cleanupResult.deletedNights.map((night) => (
-                              <div
-                                key={night.id}
-                                className="rounded-xl bg-white px-3 py-2"
-                              >
-                                {formatDate(night.date)} Â· {night.status || "-"} Â·{" "}
-                                {night.source || "-"}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                  </div>
-                )}
-
-                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-                  Le prenotazioni vere e i blocchi manuali attivi non vengono toccati.
-                  La pulizia lavora solo sulla tabella tecnica delle notti.
+                  <span className="inline-flex rounded-full border border-amber-300 bg-white px-5 py-3 text-sm font-bold text-amber-900">
+                    Funzione non disponibile sul piano attuale
+                  </span>
                 </div>
               </div>
             </div>
