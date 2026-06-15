@@ -5,7 +5,8 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null
         && request.auth.token.email in [
-          "romitoorazio@gmail.com"
+          "romitoorazio@gmail.com",
+          "romitofrancesco1@gmail.com"
         ];
     }
 
@@ -30,6 +31,20 @@ service cloud.firestore {
     }
 
     match /adminLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Log operativi del PMS: attività admin, sync calendari, registro interno.
+    match /maintenanceLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Dati tecnici usati dalle API server per protezione/rate-limit/debug pagamenti.
+    match /bookingRateLimits/{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    match /stripeEvents/{document=**} {
       allow read, write: if isAdmin();
     }
   }

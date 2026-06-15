@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   getIdToken,
   onAuthStateChanged,
@@ -2579,6 +2579,70 @@ export default function Admin() {
       .filter(Boolean);
   }
 
+
+  async function sendGuestBookingEmail(endpoint, booking, extraBody = {}) {
+    if (!booking?.id) {
+      return {
+        sent: false,
+        reason: "Prenotazione non valida.",
+      };
+    }
+
+    if (!String(booking.guestEmail || "").trim()) {
+      return {
+        sent: false,
+        reason: "Email ospite mancante.",
+      };
+    }
+
+    try {
+      const token = await getIdToken(user, true);
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          ...extraBody,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data?.ok) {
+        return {
+          sent: false,
+          reason:
+            data?.message ||
+            data?.error ||
+            "Email non inviata per errore tecnico.",
+        };
+      }
+
+      return data.emailNotification || {
+        sent: false,
+        reason: "Risposta email non valida.",
+      };
+    } catch (err) {
+      console.error("Errore invio email ospite:", err);
+
+      return {
+        sent: false,
+        reason: err?.message || "Errore tecnico durante invio email ospite.",
+      };
+    }
+  }
+
+  function getEmailResultMessage(emailResult, sentText, notSentPrefix) {
+    if (emailResult?.sent) {
+      return sentText;
+    }
+
+    return `${notSentPrefix}: ${emailResult?.reason || "motivo non disponibile"}`;
+  }
+
   async function saveSettings(options = {}) {
     if (!options.silent) {
       clearMessages();
@@ -2962,12 +3026,18 @@ wifiName: settings.wifiName || "",
   async function confirmBooking(booking) {
     clearMessages();
 
+    if (!booking?.id) {
+      setError("Seleziona una prenotazione valida.");
+      return;
+    }
+
     try {
       const batch = writeBatch(db);
 
       batch.update(doc(db, "bookings", booking.id), {
         status: "confirmed_direct",
         confirmedAt: serverTimestamp(),
+        confirmedBy: user?.email || "",
         updatedAt: serverTimestamp(),
       });
 
@@ -2988,8 +3058,23 @@ wifiName: settings.wifiName || "",
       });
 
       await batch.commit();
-      await addActivityLog("confirmed_booking", booking);
-      setMessage("Prenotazione confermata.");
+
+      const emailResult = await sendGuestBookingEmail(
+        "/api/send-confirmation-email",
+        booking
+      );
+
+      await addActivityLog("confirmed_booking", booking, {
+        guestEmailNotification: emailResult,
+      });
+
+      setMessage(
+        getEmailResultMessage(
+          emailResult,
+          "Prenotazione confermata ed email inviata all'ospite.",
+          "Prenotazione confermata, ma email ospite non inviata"
+        )
+      );
     } catch (err) {
       console.error(err);
       setError("Errore durante la conferma della prenotazione.");
@@ -3080,6 +3165,12 @@ wifiName: settings.wifiName || "",
 
       await batch.commit();
 
+      const emailResult = await sendGuestBookingEmail(
+        "/api/send-cancellation-email",
+        booking,
+        { reason: cleanReason }
+      );
+
       await addActivityLog("cancelled_booking", booking, {
         reason: cleanReason,
         previousStatus: booking.status || "",
@@ -3089,9 +3180,16 @@ wifiName: settings.wifiName || "",
         depositAmount: booking.depositAmount ?? null,
         nightsReleased: nights.length,
         sensitivePayment: hasSensitivePayment(booking),
+        guestEmailNotification: emailResult,
       });
 
-      setMessage("Prenotazione annullata con motivo registrato e notti liberate.");
+      setMessage(
+        getEmailResultMessage(
+          emailResult,
+          "Prenotazione annullata, notti liberate ed email inviata all'ospite.",
+          "Prenotazione annullata e notti liberate, ma email ospite non inviata"
+        )
+      );
     } catch (err) {
       console.error(err);
       setError("Errore durante l'annullamento.");
