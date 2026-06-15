@@ -1,3 +1,3 @@
 export default async function handler(req, res) {
-  return res.status(200).json({ ok: true });
+  return res.status(501).json({ ok: false, message: "Endpoint non ancora attivo." });
 }
