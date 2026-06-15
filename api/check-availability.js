@@ -209,7 +209,7 @@ export default async function handler(req, res) {
       ok: false,
       message:
         error?.message ||
-        "Errore tecnico durante il controllo disponibilitÃ . Riprova piÃ¹ tardi o contatta la struttura.",
+        "Errore tecnico durante il controllo disponibilitÃ . Riprova più tardi o contatta la struttura.",
     });
   }
 }
