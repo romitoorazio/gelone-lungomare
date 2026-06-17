@@ -7166,7 +7166,10 @@ wifiName: settings.wifiName || "",
                       </div>
                     )}
 
-                    {selectedBooking.status === "confirmed" && !selectedBooking.confirmationEmailSent && (
+                    {selectedBooking.status !== "cancelled" &&
+                      selectedBooking.status !== "pending" &&
+                      selectedBooking.status !== "blocked" &&
+                      !selectedBooking.confirmationEmailSent && (
                       <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900">
                         <div className="font-black">Email conferma non inviata</div>
                         <div className="mt-1 text-sm leading-6">
