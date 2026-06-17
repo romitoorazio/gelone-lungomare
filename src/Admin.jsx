@@ -477,8 +477,10 @@ function TabButton({ active, onClick, children }) {
   return (
     <button
       onClick={onClick}
-      className={`rounded-full px-5 py-3 font-bold transition ${
-        active ? "bg-[#0a1d35] text-white" : "bg-white text-[#0a1d35]"
+      className={`select-none rounded-full px-5 py-3 font-bold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9b6b25] ${
+        active
+          ? "bg-[#0a1d35] text-white ring-2 ring-[#9b6b25]/30"
+          : "bg-white text-[#0a1d35]"
       }`}
     >
       {children}
@@ -502,7 +504,7 @@ function SmallButton({ children, onClick, className = "", type = "button", disab
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      className={`inline-flex select-none items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-bold shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9b6b25] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-sm disabled:active:scale-100 ${className}`}
     >
       {children}
     </button>
