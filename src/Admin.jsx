@@ -612,6 +612,21 @@ export default function Admin() {
     [bookings, selectedBookingId]
   );
 
+  function openBookingFromDashboard(booking, targetTab = "calendar") {
+    if (booking?.id) {
+      setSelectedBookingId(booking.id);
+      setMessage(
+        booking.guestName
+          ? "Aperta prenotazione: " + booking.guestName
+          : "Prenotazione selezionata."
+      );
+    } else {
+      setMessage("Sezione aperta.");
+    }
+
+    setActiveTab(targetTab);
+  }
+
   const isAdmin = user?.email && ADMIN_EMAILS.includes(user.email);
 
   useEffect(() => {
@@ -6703,7 +6718,7 @@ wifiName: settings.wifiName || "",
                             <button
                               key={booking.id}
                               type="button"
-                              onClick={() => setActiveTab("preparation")}
+                              onClick={() => openBookingFromDashboard(preparationStats.notReadyRows[0], "calendar")}
                               className="block text-left underline"
                             >
                               {formatDate(booking.checkOut)} · {booking.guestName || "Ospite"} · {getPreparationLabel(booking.preparationStatus)}
@@ -6745,7 +6760,7 @@ wifiName: settings.wifiName || "",
                             {controlsStats.requestsToConfirm.length > 0 && (
                               <button
                                 type="button"
-                                onClick={() => setActiveTab("calendar")}
+                                onClick={() => openBookingFromDashboard(controlsStats.requestsToConfirm[0], "calendar")}
                                 className="flex w-full items-center justify-between gap-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-left text-red-900"
                               >
                                 <div>
@@ -6765,7 +6780,7 @@ wifiName: settings.wifiName || "",
                             {controlsStats.openBalances.length > 0 && (
                               <button
                                 type="button"
-                                onClick={() => setActiveTab("economy")}
+                                onClick={() => openBookingFromDashboard(controlsStats.openBalances[0], "calendar")}
                                 className="flex w-full items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-amber-900"
                               >
                                 <div>
@@ -6785,7 +6800,7 @@ wifiName: settings.wifiName || "",
                             {controlsStats.welcomateToSend.length > 0 && (
                               <button
                                 type="button"
-                                onClick={() => setActiveTab("checkin")}
+                                onClick={() => openBookingFromDashboard(controlsStats.welcomateToSend[0], "calendar")}
                                 className="flex w-full items-center justify-between gap-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-left text-blue-900"
                               >
                                 <div>
@@ -6825,7 +6840,7 @@ wifiName: settings.wifiName || "",
                             {controlsStats.futureActionRows.length > 0 && (
                               <button
                                 type="button"
-                                onClick={() => setActiveTab("checks")}
+                                onClick={() => openBookingFromDashboard(controlsStats.futureActionRows[0], "calendar")}
                                 className="flex w-full items-center justify-between gap-4 rounded-2xl border border-[#e4d8c2] bg-[#faf6ee] p-4 text-left text-[#0a1d35]"
                               >
                                 <div>
