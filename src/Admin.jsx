@@ -191,6 +191,12 @@ function formatDateTime(value) {
   }
 }
 
+function formatStripeLinkPreview(url) {
+  const cleanUrl = String(url || "").replace(/^https?:\/\//, "");
+  if (!cleanUrl) return "-";
+  return cleanUrl.length > 80 ? cleanUrl.slice(0, 80) + "..." : cleanUrl;
+}
+
 function formatEuro(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "-";
@@ -7176,7 +7182,7 @@ wifiName: settings.wifiName || "",
 
                       {selectedBooking.paymentCheckoutUrl && (
                         <p className="mt-3 break-all rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-[#0a1d35]">
-                          {selectedBooking.paymentCheckoutUrl}
+                          {formatStripeLinkPreview(selectedBooking.paymentCheckoutUrl)}
                         </p>
                       )}
                     </div>
@@ -7206,7 +7212,7 @@ wifiName: settings.wifiName || "",
                           }
                           className="bg-[#9b6b25] px-5 py-3 text-white"
                         >
-                          Copia ultimo link
+                          Copia link pagamento
                         </SmallButton>
                       )}
 
@@ -7217,7 +7223,7 @@ wifiName: settings.wifiName || "",
                           rel="noreferrer"
                           className="inline-flex items-center gap-2 rounded-full border border-[#0a1d35] bg-white px-5 py-3 text-sm font-bold text-[#0a1d35]"
                         >
-                          Apri ultimo link
+                          Apri link pagamento
                         </a>
                       )}
                     </div>
