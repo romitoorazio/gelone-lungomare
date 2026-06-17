@@ -4589,7 +4589,7 @@ wifiName: settings.wifiName || "",
           <TabButton active={activeTab === "checkin"} onClick={() => setActiveTab("checkin")}>
             Check-in
           </TabButton>
-          <TabButton active={activeTab === "preparation"} onClick={() => setActiveTab("preparation")}>
+          <TabButton active={activeTab === "preparation"} onClick={() => openBookingFromDashboard(preparationStats.notReadyRows[0], "preparation")}>
             Pulizie
           </TabButton>
           <TabButton active={activeTab === "quality"} onClick={() => setActiveTab("quality")}>
@@ -5313,6 +5313,74 @@ wifiName: settings.wifiName || "",
                 </div>
               </form>
 
+              {(() => {
+                const selectedPreparationBooking = preparationStats.rows.find(
+                  (booking) => booking.id === selectedBookingId
+                );
+
+                if (!selectedPreparationBooking) return null;
+
+                return (
+                  <div className="mt-6 rounded-[1.5rem] border border-blue-200 bg-blue-50 p-5 text-blue-950">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <p className="text-sm font-black uppercase tracking-[0.22em] text-blue-800">
+                          Pulizia selezionata
+                        </p>
+                        <h3 className="mt-2 text-2xl font-black">
+                          {selectedPreparationBooking.guestName || "Prenotazione"}
+                        </h3>
+                        <p className="mt-2 text-sm leading-6">
+                          Check-out: {formatDate(selectedPreparationBooking.checkOut)} · Stato:
+                          {" "}
+                          {getPreparationLabel(selectedPreparationBooking.preparationStatus)}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <SmallButton
+                          onClick={() => setPreparationStatus(selectedPreparationBooking, "to_do")}
+                          className="bg-red-900 text-white"
+                        >
+                          Da fare
+                        </SmallButton>
+
+                        <SmallButton
+                          onClick={() => setPreparationStatus(selectedPreparationBooking, "in_progress")}
+                          className="bg-[#f5c84b] text-[#0a1d35]"
+                        >
+                          In corso
+                        </SmallButton>
+
+                        <SmallButton
+                          onClick={() => setPreparationStatus(selectedPreparationBooking, "completed")}
+                          className="bg-green-700 text-white"
+                        >
+                          Pronta
+                        </SmallButton>
+
+                        <SmallButton
+                          onClick={() => updatePreparationNote(selectedPreparationBooking)}
+                          className="bg-[#9b6b25] text-white"
+                        >
+                          Nota
+                        </SmallButton>
+
+                        <SmallButton
+                          onClick={() => {
+                            setSelectedBookingId(selectedPreparationBooking.id);
+                            setActiveTab("calendar");
+                          }}
+                          className="bg-[#0a1d35] text-white"
+                        >
+                          Apri dettagli
+                        </SmallButton>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="mt-8 rounded-[1.5rem] border border-[#e4d8c2] bg-[#faf6ee] p-5">
                 <p className="text-sm uppercase tracking-[0.25em] text-[#9b6b25]">
                   Storico registro
@@ -5495,7 +5563,15 @@ wifiName: settings.wifiName || "",
                         ];
 
                         return (
-                          <tr key={booking.id} className="border-b border-[#f0e6d5] align-top">
+                          <tr
+                            key={booking.id}
+                            className={
+                              "border-b border-[#f0e6d5] align-top transition " +
+                              (booking.id === selectedBookingId
+                                ? "bg-blue-50 ring-2 ring-blue-200"
+                                : "")
+                            }
+                          >
                             <td className="py-4">
                               <div className="font-semibold">{formatDate(booking.checkOut)}</div>
                               {booking.isTodayCheckout && (
