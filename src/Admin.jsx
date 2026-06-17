@@ -120,7 +120,7 @@ const statusOptions = [
 
 const paymentOptions = [
   { value: "unpaid", label: "Non pagato" },
-  { value: "pending", label: "Pagamento in corso" },
+  { value: "pending", label: "Link creato / in attesa pagamento" },
   { value: "deposit_paid", label: "Caparra pagata" },
   { value: "paid", label: "Pagato" },
   { value: "failed", label: "Pagamento fallito" },
@@ -1455,7 +1455,7 @@ export default function Admin() {
     }
 
     if (paymentStatus === "pending") {
-      issues.push("Pagamento in corso da controllare");
+      issues.push("Link creato / in attesa pagamento da controllare");
     }
 
     if (paymentStatus === "deposit_paid" && balanceDue > 0) {
@@ -7212,7 +7212,7 @@ wifiName: settings.wifiName || "",
                           }
                           className="bg-[#9b6b25] px-5 py-3 text-white"
                         >
-                          Copia link pagamento
+                          Copia link
                         </SmallButton>
                       )}
 
@@ -7223,7 +7223,7 @@ wifiName: settings.wifiName || "",
                           rel="noreferrer"
                           className="inline-flex items-center gap-2 rounded-full border border-[#0a1d35] bg-white px-5 py-3 text-sm font-bold text-[#0a1d35]"
                         >
-                          Apri link pagamento
+                          Apri link
                         </a>
                       )}
                     </div>
