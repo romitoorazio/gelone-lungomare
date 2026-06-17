@@ -7139,6 +7139,84 @@ wifiName: settings.wifiName || "",
                   </button>
                 </div>
 
+                <div className="mt-6 rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#9b6b25]">
+                        Cosa manca per questa prenotazione?
+                      </p>
+                      <h3 className="mt-2 text-2xl font-black text-[#0a1d35]">
+                        Controllo rapido
+                      </h3>
+                    </div>
+
+                    <Pill className="border-[#e4d8c2] bg-white text-[#0a1d35]">
+                      Operativo
+                    </Pill>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 md:grid-cols-2">
+                    {selectedBooking.paymentStatus !== "paid" && (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                        <div className="font-black">Pagamento da controllare</div>
+                        <div className="mt-1 text-sm leading-6">
+                          Stato attuale: {getPaymentLabel(selectedBooking.paymentStatus)}.
+                          Totale prenotazione: {formatEuro(selectedBooking.totalPrice)}.
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedBooking.status === "confirmed" && !selectedBooking.confirmationEmailSent && (
+                      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900">
+                        <div className="font-black">Email conferma non inviata</div>
+                        <div className="mt-1 text-sm leading-6">
+                          Controlla il riquadro Email ospite e invia la conferma.
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedBooking.status === "cancelled" && !selectedBooking.cancellationEmailSent && (
+                      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900">
+                        <div className="font-black">Email annullamento non inviata</div>
+                        <div className="mt-1 text-sm leading-6">
+                          Controlla il riquadro Email ospite e invia l’annullamento.
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedBooking.status !== "cancelled" && selectedBooking.welcomateStatus !== "completed" && (
+                      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-900">
+                        <div className="font-black">WelcoMate da controllare</div>
+                        <div className="mt-1 text-sm leading-6">
+                          Stato attuale: {getWelcomateLabel(selectedBooking.welcomateStatus)}.
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedBooking.status !== "cancelled" && selectedBooking.preparationStatus !== "ready" && (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                        <div className="font-black">Pulizia / preparazione da fare</div>
+                        <div className="mt-1 text-sm leading-6">
+                          Stato attuale: {getPreparationLabel(selectedBooking.preparationStatus)}.
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedBooking.paymentStatus === "paid" &&
+                      (selectedBooking.status !== "confirmed" || selectedBooking.confirmationEmailSent) &&
+                      (selectedBooking.status !== "cancelled" || selectedBooking.cancellationEmailSent) &&
+                      (selectedBooking.status === "cancelled" || selectedBooking.welcomateStatus === "completed") &&
+                      (selectedBooking.status === "cancelled" || selectedBooking.preparationStatus === "ready") && (
+                        <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900 md:col-span-2">
+                          <div className="font-black">Tutto sotto controllo</div>
+                          <div className="mt-1 text-sm leading-6">
+                            Non risultano azioni operative mancanti per questa prenotazione.
+                          </div>
+                        </div>
+                      )}
+                  </div>
+                </div>
+
                 <div className="mt-6 grid gap-4 md:grid-cols-4">
                   <DetailRow label="Arrivo" value={formatDate(selectedBooking.checkIn)} />
                   <DetailRow label="Partenza" value={formatDate(selectedBooking.checkOut)} />
