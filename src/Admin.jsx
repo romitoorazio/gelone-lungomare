@@ -2643,6 +2643,93 @@ export default function Admin() {
     return `${notSentPrefix}: ${emailResult?.reason || "motivo non disponibile"}`;
   }
 
+  async function resendCancellationEmail(booking) {
+    clearMessages();
+
+    if (!booking?.id) {
+      setError("Seleziona una prenotazione valida.");
+      return;
+    }
+
+    if (booking.status !== "cancelled") {
+      setError("L'email annullamento si può inviare solo dopo aver annullato la prenotazione.");
+      return;
+    }
+
+    if (!String(booking.guestEmail || "").trim()) {
+      setError("Email ospite mancante. Inserisci e salva l'email prima di inviare l'annullamento.");
+      return;
+    }
+
+    const currentReason =
+      booking.cancellationEmail?.reason ||
+      booking.cancellationReason ||
+      "Prenotazione annullata dalla struttura.";
+
+    const reason = window.prompt(
+      "Motivo annullamento da inviare all'ospite:",
+      currentReason
+    );
+
+    if (reason === null) {
+      setMessage("Invio email annullamento interrotto.");
+      return;
+    }
+
+    const cleanReason = String(reason || "").trim();
+
+    if (!cleanReason) {
+      setError("Inserisci un motivo annullamento prima di inviare l'email.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Vuoi inviare l'email di annullamento a " +
+        (booking.guestEmail || "-") +
+        "?\n\nOspite: " +
+        (booking.guestName || "-") +
+        "\nDate: " +
+        formatDate(booking.checkIn) +
+        " - " +
+        formatDate(booking.checkOut) +
+        "\n\nMotivo:\n" +
+        cleanReason
+    );
+
+    if (!confirmed) {
+      setMessage("Invio email annullamento interrotto.");
+      return;
+    }
+
+    try {
+      const emailResult = await sendGuestBookingEmail(
+        "/api/send-cancellation-email",
+        booking,
+        {
+          reason: cleanReason,
+          manualResend: true,
+        }
+      );
+
+      await addActivityLog("resent_cancellation_email", booking, {
+        guestEmailNotification: emailResult,
+        reason: cleanReason,
+        manualResend: true,
+      });
+
+      setMessage(
+        getEmailResultMessage(
+          emailResult,
+          "Email annullamento inviata all'ospite.",
+          "Email annullamento non inviata"
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      setError("Errore durante l'invio manuale dell'email annullamento.");
+    }
+  }
+
   async function saveSettings(options = {}) {
     if (!options.silent) {
       clearMessages();
@@ -7036,6 +7123,28 @@ wifiName: settings.wifiName || "",
                           </p>
                         )}
                     </div>
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => resendCancellationEmail(selectedBooking)}
+                        disabled={
+                          selectedBooking?.status !== "cancelled" ||
+                          !selectedBooking?.guestEmail
+                        }
+                        className="rounded-full bg-red-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-red-800 disabled:opacity-50"
+                      >
+                        {selectedBooking.cancellationEmailSent
+                          ? "Reinvia email annullamento"
+                          : "Invia email annullamento"}
+                      </button>
+
+                      {selectedBooking?.status !== "cancelled" && (
+                        <span className="text-xs font-semibold text-[#777]">
+                          Disponibile solo dopo annullamento prenotazione
+                        </span>
+                      )}
+                    </div>
+
                   </div>
                 </div>
 
