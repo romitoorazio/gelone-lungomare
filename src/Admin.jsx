@@ -6711,6 +6711,139 @@ wifiName: settings.wifiName || "",
                       </div>
                     )}
 
+                    <div className="rounded-2xl border border-[#d7c49f] bg-white p-4">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <div className="font-black text-[#0a1d35]">
+                            Priorità pratiche di oggi
+                          </div>
+                          <div className="mt-1 text-sm leading-6 text-[#555]">
+                            Qui vedi cosa aprire prima, senza interpretare tutti i numeri.
+                          </div>
+                        </div>
+
+                        <Pill className="border-[#e4d8c2] bg-[#faf6ee] text-[#0a1d35]">
+                          Operativo
+                        </Pill>
+                      </div>
+
+                      <div className="mt-4 space-y-3">
+                        {(
+                          controlsStats.requestsToConfirm.length +
+                          controlsStats.openBalances.length +
+                          controlsStats.welcomateToSend.length +
+                          preparationStats.notReadyRows.length +
+                          controlsStats.futureActionRows.length
+                        ) === 0 ? (
+                          <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
+                            Tutto sotto controllo: nessuna azione pratica urgente.
+                          </div>
+                        ) : (
+                          <>
+                            {controlsStats.requestsToConfirm.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab("calendar")}
+                                className="flex w-full items-center justify-between gap-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-left text-red-900"
+                              >
+                                <div>
+                                  <div className="font-black">
+                                    Confermare richieste
+                                  </div>
+                                  <div className="text-sm">
+                                    {controlsStats.requestsToConfirm.length} prenotazioni da confermare.
+                                  </div>
+                                </div>
+                                <span className="rounded-full bg-white px-4 py-2 text-sm font-black">
+                                  Apri
+                                </span>
+                              </button>
+                            )}
+
+                            {controlsStats.openBalances.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab("economy")}
+                                className="flex w-full items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-amber-900"
+                              >
+                                <div>
+                                  <div className="font-black">
+                                    Incassare saldi aperti
+                                  </div>
+                                  <div className="text-sm">
+                                    {formatEuro(controlsStats.openBalanceTotal)} da controllare su {controlsStats.openBalances.length} prenotazioni.
+                                  </div>
+                                </div>
+                                <span className="rounded-full bg-white px-4 py-2 text-sm font-black">
+                                  Apri
+                                </span>
+                              </button>
+                            )}
+
+                            {controlsStats.welcomateToSend.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab("checkin")}
+                                className="flex w-full items-center justify-between gap-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-left text-blue-900"
+                              >
+                                <div>
+                                  <div className="font-black">
+                                    Controllare WelcoMate
+                                  </div>
+                                  <div className="text-sm">
+                                    {controlsStats.welcomateToSend.length} schede ospite da inviare o verificare.
+                                  </div>
+                                </div>
+                                <span className="rounded-full bg-white px-4 py-2 text-sm font-black">
+                                  Apri
+                                </span>
+                              </button>
+                            )}
+
+                            {preparationStats.notReadyRows.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab("preparation")}
+                                className="flex w-full items-center justify-between gap-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-left text-red-900"
+                              >
+                                <div>
+                                  <div className="font-black">
+                                    Pulizie da fare
+                                  </div>
+                                  <div className="text-sm">
+                                    {preparationStats.notReadyRows.length} pulizie non pronte.
+                                  </div>
+                                </div>
+                                <span className="rounded-full bg-white px-4 py-2 text-sm font-black">
+                                  Apri
+                                </span>
+                              </button>
+                            )}
+
+                            {controlsStats.futureActionRows.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab("checks")}
+                                className="flex w-full items-center justify-between gap-4 rounded-2xl border border-[#e4d8c2] bg-[#faf6ee] p-4 text-left text-[#0a1d35]"
+                              >
+                                <div>
+                                  <div className="font-black">
+                                    Attività future da seguire
+                                  </div>
+                                  <div className="text-sm">
+                                    {controlsStats.futureActionRows.length} elementi da tenere sotto controllo.
+                                  </div>
+                                </div>
+                                <span className="rounded-full bg-white px-4 py-2 text-sm font-black">
+                                  Apri
+                                </span>
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+
                     {latestAutomaticSyncLog ? (
                       <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-900">
                         Ultima sync automatica: {formatDateTime(latestAutomaticSyncLog.createdAt)}
