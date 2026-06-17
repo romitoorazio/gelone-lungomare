@@ -7216,6 +7216,13 @@ wifiName: settings.wifiName || "",
                         <div className="mt-1 text-sm leading-6">
                           Stato attuale: {getWelcomateLabel(selectedBooking.welcomateStatus)}.
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => scrollToBookingSection("booking-section-welcomate")}
+                          className="mt-3 rounded-full bg-white px-4 py-2 text-sm font-black text-blue-900 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+                        >
+                          Vai a WelcoMate
+                        </button>
                       </div>
                     )}
 
@@ -7488,7 +7495,7 @@ wifiName: settings.wifiName || "",
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                       <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#9b6b25]">
-                        Link WelcoMate da inviare all'ospite
+                        <span id="booking-section-welcomate" className="scroll-mt-28">Link WelcoMate da inviare all'ospite</span>
                       </p>
                       <p className="mt-2 break-all rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-[#0a1d35]">
                         {settings?.welcomateUrl || defaultSettings.welcomateUrl}
