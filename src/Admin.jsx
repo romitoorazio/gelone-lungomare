@@ -7232,6 +7232,16 @@ wifiName: settings.wifiName || "",
                         <div className="mt-1 text-sm leading-6">
                           Stato attuale: {getPreparationLabel(selectedBooking.preparationStatus)}.
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedBookingId(selectedBooking.id);
+                            setActiveTab("preparation");
+                          }}
+                          className="mt-3 rounded-full bg-white px-4 py-2 text-sm font-black text-amber-900 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95"
+                        >
+                          Vai a pulizie
+                        </button>
                       </div>
                     )}
 
