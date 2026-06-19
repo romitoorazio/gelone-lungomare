@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { getFirebaseAdminAuth, getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
+import { calculateServerBookingPricing, loadServerPricing } from "./_pricing.js";
 
 const ADMIN_EMAILS = [
   "romitoorazio@gmail.com",
@@ -111,6 +112,42 @@ function isInactiveBooking(status) {
   ].includes(value);
 }
 
+function shouldRecalculateBookingPrice(booking, publicDirectPayment) {
+  const source = String(booking?.source || "").toLowerCase();
+  return publicDirectPayment || source === "direct_site" || source === "public_site";
+}
+
+async function resolvePaymentAmounts(adminDb, booking, publicDirectPayment) {
+  const unitId = String(booking.unitId || "lunarossa1");
+
+  if (shouldRecalculateBookingPrice(booking, publicDirectPayment)) {
+    const nightsCount = Number(booking.nightsCount || 0);
+    const serverPricing = await calculateServerBookingPricing(adminDb, unitId, nightsCount);
+
+    return {
+      totalPrice: Number(serverPricing.totalPrice || 0),
+      depositAmount: Number(serverPricing.depositAmount || 0),
+      pricingUpdate: {
+        totalPrice: serverPricing.totalPrice,
+        nightlyRate: serverPricing.nightlyRate,
+        cleaningFee: serverPricing.cleaningFee,
+        nightsCount: serverPricing.nightsCount,
+        depositAmount: serverPricing.depositAmount,
+        pricingCalculatedBy: serverPricing.pricingCalculatedBy,
+        pricingSource: serverPricing.source,
+        pricingSettingsDocId: serverPricing.settingsDocId,
+        pricingRecalculatedAt: FieldValue.serverTimestamp(),
+      },
+    };
+  }
+
+  return {
+    totalPrice: Number(booking.totalPrice || 0),
+    depositAmount: Number(booking.depositAmount || 0),
+    pricingUpdate: {},
+  };
+}
+
 export default async function handler(req, res) {
   res.setHeader("Content-Type", "application/json");
   res.setHeader("Cache-Control", "no-store, max-age=0");
@@ -156,13 +193,9 @@ export default async function handler(req, res) {
 
     if (publicDirectPayment) {
       const unitIdForPayment = String(booking.unitId || "lunarossa1");
-      const settingsDocId =
-        unitIdForPayment === "lunarossa1" ? "pms" : `pms_${unitIdForPayment}`;
-      const settingsSnapshot = await adminDb.collection("settings").doc(settingsDocId).get();
-      const directPaymentEnabled =
-        settingsSnapshot.exists && settingsSnapshot.data()?.directPaymentEnabled === true;
+      const serverPricing = await loadServerPricing(adminDb, unitIdForPayment);
 
-      if (!directPaymentEnabled) {
+      if (!serverPricing.directPaymentEnabled) {
         return res.status(403).json({
           ok: false,
           message: "Pagamento online disattivato dalla struttura.",
@@ -197,8 +230,11 @@ export default async function handler(req, res) {
       paymentType = "balance";
     }
 
-    const totalPrice = Number(booking.totalPrice || 0);
-    const depositAmount = Number(booking.depositAmount || 0);
+    const { totalPrice, depositAmount, pricingUpdate } = await resolvePaymentAmounts(
+      adminDb,
+      booking,
+      publicDirectPayment
+    );
 
     const amount =
       paymentType === "balance"
@@ -266,6 +302,7 @@ export default async function handler(req, res) {
     });
 
     await bookingRef.update({
+      ...pricingUpdate,
       paymentProvider: "stripe",
       paymentStatus: "pending",
       paymentType,

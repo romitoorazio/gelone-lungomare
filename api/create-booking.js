@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
 import { DEFAULT_UNIT_ID, bookingUnitId, getPublicUnitConfig } from "./_units.js";
+import { calculateServerBookingPricing } from "./_pricing.js";
 
 const NOTIFY_EMAIL = "info@gelone.it";
 const PENDING_REQUEST_HOLD_HOURS = 24;
@@ -42,18 +43,6 @@ function isValidEmail(value) {
 function isValidPhone(value) {
   const digits = String(value || "").replace(/\D/g, "");
   return digits.length >= 8 && digits.length <= 15;
-}
-
-function cleanMoneyValue(value) {
-  if (value === "" || value === null || value === undefined) return null;
-  const number = Number(String(value).replace(",", "."));
-  return Number.isFinite(number) ? number : null;
-}
-
-function cleanIntegerValue(value) {
-  if (value === "" || value === null || value === undefined) return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? Math.round(number) : null;
 }
 
 function getClientIp(req) {
@@ -102,12 +91,7 @@ async function enforceBookingRateLimit(adminDb, req, { guestEmail, guestPhone })
         throw new Error("TOO_MANY_BOOKING_REQUESTS");
       }
 
-      rows.push({
-        ref,
-        entry,
-        count,
-        exists: snapshot.exists,
-      });
+      rows.push({ ref, entry, count, exists: snapshot.exists });
     }
 
     rows.forEach(({ ref, entry, count, exists }) => {
@@ -240,30 +224,47 @@ function escapeHtmlForEmail(value) {
     .replaceAll("'", "&#039;");
 }
 
-async function sendNotificationEmail(booking, unit) {
+async function sendEmailViaResend({ to, subject, text, html }) {
   const resendApiKey = process.env.RESEND_API_KEY;
-  const emailFrom =
-    process.env.EMAIL_FROM || "Gelone Lungomare <onboarding@resend.dev>";
+  const emailFrom = process.env.EMAIL_FROM || "Gelone Lungomare <onboarding@resend.dev>";
 
   if (!resendApiKey) {
-    return {
-      sent: false,
-      reason: "RESEND_API_KEY non configurata.",
-    };
+    return { sent: false, reason: "RESEND_API_KEY non configurata." };
   }
 
-  const subject = `Nuova richiesta prenotazione ${unit.publicName || unit.name}`;
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from: emailFrom, to: Array.isArray(to) ? to : [to], subject, text, html }),
+  });
 
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    return { sent: false, reason: errorText || "Errore invio email." };
+  }
+
+  return { sent: true };
+}
+
+async function sendNotificationEmail(booking, unit) {
+  const unitName = unit.publicName || unit.name || "Gelone Lungomare";
+  const subject = `Nuova richiesta prenotazione ${unitName}`;
   const text = `
 Nuova richiesta prenotazione ricevuta dal sito.
 
-Struttura: ${unit.publicName || unit.name}
+Struttura: ${unitName}
 Nome ospite: ${booking.guestName}
 Email ospite: ${booking.guestEmail || "-"}
 Telefono ospite: ${booking.guestPhone || "-"}
-Arrivo: ${booking.checkIn}
-Partenza: ${booking.checkOut}
+Arrivo: ${formatDateForEmail(booking.checkIn)}
+Partenza: ${formatDateForEmail(booking.checkOut)}
 Ospiti: ${booking.guests}
+Notti: ${booking.nightsCount}
+Totale calcolato dal server: ${formatEuroForEmail(booking.totalPrice)}
+Caparra calcolata dal server: ${formatEuroForEmail(booking.depositAmount)}
 Note: ${booking.notes || "-"}
 
 Stato: ${booking.status}
@@ -272,51 +273,14 @@ Booking ID: ${booking.bookingId}
 
 Controlla il PMS admin:
 https://www.gelone.it/admin
-`;
+`.trim();
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: emailFrom,
-      to: [NOTIFY_EMAIL],
-      subject,
-      text,
-    }),
-  });
-
-  if (!response.ok) {
-    return {
-      sent: false,
-      reason: "Errore invio email.",
-    };
-  }
-
-  return {
-    sent: true,
-  };
+  return sendEmailViaResend({ to: NOTIFY_EMAIL, subject, text });
 }
 
 async function sendGuestRequestEmail(booking, unit) {
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const emailFrom =
-    process.env.EMAIL_FROM || "Gelone Lungomare <onboarding@resend.dev>";
-
-  if (!resendApiKey) {
-    return {
-      sent: false,
-      reason: "RESEND_API_KEY non configurata.",
-    };
-  }
-
   if (!booking.guestEmail) {
-    return {
-      sent: false,
-      reason: "Email ospite mancante.",
-    };
+    return { sent: false, reason: "Email ospite mancante." };
   }
 
   const unitName = unit.publicName || unit.name || "Gelone Lungomare";
@@ -341,7 +305,6 @@ async function sendGuestRequestEmail(booking, unit) {
   const safeHoldExpiresAt = escapeHtmlForEmail(holdExpiresAt);
 
   const subject = `Richiesta ricevuta - ${unitName}`;
-
   const text = `
 Ciao ${booking.guestName},
 
@@ -355,17 +318,9 @@ Riepilogo richiesta:
 - Totale stimato: ${formatEuroForEmail(booking.totalPrice)}
 - Caparra indicativa: ${formatEuroForEmail(booking.depositAmount)}
 
-Stato della richiesta:
-La richiesta è stata ricevuta ed è in attesa di conferma da parte della struttura.
-Le date possono restare bloccate temporaneamente fino a: ${holdExpiresAt}.
+La richiesta è in attesa di conferma da parte della struttura. Le date possono restare bloccate temporaneamente fino a: ${holdExpiresAt}.
 
-Condizioni cancellazione prenotazioni dirette:
-- Rimborso totale fino a 14 giorni prima del check-in.
-- Da 13 a 7 giorni prima del check-in viene trattenuta la caparra confirmatoria.
-- Negli ultimi 6 giorni, in caso di no-show o partenza anticipata, gli importi versati non sono rimborsabili salvo diverso accordo scritto.
-
-Privacy e condizioni:
-Hai dichiarato di aver letto e accettato Privacy Policy, Cookie Policy e Termini e condizioni, incluse cancellazioni e rimborsi.
+Privacy e condizioni: hai dichiarato di aver letto e accettato Privacy Policy, Cookie Policy e Termini e condizioni.
 
 Contatti:
 Telefono / WhatsApp: 3476308456
@@ -390,7 +345,6 @@ Gelone Lungomare
         <div style="padding:30px 26px;">
           <p style="font-size:18px;line-height:1.7;margin:0 0 18px;">Ciao <strong>${safeGuestName}</strong>,</p>
           <p style="font-size:16px;line-height:1.75;margin:0 0 22px;color:#4f5b67;">Grazie per la richiesta di prenotazione per <strong>${safeUnitName}</strong>. Le date risultano bloccate temporaneamente in attesa di conferma da parte della struttura.</p>
-
           <div style="border:1px solid #e4d8c2;border-radius:22px;overflow:hidden;margin:24px 0;">
             <div style="background:#faf6ee;padding:16px 18px;font-weight:900;color:#9b6b25;text-transform:uppercase;letter-spacing:0.08em;font-size:12px;">Riepilogo richiesta</div>
             <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:15px;">
@@ -403,26 +357,14 @@ Gelone Lungomare
               <tr><td style="padding:14px 18px;color:#6b5b46;">Caparra indicativa</td><td style="padding:14px 18px;text-align:right;font-weight:800;">${safeDeposit}</td></tr>
             </table>
           </div>
-
           <div style="margin:26px 0;padding:20px;border-radius:18px;background:#0a1d35;color:#ffffff;">
             <strong style="color:#f5c84b;">Stato della richiesta</strong><br>
             <span style="line-height:1.7;">La richiesta è in attesa di conferma. Le date possono restare bloccate temporaneamente fino a: <strong>${safeHoldExpiresAt}</strong>.</span>
           </div>
-
           <div style="font-size:13px;line-height:1.65;color:#6b5b46;background:#faf6ee;border-radius:18px;padding:18px;">
             <strong style="color:#0a1d35;">Condizioni cancellazione prenotazioni dirette</strong><br>
             Rimborso totale fino a 14 giorni prima del check-in. Da 13 a 7 giorni prima del check-in viene trattenuta la caparra confirmatoria. Negli ultimi 6 giorni, no-show o partenza anticipata: importi non rimborsabili salvo diverso accordo scritto.
           </div>
-
-          <div style="border:1px solid #e4d8c2;border-radius:18px;padding:18px;margin:24px 0;">
-            <h2 style="font-size:18px;margin:0 0 12px;color:#0a1d35;">Contatti</h2>
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:15px;">
-              <tr><td style="padding:10px 0;color:#6b5b46;">WhatsApp</td><td style="padding:10px 0;text-align:right;"><a href="https://wa.me/393476308456" style="color:#0a1d35;font-weight:800;">3476308456</a></td></tr>
-              <tr><td style="padding:10px 0;color:#6b5b46;">Telefono</td><td style="padding:10px 0;text-align:right;"><a href="tel:+393479461999" style="color:#0a1d35;font-weight:800;">3479461999</a></td></tr>
-              <tr><td style="padding:10px 0;color:#6b5b46;">Email</td><td style="padding:10px 0;text-align:right;"><a href="mailto:info@gelone.it" style="color:#0a1d35;font-weight:800;">info@gelone.it</a></td></tr>
-            </table>
-          </div>
-
           <p style="margin:26px 0 0;font-size:16px;line-height:1.7;">Grazie,<br><strong>Gelone Lungomare</strong></p>
         </div>
       </div>
@@ -431,32 +373,7 @@ Gelone Lungomare
   </body>
 </html>`;
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: emailFrom,
-      to: [booking.guestEmail],
-      subject,
-      text,
-      html,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "");
-    return {
-      sent: false,
-      reason: errorText || "Errore invio email ospite.",
-    };
-  }
-
-  return {
-    sent: true,
-  };
+  return sendEmailViaResend({ to: booking.guestEmail, subject, text, html });
 }
 
 export default async function handler(req, res) {
@@ -464,10 +381,7 @@ export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store, max-age=0");
 
   if (req.method !== "POST") {
-    return res.status(405).json({
-      ok: false,
-      message: "Metodo non consentito.",
-    });
+    return res.status(405).json({ ok: false, message: "Metodo non consentito." });
   }
 
   try {
@@ -478,15 +392,11 @@ export default async function handler(req, res) {
     const unit = await getPublicUnitConfig(adminDb, requestedUnitId);
 
     if (!unit) {
-      return res.status(404).json({
-        ok: false,
-        message: "Unità non disponibile sul sito pubblico.",
-      });
+      return res.status(404).json({ ok: false, message: "Unità non disponibile sul sito pubblico." });
     }
 
     const unitId = unit.id;
     const unitName = unit.publicName || unit.name;
-
     const guestName = cleanText(body.guestName);
     const guestEmail = cleanText(body.guestEmail);
     const guestPhone = cleanText(body.guestPhone);
@@ -494,11 +404,6 @@ export default async function handler(req, res) {
     const checkOut = cleanText(body.checkOut);
     const notes = cleanText(body.notes);
     const guests = Number(body.guests || 1);
-    const totalPrice = cleanMoneyValue(body.totalPrice);
-    const nightlyRate = cleanMoneyValue(body.nightlyRate);
-    const cleaningFee = cleanMoneyValue(body.cleaningFee);
-    const depositAmount = cleanMoneyValue(body.depositAmount);
-    const nightsCountFromClient = cleanIntegerValue(body.nightsCount);
     const botTrap = cleanText(body.website || body.company || body.url);
     const privacyAccepted = body.privacyAccepted === true;
     const termsAccepted = body.termsAccepted === true;
@@ -509,10 +414,7 @@ export default async function handler(req, res) {
     const cookieVersion = cleanText(body.cookieVersion || "2026-05-16");
 
     if (botTrap) {
-      return res.status(400).json({
-        ok: false,
-        message: "Richiesta non valida.",
-      });
+      return res.status(400).json({ ok: false, message: "Richiesta non valida." });
     }
 
     if (!privacyAccepted || !termsAccepted || !cookiePolicyAccepted) {
@@ -523,50 +425,29 @@ export default async function handler(req, res) {
     }
 
     if (!guestName) {
-      return res.status(400).json({
-        ok: false,
-        message: "Inserisci nome e cognome.",
-      });
+      return res.status(400).json({ ok: false, message: "Inserisci nome e cognome." });
     }
 
     if (!guestEmail) {
-      return res.status(400).json({
-        ok: false,
-        message: "Inserisci email.",
-      });
+      return res.status(400).json({ ok: false, message: "Inserisci email." });
     }
 
     if (!isValidEmail(guestEmail)) {
-      return res.status(400).json({
-        ok: false,
-        message: "Inserisci un indirizzo email valido.",
-      });
+      return res.status(400).json({ ok: false, message: "Inserisci un indirizzo email valido." });
     }
 
     if (!guestPhone) {
-      return res.status(400).json({
-        ok: false,
-        message: "Inserisci telefono.",
-      });
+      return res.status(400).json({ ok: false, message: "Inserisci telefono." });
     }
 
     if (!isValidPhone(guestPhone)) {
-      return res.status(400).json({
-        ok: false,
-        message: "Inserisci un numero di telefono valido.",
-      });
+      return res.status(400).json({ ok: false, message: "Inserisci un numero di telefono valido." });
     }
 
-    await enforceBookingRateLimit(adminDb, req, {
-      guestEmail,
-      guestPhone,
-    });
+    await enforceBookingRateLimit(adminDb, req, { guestEmail, guestPhone });
 
     if (!isValidDate(checkIn) || !isValidDate(checkOut)) {
-      return res.status(400).json({
-        ok: false,
-        message: "Inserisci date valide.",
-      });
+      return res.status(400).json({ ok: false, message: "Inserisci date valide." });
     }
 
     if (checkOut <= checkIn) {
@@ -586,16 +467,22 @@ export default async function handler(req, res) {
     const nights = getNightDates(checkIn, checkOut);
 
     if (nights.length < 1) {
-      return res.status(400).json({
-        ok: false,
-        message: "Devi selezionare almeno una notte.",
-      });
+      return res.status(400).json({ ok: false, message: "Devi selezionare almeno una notte." });
     }
 
     if (nights.length > 60) {
       return res.status(400).json({
         ok: false,
         message: "Per soggiorni superiori a 60 notti contatta la struttura.",
+      });
+    }
+
+    const serverPricing = await calculateServerBookingPricing(adminDb, unitId, nights.length);
+
+    if (nights.length < serverPricing.minimumNights) {
+      return res.status(400).json({
+        ok: false,
+        message: `Soggiorno minimo: ${serverPricing.minimumNights} ${serverPricing.minimumNights === 1 ? "notte" : "notti"}.`,
       });
     }
 
@@ -619,11 +506,14 @@ export default async function handler(req, res) {
       guests,
       source: "direct_site",
       status: "pending_direct",
-      totalPrice,
-      nightlyRate,
-      cleaningFee,
-      nightsCount: nightsCountFromClient || nights.length,
-      depositAmount,
+      totalPrice: serverPricing.totalPrice,
+      nightlyRate: serverPricing.nightlyRate,
+      cleaningFee: serverPricing.cleaningFee,
+      nightsCount: serverPricing.nightsCount,
+      depositAmount: serverPricing.depositAmount,
+      pricingCalculatedBy: serverPricing.pricingCalculatedBy,
+      pricingSource: serverPricing.source,
+      pricingSettingsDocId: serverPricing.settingsDocId,
       paymentStatus: "unpaid",
       welcomateStatus: "to_send",
       expiresAt: pendingExpiresAt,
@@ -651,10 +541,7 @@ export default async function handler(req, res) {
     };
 
     await adminDb.runTransaction(async (transaction) => {
-      const nightRefs = nights.map((night) =>
-        adminDb.collection("nights").doc(`${unitId}_${night}`)
-      );
-
+      const nightRefs = nights.map((night) => adminDb.collection("nights").doc(`${unitId}_${night}`));
       const nightSnapshots = [];
 
       for (const nightRef of nightRefs) {
@@ -693,11 +580,7 @@ export default async function handler(req, res) {
       });
     });
 
-    const savedBooking = {
-      ...bookingData,
-      bookingId: bookingRef.id,
-    };
-
+    const savedBooking = { ...bookingData, bookingId: bookingRef.id };
     const emailResult = await sendNotificationEmail(savedBooking, unit);
     const guestEmailResult = await sendGuestRequestEmail(savedBooking, unit);
 
@@ -709,9 +592,16 @@ export default async function handler(req, res) {
       checkIn,
       checkOut,
       nights,
+      pricing: {
+        totalPrice: serverPricing.totalPrice,
+        nightlyRate: serverPricing.nightlyRate,
+        cleaningFee: serverPricing.cleaningFee,
+        nightsCount: serverPricing.nightsCount,
+        depositAmount: serverPricing.depositAmount,
+        calculatedBy: serverPricing.pricingCalculatedBy,
+      },
       status: "pending_direct",
-      message:
-        `Richiesta ricevuta. Le date sono state bloccate nel sistema ${unitName} in attesa di conferma della struttura.`,
+      message: `Richiesta ricevuta. Le date sono state bloccate nel sistema ${unitName} in attesa di conferma della struttura.`,
       emailNotification: emailResult,
       guestEmailNotification: guestEmailResult,
     });
@@ -721,24 +611,20 @@ export default async function handler(req, res) {
     if (error?.message === "TOO_MANY_BOOKING_REQUESTS") {
       return res.status(429).json({
         ok: false,
-        message:
-          "Troppe richieste inviate. Contattaci direttamente su WhatsApp o riprova più tardi.",
+        message: "Troppe richieste inviate. Contattaci direttamente su WhatsApp o riprova più tardi.",
       });
     }
 
     if (error?.message === "DATES_NOT_AVAILABLE") {
       return res.status(409).json({
         ok: false,
-        message:
-          "Le date selezionate non sono più disponibili. Prova altre date o contattaci su WhatsApp.",
+        message: "Le date selezionate non sono più disponibili. Prova altre date o contattaci su WhatsApp.",
       });
     }
 
     return res.status(500).json({
       ok: false,
-      message:
-        error?.message ||
-        "Errore tecnico durante la richiesta. Riprova più tardi o contattaci su WhatsApp.",
+      message: error?.message || "Errore tecnico durante la richiesta. Riprova più tardi o contattaci su WhatsApp.",
     });
   }
 }
