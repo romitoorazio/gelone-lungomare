@@ -414,6 +414,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
+  const [guestEmailConfirm, setGuestEmailConfirm] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [botTrap, setBotTrap] = useState("");
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
@@ -772,13 +773,18 @@ export default function App() {
   };
 
   function validateGuestForm() {
-    if (!guestName.trim() || !guestEmail.trim() || !guestPhone.trim()) {
-      setRequestStatus({ ok: false, message: "Compila nome, email e telefono." });
+    if (!guestName.trim() || !guestEmail.trim() || !guestEmailConfirm.trim() || !guestPhone.trim()) {
+      setRequestStatus({ ok: false, message: "Compila nome, email, conferma email e telefono." });
       return false;
     }
 
     if (!isValidEmail(guestEmail)) {
       setRequestStatus({ ok: false, message: "Inserisci un indirizzo email valido." });
+      return false;
+    }
+
+    if (guestEmail.trim().toLowerCase() !== guestEmailConfirm.trim().toLowerCase()) {
+      setRequestStatus({ ok: false, message: "Le due email non coincidono. Controlla bene indirizzo email." });
       return false;
     }
 
@@ -1622,6 +1628,7 @@ export default function App() {
                 </div>
                 <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Nome e cognome" />
                 <input value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} placeholder="Email" type="email" />
+                <input value={guestEmailConfirm} onChange={(e) => setGuestEmailConfirm(e.target.value)} placeholder="Conferma email" type="email" />
                 <input value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="Telefono" />
                 <input
                   className="bot-trap"
