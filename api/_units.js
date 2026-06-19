@@ -10,7 +10,7 @@ export const DEFAULT_UNIT = {
   publicVisible: true,
   welcomateEnabled: true,
   notificationEmail: "info@gelone.it",
-  icalPath: "/api/ical/lunarossa1.ics",
+  icalPath: "/api/ical/lunarossa1",
   photos: [],
 };
 
@@ -79,7 +79,7 @@ export function normalizeUnit(raw = {}, fallback = DEFAULT_UNIT) {
     publicVisible: raw.publicVisible ?? fallback.publicVisible ?? false,
     welcomateEnabled: raw.welcomateEnabled ?? fallback.welcomateEnabled ?? false,
     notificationEmail: String(raw.notificationEmail ?? fallback.notificationEmail ?? "info@gelone.it").trim(),
-    icalPath: String(raw.icalPath || fallback.icalPath || `/api/ical/${id}.ics`).trim(),
+    icalPath: String(raw.icalPath || fallback.icalPath || `/api/ical/${id}`).trim(),
     photos: normalizePhotos(raw.photos ?? fallback.photos ?? []),
   };
 }
