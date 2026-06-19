@@ -1,1 +1,0 @@
-Alias ICS da aggiungere manualmente se GitHub blocca il nome file dinamico.
