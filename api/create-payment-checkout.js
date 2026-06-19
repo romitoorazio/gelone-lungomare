@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import Stripe from "stripe";
 import { getFirebaseAdminAuth, getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
 import { calculateServerBookingPricing, loadServerPricing } from "./_pricing.js";
@@ -33,6 +34,36 @@ function getBody(req) {
 
 function cleanText(value) {
   return String(value || "").trim();
+}
+
+function hashPublicPaymentToken(value) {
+  return crypto
+    .createHash("sha256")
+    .update(String(value || ""))
+    .digest("hex");
+}
+
+function verifyPublicPaymentToken(booking, token) {
+  const storedHash = cleanText(booking?.publicPaymentTokenHash);
+  const providedToken = cleanText(token);
+
+  if (!storedHash || !providedToken) {
+    return false;
+  }
+
+  const providedHash = hashPublicPaymentToken(providedToken);
+
+  try {
+    const storedBuffer = Buffer.from(storedHash, "hex");
+    const providedBuffer = Buffer.from(providedHash, "hex");
+
+    return (
+      storedBuffer.length === providedBuffer.length &&
+      crypto.timingSafeEqual(storedBuffer, providedBuffer)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function getBearerToken(req) {
@@ -192,6 +223,13 @@ export default async function handler(req, res) {
     const booking = bookingSnapshot.data();
 
     if (publicDirectPayment) {
+      if (!verifyPublicPaymentToken(booking, body.publicPaymentToken)) {
+        return res.status(403).json({
+          ok: false,
+          message: "Link pagamento non valido. Contatta la struttura per ricevere un nuovo link.",
+        });
+      }
+
       const unitIdForPayment = String(booking.unitId || "lunarossa1");
       const serverPricing = await loadServerPricing(adminDb, unitIdForPayment);
 
@@ -310,6 +348,7 @@ export default async function handler(req, res) {
       stripeCheckoutSessionId: session.id,
       paymentCheckoutUrl: session.url,
       paymentCreatedBy: adminUser?.email || "public_site",
+      ...(publicDirectPayment ? { publicPaymentTokenLastUsedAt: FieldValue.serverTimestamp() } : {}),
       paymentUpdatedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });

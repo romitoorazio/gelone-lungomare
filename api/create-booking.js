@@ -58,6 +58,17 @@ function hashRateLimitKey(value) {
     .slice(0, 32);
 }
 
+function createPublicPaymentToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function hashPublicPaymentToken(value) {
+  return crypto
+    .createHash("sha256")
+    .update(String(value || ""))
+    .digest("hex");
+}
+
 function normalizePhoneKey(value) {
   return String(value || "").replace(/\D/g, "");
 }
@@ -494,6 +505,8 @@ export default async function handler(req, res) {
 
     const bookingRef = adminDb.collection("bookings").doc();
     const pendingExpiresAt = new Date(Date.now() + PENDING_REQUEST_HOLD_HOURS * 60 * 60 * 1000);
+    const publicPaymentToken = createPublicPaymentToken();
+    const publicPaymentTokenHash = hashPublicPaymentToken(publicPaymentToken);
 
     const bookingData = {
       unitId,
@@ -519,6 +532,8 @@ export default async function handler(req, res) {
       expiresAt: pendingExpiresAt,
       holdExpiresAt: pendingExpiresAt.toISOString(),
       holdExpiresHours: PENDING_REQUEST_HOLD_HOURS,
+      publicPaymentTokenHash,
+      publicPaymentTokenCreatedAt: FieldValue.serverTimestamp(),
       notes,
       privacyAccepted,
       termsAccepted,
@@ -587,6 +602,7 @@ export default async function handler(req, res) {
     return res.status(201).json({
       ok: true,
       bookingId: bookingRef.id,
+      publicPaymentToken,
       unitId,
       unitName,
       checkIn,

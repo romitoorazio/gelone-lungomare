@@ -878,8 +878,8 @@ export default function App() {
           body: JSON.stringify({
             bookingId: data.bookingId,
             paymentType: "deposit",
-          
             publicDirectPayment: true,
+            publicPaymentToken: data.publicPaymentToken,
 }),
         });
 
