@@ -97,15 +97,18 @@ function getNightDates(checkIn, checkOut) {
   if (!isValidDate(checkIn) || !isValidDate(checkOut) || checkOut <= checkIn) {
     return nights;
   }
+
   const [sy, sm, sd] = checkIn.split("-").map(Number);
   const [ey, em, ed] = checkOut.split("-").map(Number);
   const start = new Date(Date.UTC(sy, sm - 1, sd));
   const end = new Date(Date.UTC(ey, em - 1, ed));
   const cursor = new Date(start);
+
   while (cursor < end) {
     nights.push(toDateInputValue(cursor));
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
+
   return nights;
 }
 
@@ -154,6 +157,7 @@ function unfoldIcsLines(text) {
   const normalized = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const lines = normalized.split("\n");
   const out = [];
+
   for (const line of lines) {
     if ((line.startsWith(" ") || line.startsWith("\t")) && out.length > 0) {
       out[out.length - 1] += line.slice(1);
@@ -161,6 +165,7 @@ function unfoldIcsLines(text) {
       out.push(line);
     }
   }
+
   return out;
 }
 
@@ -186,6 +191,7 @@ function parseIcsEvents(icsText) {
   const lines = unfoldIcsLines(icsText);
   const events = [];
   let current = null;
+
   for (const line of lines) {
     const trimmed = line.trim();
     if (trimmed === "BEGIN:VEVENT") {
@@ -203,6 +209,7 @@ function parseIcsEvents(icsText) {
     if (!current[parsed.name]) current[parsed.name] = [];
     current[parsed.name].push({ value: parsed.value, params: parsed.params });
   }
+
   return events;
 }
 
@@ -253,6 +260,26 @@ function normalizeExternalEvent(event, sourceConfig) {
 function isActiveStatus(status) {
   const value = String(status || "").toLowerCase();
   return !["cancelled", "canceled", "deleted", "available", "rejected", "declined"].includes(value);
+}
+
+function getImportedBookingCreateDefaults(event, unit) {
+  return {
+    guestName: event.guestName,
+    guestEmail: "",
+    guestPhone: "",
+    guests: Number(unit.maxGuests || 2),
+    status: "imported_ical",
+    paymentStatus: "unpaid",
+    welcomateStatus: "not_needed",
+    notes: event.sourceSummary || event.sourceDescription || "Importata da calendario esterno",
+    internalNotes: event.sourceDescription || "",
+    createdAt: FieldValue.serverTimestamp(),
+  };
+}
+
+function getPreservedNightStatus(existingBookingData) {
+  const status = cleanText(existingBookingData?.status);
+  return status && isActiveStatus(status) ? status : "imported_ical";
 }
 
 async function verifyRequest(req) {
@@ -312,7 +339,6 @@ async function readPrivateSettings(adminDb, unitId) {
   return legacy.exists ? legacy.data() : {};
 }
 
-
 async function deleteMovedNightsForBooking(adminDb, unitId, bookingId, previousCheckIn, previousCheckOut, currentNights, batch) {
   const previousNights = getNightDates(previousCheckIn, previousCheckOut);
   const currentNightSet = new Set(currentNights);
@@ -345,8 +371,6 @@ async function cancelStaleExternalBookings(adminDb, unitId, sourceConfig, active
     .where("source", "==", sourceConfig.key)
     .get();
 
-  // Pre-scansione: identifica le prenotazioni esterne attive previously
-  // appartenenti a questa unit + sorgente, e quelle "stale" (non piu' nel feed).
   const candidates = [];
   let previousActiveCount = 0;
 
@@ -368,9 +392,6 @@ async function cancelStaleExternalBookings(adminDb, unitId, sourceConfig, active
   const staleCount = candidates.length;
   const staleRatio = previousActiveCount > 0 ? staleCount / previousActiveCount : 0;
 
-  // Guard: se ho almeno MIN_PREVIOUS_FOR_RATIO_CHECK prenotazioni attive
-  // precedenti e il rapporto stale/prev supera la soglia, NON cancello nulla
-  // e registro un log visibile nell'Admin.
   if (
     previousActiveCount >= MIN_PREVIOUS_FOR_RATIO_CHECK &&
     staleRatio > MAX_STALE_EXTERNAL_DELETE_RATIO
@@ -379,13 +400,10 @@ async function cancelStaleExternalBookings(adminDb, unitId, sourceConfig, active
       const isManual = mode === "manual";
       await adminDb.collection("maintenanceLogs").add({
         type: "calendar_sync",
-        // Allineato a cron-sync-calendars.js per restare visibile nei pannelli Admin.
         action: isManual ? "manual_calendar_sync" : "automatic_calendar_sync",
         mode: isManual ? "manual_guard" : "automatic_guard",
-        // Admin.jsx mostra "Ultima sincronizzazione automatica" filtrando source === "vercel_cron".
         source: isManual ? "admin_manual_sync" : "vercel_cron",
         triggerSource: isManual ? "admin_manual_sync" : "vercel_cron",
-        // Diagnostica: quale feed esterno ha fatto scattare la guard.
         icalSource: sourceConfig.key,
         sourceLabel: sourceConfig.label,
         unitId,
@@ -476,13 +494,10 @@ export default async function handler(req, res) {
     const unit = await getUnitConfig(adminDb, requestedUnitId);
 
     if (!unit) {
-      return json(res, 404, { ok: false, message: "UnitÃ  non trovata." });
+      return json(res, 404, { ok: false, message: "Unita non trovata." });
     }
 
     const settings = await readPrivateSettings(adminDb, unit.id);
-    // mode passato a cancelStaleExternalBookings: "manual" se l'invocazione
-    // arriva da un admin loggato (Firebase ID token), altrimenti "automatic"
-    // (cron via secret).
     const callMode = authResult.mode === "firebase" ? "manual" : "automatic";
     const totals = {
       imported: 0,
@@ -584,7 +599,6 @@ export default async function handler(req, res) {
         const batch = adminDb.batch();
         const bookingRef = adminDb.collection("bookings").doc(bookingId);
         const existingBookingSnapshot = await bookingRef.get();
-
         const existingBookingData = existingBookingSnapshot.exists
           ? existingBookingSnapshot.data()
           : null;
@@ -627,8 +641,8 @@ export default async function handler(req, res) {
               adminDb,
               unit.id,
               bookingId,
-              existingBookingSnapshot.data()?.checkIn,
-              existingBookingSnapshot.data()?.checkOut,
+              existingBookingData?.checkIn,
+              existingBookingData?.checkOut,
               event.nights,
               batch
             )
@@ -637,43 +651,40 @@ export default async function handler(req, res) {
         totals.movedNightsDeleted += movedNightsDeleted;
         totals.sources[sourceConfig.key].movedNightsDeleted += movedNightsDeleted;
 
-        batch.set(
-          bookingRef,
-          {
-            unitId: unit.id,
-            unitName: unit.publicName || unit.name,
-            guestName: event.guestName,
-            guestEmail: "",
-            guestPhone: "",
-            checkIn: event.checkIn,
-            checkOut: event.checkOut,
-            guests: Number(unit.maxGuests || 2),
-            source: event.source,
-            status: "imported_ical",
-            paymentStatus: "unpaid",
-            welcomateStatus: "not_needed",
-            notes: event.sourceSummary || event.sourceDescription || "Importata da calendario esterno",
-            internalNotes: event.sourceDescription || "",
-            externalKey: event.externalKey,
-            externalUid: event.externalUid || "",
-            updatedAt: FieldValue.serverTimestamp(),
-            createdAt: FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
+        const isExistingBooking = existingBookingSnapshot.exists;
+        const preservedGuestName = cleanText(existingBookingData?.guestName) || event.guestName;
+        const nightStatus = getPreservedNightStatus(existingBookingData);
+        const bookingSyncData = {
+          unitId: unit.id,
+          unitName: unit.publicName || unit.name,
+          checkIn: event.checkIn,
+          checkOut: event.checkOut,
+          source: event.source,
+          sourceLabel: event.sourceLabel,
+          sourceSummary: event.sourceSummary,
+          sourceDescription: event.sourceDescription,
+          externalKey: event.externalKey,
+          externalUid: event.externalUid || "",
+          lastIcalSyncAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          ...(isExistingBooking ? {} : getImportedBookingCreateDefaults(event, unit)),
+        };
 
-        event.nights.forEach((night) => {
+        batch.set(bookingRef, bookingSyncData, { merge: true });
+
+        event.nights.forEach((night, index) => {
+          const existingNightSnapshot = nightSnapshots[index];
           batch.set(
             adminDb.collection("nights").doc(`${unit.id}_${night}`),
             {
               unitId: unit.id,
               date: night,
               bookingId,
-              status: "imported_ical",
+              status: nightStatus,
               source: event.source,
-              guestName: event.guestName,
+              guestName: preservedGuestName,
               updatedAt: FieldValue.serverTimestamp(),
-              createdAt: FieldValue.serverTimestamp(),
+              ...(existingNightSnapshot?.exists ? {} : { createdAt: FieldValue.serverTimestamp() }),
             },
             { merge: true }
           );
