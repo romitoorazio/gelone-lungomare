@@ -10,6 +10,43 @@ service cloud.firestore {
         ];
     }
 
+    function bookingPath(bookingId) {
+      return /databases/$(database)/documents/bookings/$(bookingId);
+    }
+
+    function nightHasBookingId() {
+      return resource.data.bookingId is string && resource.data.bookingId.size() > 0;
+    }
+
+    function bookingAfterIsCancelledOrDeleted(bookingId) {
+      return !existsAfter(bookingPath(bookingId))
+        || getAfter(bookingPath(bookingId)).data.status in [
+          "cancelled",
+          "canceled",
+          "deleted",
+          "available",
+          "rejected",
+          "declined"
+        ];
+    }
+
+    function bookingAfterNoLongerUsesNight(bookingId) {
+      return existsAfter(bookingPath(bookingId))
+        && getAfter(bookingPath(bookingId)).data.checkIn is string
+        && getAfter(bookingPath(bookingId)).data.checkOut is string
+        && resource.data.date is string
+        && (
+          resource.data.date < getAfter(bookingPath(bookingId)).data.checkIn
+          || resource.data.date >= getAfter(bookingPath(bookingId)).data.checkOut
+        );
+    }
+
+    function canSafelyDeleteNight() {
+      return !nightHasBookingId()
+        || bookingAfterIsCancelledOrDeleted(resource.data.bookingId)
+        || bookingAfterNoLongerUsesNight(resource.data.bookingId);
+    }
+
     match /settings/{document=**} {
       allow read: if true;
       allow write: if isAdmin();
@@ -27,7 +64,8 @@ service cloud.firestore {
 
     match /nights/{nightId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin() && canSafelyDeleteNight();
     }
 
     match /adminLogs/{logId} {
