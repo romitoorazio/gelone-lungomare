@@ -345,7 +345,8 @@ Per velocizzare il check-in e completare la registrazione obbligatoria degli osp
 
 ${link}
 
-Date richiesta:
+Nel modulo inserisci esattamente queste date della prenotazione:
+
 Arrivo: ${checkIn}
 Partenza: ${checkOut}
 
@@ -8956,6 +8957,7 @@ wifiName: settings.wifiName || "",
     </main>
   );
 }
+
 
 
 
