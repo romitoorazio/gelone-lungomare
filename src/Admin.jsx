@@ -2194,6 +2194,81 @@ export default function Admin() {
     }
   }
 
+
+  function normalizeBackupValue(value) {
+    if (value === null || value === undefined) return value;
+
+    if (typeof value?.toDate === "function") {
+      try {
+        return value.toDate().toISOString();
+      } catch {
+        return String(value);
+      }
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((item) => normalizeBackupValue(item));
+    }
+
+    if (typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, entry]) => [key, normalizeBackupValue(entry)])
+      );
+    }
+
+    return value;
+  }
+
+  function exportFullBackupJson() {
+    clearMessages();
+
+    const payload = {
+      backupType: "gelone_pms_admin_export",
+      backupVersion: 1,
+      generatedAt: new Date().toISOString(),
+      generatedBy: user?.email || "",
+      selectedUnitId,
+      selectedUnitName: selectedUnit?.name || selectedUnitId,
+      units: normalizeBackupValue(units),
+      currentUnitSettings: normalizeBackupValue(settings),
+      bookings: normalizeBackupValue(bookings),
+      allBookings: normalizeBackupValue(allBookings),
+      activityLogs: normalizeBackupValue(visibleActivityLogs),
+      internalRecords: normalizeBackupValue(visibleInternalRecords),
+      siteVisits: normalizeBackupValue(siteVisits),
+      summary: {
+        selectedUnitBookings: bookings.length,
+        allBookings: allBookings.length,
+        activityLogs: visibleActivityLogs.length,
+        internalRecords: visibleInternalRecords.length,
+        siteVisits: siteVisits.length,
+        units: units.length,
+      },
+    };
+
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: "application/json;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const filename = "gelone-backup-completo-" + selectedUnitId + "-" + getToday() + ".json";
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setMessage("Backup JSON completo creato.");
+    addActivityLog("exported_full_backup_json", null, {
+      selectedUnitId,
+      bookings: bookings.length,
+      allBookings: allBookings.length,
+      activityLogs: visibleActivityLogs.length,
+      internalRecords: visibleInternalRecords.length,
+      siteVisits: siteVisits.length,
+    });
+  }
   async function createInternalRecord(event) {
     event.preventDefault();
     clearMessages();
@@ -6065,6 +6140,29 @@ wifiName: settings.wifiName || "",
                 </div>
               </div>
 
+
+                <div className="rounded-[1.5rem] border border-blue-200 bg-blue-50 p-5 lg:col-span-2">
+                  <p className="text-sm uppercase tracking-[0.25em] text-blue-700">
+                    Backup tecnico
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-[#0a1d35]">
+                    Backup completo JSON
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-blue-950">
+                    Scarica una copia tecnica con prenotazioni, impostazioni unità,
+                    log attività, registro interno e visite sito caricati in Admin.
+                    Non modifica nessun dato.
+                  </p>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <SmallButton
+                      onClick={exportFullBackupJson}
+                      className="bg-blue-800 px-5 py-3 text-white"
+                    >
+                      Scarica backup JSON completo
+                    </SmallButton>
+                  </div>
+                </div>
               <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
                 Gli export CSV vengono generati dal browser sui dati giÃ  visibili in Admin.
                 Non modificano prenotazioni, calendari o pagamenti.
@@ -8957,6 +9055,7 @@ wifiName: settings.wifiName || "",
     </main>
   );
 }
+
 
 
 
