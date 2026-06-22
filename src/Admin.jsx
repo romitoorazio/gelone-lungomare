@@ -375,7 +375,7 @@ function createUnitForm(unit = DEFAULT_UNIT) {
     welcomateEnabled: Boolean(normalized.welcomateEnabled),
     bookingUrl: normalized.bookingUrl || "",
     airbnbUrl: normalized.airbnbUrl || "",
-    icalPath: normalized.icalPath || `/api/ical/${normalized.id}.ics`,
+    icalPath: normalized.icalPath || `/api/ical/${normalized.id}`,
     sortOrder: String(normalized.sortOrder || 999),
     photos: Array.isArray(normalized.photos) ? normalized.photos : [],
   };
@@ -4106,7 +4106,7 @@ wifiName: settings.wifiName || "",
         welcomateEnabled: false,
         bookingUrl: "",
         airbnbUrl: "",
-        icalPath: `/api/ical/${nextId}.ics`,
+        icalPath: `/api/ical/${nextId}`,
         sortOrder: index,
         photos: [],
       })
@@ -4143,7 +4143,7 @@ wifiName: settings.wifiName || "",
         active: Boolean(unitForm.active),
         publicVisible: Boolean(unitForm.publicVisible),
         welcomateEnabled: Boolean(unitForm.welcomateEnabled),
-        icalPath: unitForm.icalPath || `/api/ical/${id}.ics`,
+        icalPath: unitForm.icalPath || `/api/ical/${id}`,
         photos: Array.isArray(unitForm.photos) ? unitForm.photos : [],
       });
 
@@ -4221,7 +4221,7 @@ wifiName: settings.wifiName || "",
       active: Boolean(unitForm.active),
       publicVisible: Boolean(unitForm.publicVisible),
       welcomateEnabled: Boolean(unitForm.welcomateEnabled),
-      icalPath: unitForm.icalPath || `/api/ical/${id}.ics`,
+      icalPath: unitForm.icalPath || `/api/ical/${id}`,
       photos: normalizePhotoList(photosOverride ?? unitForm.photos ?? []),
     });
   }
@@ -8214,7 +8214,7 @@ wifiName: settings.wifiName || "",
                       setUnitForm({
                         ...unitForm,
                         id: sanitizeUnitId(event.target.value),
-                        icalPath: `/api/ical/${sanitizeUnitId(event.target.value)}.ics`,
+                        icalPath: `/api/ical/${sanitizeUnitId(event.target.value)}`,
                       })
                     }
                     placeholder="es. lunarossa2"
@@ -8326,7 +8326,7 @@ wifiName: settings.wifiName || "",
                 <FormField label="Link iCal esportato dal sito">
                   <div className="flex gap-3">
                     <input
-                      value={`https://www.gelone.it${unitForm.icalPath || `/api/ical/${unitForm.id}.ics`}`}
+                      value={`https://www.gelone.it${unitForm.icalPath || `/api/ical/${unitForm.id}`}`}
                       readOnly
                       className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                     />
@@ -8334,7 +8334,7 @@ wifiName: settings.wifiName || "",
                       type="button"
                       onClick={() =>
                         copyText(
-                          `https://www.gelone.it${unitForm.icalPath || `/api/ical/${unitForm.id}.ics`}`,
+                          `https://www.gelone.it${unitForm.icalPath || `/api/ical/${unitForm.id}`}`,
                           "Link iCal unità  copiato."
                         )
                       }
@@ -8772,14 +8772,14 @@ wifiName: settings.wifiName || "",
                   <div className="flex gap-3">
                     <input
                       readOnly
-                      value={`https://www.gelone.it/api/ical/${selectedUnitId}.ics`}
+                      value={`https://www.gelone.it/api/ical/${selectedUnitId}`}
                       className="w-full rounded-2xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-4"
                     />
                     <button
                       type="button"
                       onClick={() =>
                         copyText(
-                          `https://www.gelone.it/api/ical/${selectedUnitId}.ics`,
+                          `https://www.gelone.it/api/ical/${selectedUnitId}`,
                           "Link calendario iCal copiato."
                         )
                       }
@@ -8957,6 +8957,7 @@ wifiName: settings.wifiName || "",
     </main>
   );
 }
+
 
 
 
