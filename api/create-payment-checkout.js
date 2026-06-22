@@ -1,4 +1,4 @@
-import crypto from "crypto";
+﻿import crypto from "crypto";
 import Stripe from "stripe";
 import { getFirebaseAdminAuth, getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
 import { calculateServerBookingPricing, loadServerPricing } from "./_pricing.js";
@@ -202,6 +202,7 @@ export default async function handler(req, res) {
     let paymentType = ["deposit", "full", "balance"].includes(requestedPaymentType)
       ? requestedPaymentType
       : "deposit";
+    const publicPaymentToken = publicDirectPayment ? cleanText(body.publicPaymentToken) : "";
 
     if (!bookingId) {
       return res.status(400).json({
@@ -223,7 +224,7 @@ export default async function handler(req, res) {
     const booking = bookingSnapshot.data();
 
     if (publicDirectPayment) {
-      if (!verifyPublicPaymentToken(booking, body.publicPaymentToken)) {
+      if (!verifyPublicPaymentToken(booking, publicPaymentToken)) {
         return res.status(403).json({
           ok: false,
           message: "Link pagamento non valido. Contatta la struttura per ricevere un nuovo link.",
@@ -295,6 +296,15 @@ export default async function handler(req, res) {
     const origin = getSiteOrigin(req);
     const unitName = cleanText(booking.unitName) || "Gelone Lungomare";
     const guestEmail = cleanText(booking.guestEmail);
+    const cancelParams = new URLSearchParams({
+      payment: "cancelled",
+      bookingId,
+      paymentType,
+    });
+
+    if (publicDirectPayment && publicPaymentToken) {
+      cancelParams.set("paymentToken", publicPaymentToken);
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -336,7 +346,7 @@ export default async function handler(req, res) {
         },
       },
       success_url: `${origin}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/?payment=cancelled&bookingId=${encodeURIComponent(bookingId)}&paymentType=${encodeURIComponent(paymentType)}`,
+      cancel_url: `${origin}/?${cancelParams.toString()}`,
     });
 
     await bookingRef.update({
@@ -373,3 +383,4 @@ export default async function handler(req, res) {
     });
   }
 }
+

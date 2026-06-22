@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db, UNIT_ID as DEFAULT_UNIT_ID } from "./firebase";
 import { DEFAULT_UNIT, normalizeUnit } from "./units";
@@ -454,6 +454,7 @@ export default function App() {
     const sessionId = params.get("session_id");
     const cancelledBookingId = params.get("bookingId") || "";
     const cancelledPaymentType = params.get("paymentType") || "deposit";
+    const cancelledPaymentToken = params.get("paymentToken") || "";
 
     async function loadPaymentReturnDetails(value) {
       if (!value) return;
@@ -494,6 +495,7 @@ export default function App() {
         sessionId: "",
         bookingId: cancelledBookingId,
         paymentType: cancelledPaymentType,
+        publicPaymentToken: cancelledPaymentToken,
       });
       setPaymentReturnDetails(null);
       setPaymentRetryError("");
@@ -601,6 +603,7 @@ export default function App() {
           bookingId,
           paymentType: paymentReturnStatus?.paymentType || "deposit",
           publicDirectPayment: true,
+          publicPaymentToken: paymentReturnStatus?.publicPaymentToken || "",
         }),
       });
 
@@ -2385,3 +2388,4 @@ button, input, select { font: inherit; }
   .socials { justify-content: center; }
 }
 `;
+
