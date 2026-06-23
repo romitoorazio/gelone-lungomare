@@ -127,6 +127,22 @@
   ],
   "rewrites": [
     {
+      "source": "/api/ical-booking/:unitId",
+      "destination": "/api/ical/:unitId?target=booking"
+    },
+    {
+      "source": "/api/ical-booking/:unitId.ics",
+      "destination": "/api/ical/:unitId?target=booking"
+    },
+    {
+      "source": "/api/ical-airbnb/:unitId",
+      "destination": "/api/ical/:unitId?target=airbnb"
+    },
+    {
+      "source": "/api/ical-airbnb/:unitId.ics",
+      "destination": "/api/ical/:unitId?target=airbnb"
+    },
+    {
       "source": "/service-32",
       "destination": "/api/gone"
     },
