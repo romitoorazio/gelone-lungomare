@@ -63,6 +63,66 @@ function getStatusPriority(status) {
   return 1;
 }
 
+function normalizeTarget(value) {
+  const target = String(value || "").toLowerCase().trim().replace(/[^a-z0-9_/-]+/g, "_");
+
+  if (target.includes("booking")) return "booking";
+  if (target.includes("airbnb")) return "airbnb";
+
+  return "";
+}
+
+function getRequestedTarget(req, explicitTarget = "") {
+  const fromQuery =
+    req?.query?.target ||
+    req?.query?.channel ||
+    req?.query?.destination ||
+    req?.query?.for;
+  const value = Array.isArray(fromQuery) ? fromQuery[0] : fromQuery;
+
+  return normalizeTarget(explicitTarget || value);
+}
+
+function getChannelText(data, relatedData = null) {
+  return [
+    data?.source,
+    data?.sourceLabel,
+    data?.channel,
+    data?.origin,
+    data?.importSource,
+    data?.status,
+    relatedData?.source,
+    relatedData?.sourceLabel,
+    relatedData?.channel,
+    relatedData?.origin,
+    relatedData?.importSource,
+    relatedData?.status,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function isSameChannel(data, target, relatedData = null) {
+  if (!target) return false;
+  const text = getChannelText(data, relatedData);
+
+  if (target === "booking") return text.includes("booking");
+  if (target === "airbnb") return text.includes("airbnb");
+
+  return false;
+}
+
+function shouldExportToTarget(data, target, relatedData = null) {
+  // Feed vecchio senza target: resta identico a prima per non rompere link esistenti.
+  if (!target) return true;
+
+  // Regola anti-loop:
+  // - feed dato a Booking: esporta sito/manuale/Airbnb, ma NON Booking;
+  // - feed dato ad Airbnb: esporta sito/manuale/Booking, ma NON Airbnb.
+  return !isSameChannel(data, target, relatedData);
+}
+
 function setNight(nightsByDate, night) {
   const current = nightsByDate.get(night.date);
   if (!current || getStatusPriority(night.status) >= getStatusPriority(current.status)) {
@@ -125,10 +185,17 @@ function getSummary(group, unitName) {
   return `Occupato - ${unitName}`;
 }
 
-export async function sendIcal(req, res, requestedUnitId = DEFAULT_UNIT_ID) {
+function getTargetLabel(target) {
+  if (target === "booking") return "Booking";
+  if (target === "airbnb") return "Airbnb";
+  return "tutti i canali";
+}
+
+export async function sendIcal(req, res, requestedUnitId = DEFAULT_UNIT_ID, explicitTarget = "") {
   try {
     const adminDb = getFirebaseAdminDb();
     const unitId = sanitizeUnitId(requestedUnitId || req?.query?.unitId || DEFAULT_UNIT_ID) || DEFAULT_UNIT_ID;
+    const target = getRequestedTarget(req, explicitTarget);
     const unit = await getUnitConfig(adminDb, unitId);
 
     if (!unit) {
@@ -139,6 +206,13 @@ export async function sendIcal(req, res, requestedUnitId = DEFAULT_UNIT_ID) {
     const unitName = unit.publicName || unit.name;
     const nightsByDate = new Map();
 
+    const bookingsSnapshot = await adminDb.collection("bookings").get();
+    const bookingsById = new Map();
+
+    bookingsSnapshot.forEach((doc) => {
+      bookingsById.set(doc.id, { id: doc.id, ...doc.data() });
+    });
+
     const nightsSnapshot = await adminDb
       .collection("nights")
       .where("unitId", "==", unit.id)
@@ -148,23 +222,27 @@ export async function sendIcal(req, res, requestedUnitId = DEFAULT_UNIT_ID) {
       const data = doc.data();
       if (!isActiveNight(data, unit.id)) return;
 
+      const relatedBookingId = String(data.bookingId || "").trim();
+      const relatedBooking = relatedBookingId ? bookingsById.get(relatedBookingId) : null;
+
+      if (!shouldExportToTarget(data, target, relatedBooking)) return;
+
       setNight(nightsByDate, {
         id: doc.id,
         date: data.date,
         bookingId: data.bookingId || "",
-        status: data.status || "occupied",
-        source: data.source || "pms",
-        guestName: data.guestName || "",
+        status: data.status || relatedBooking?.status || "occupied",
+        source: data.source || relatedBooking?.source || "pms",
+        guestName: data.guestName || relatedBooking?.guestName || "",
       });
     });
 
     // Sicurezza: se esiste una prenotazione in bookings ma mancano le nights,
     // il calendario esportato resta comunque occupato.
-    const bookingsSnapshot = await adminDb.collection("bookings").get();
-
     bookingsSnapshot.forEach((doc) => {
       const data = doc.data();
       if (bookingUnitId(data) !== unit.id || !isActiveStatus(data?.status)) return;
+      if (!shouldExportToTarget(data, target)) return;
 
       getNightDates(data.checkIn, data.checkOut).forEach((date) => {
         setNight(nightsByDate, {
@@ -191,6 +269,7 @@ export async function sendIcal(req, res, requestedUnitId = DEFAULT_UNIT_ID) {
         `Unità: ${unit.name}`,
         `Stato: ${group.status}`,
         `Origine: ${group.source}`,
+        target ? `Feed destinato a: ${getTargetLabel(target)}` : "Feed destinato a: tutti i canali",
         `Arrivo: ${group.startDate}`,
         `Partenza: ${addOneDay(group.endDate)}`,
       ].join("\n");
@@ -209,14 +288,19 @@ export async function sendIcal(req, res, requestedUnitId = DEFAULT_UNIT_ID) {
       ].join("\r\n");
     });
 
+    const calendarName = target ? `${unitName} - blocchi per ${getTargetLabel(target)}` : unitName;
+    const calendarDescription = target
+      ? `Disponibilità ${unitName} filtrata per ${getTargetLabel(target)}`
+      : `Disponibilità ${unitName}`;
+
     const calendar = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
       "PRODID:-//Gelone Lungomare//PMS Calendar//IT",
       "CALSCALE:GREGORIAN",
       "METHOD:PUBLISH",
-      `X-WR-CALNAME:${escapeIcsText(unitName)}`,
-      `X-WR-CALDESC:${escapeIcsText(`Disponibilità ${unitName}`)}`,
+      `X-WR-CALNAME:${escapeIcsText(calendarName)}`,
+      `X-WR-CALDESC:${escapeIcsText(calendarDescription)}`,
       ...events,
       "END:VCALENDAR",
     ].join("\r\n");
