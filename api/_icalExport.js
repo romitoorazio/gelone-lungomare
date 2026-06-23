@@ -123,6 +123,30 @@ function shouldExportToTarget(data, target, relatedData = null) {
   return !isSameChannel(data, target, relatedData);
 }
 
+function isStandaloneManualNight(data) {
+  const status = String(data?.status || "").toLowerCase();
+  const source = String(data?.source || data?.origin || data?.channel || "").toLowerCase();
+
+  return (
+    status === "blocked" ||
+    source === "manual" ||
+    source === "manual_block" ||
+    source === "pms_block"
+  );
+}
+
+function shouldExportNightDocument(data, relatedBooking) {
+  // Se la notte è collegata a una prenotazione/blocco ancora esistente, è valida.
+  if (relatedBooking) return true;
+
+  // Le notti manuali pure possono esistere anche senza documento bookings.
+  if (isStandaloneManualNight(data)) return true;
+
+  // Protezione: una night orfana legata a una vecchia richiesta sito/import iCal
+  // non deve più bloccare Booking/Airbnb né ricomparire nei feed.
+  return false;
+}
+
 function setNight(nightsByDate, night) {
   const current = nightsByDate.get(night.date);
   if (!current || getStatusPriority(night.status) >= getStatusPriority(current.status)) {
@@ -225,6 +249,7 @@ export async function sendIcal(req, res, requestedUnitId = DEFAULT_UNIT_ID, expl
       const relatedBookingId = String(data.bookingId || "").trim();
       const relatedBooking = relatedBookingId ? bookingsById.get(relatedBookingId) : null;
 
+      if (!shouldExportNightDocument(data, relatedBooking)) return;
       if (!shouldExportToTarget(data, target, relatedBooking)) return;
 
       setNight(nightsByDate, {
