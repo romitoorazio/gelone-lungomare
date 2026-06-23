@@ -1,4 +1,188 @@
-export default function handler(req, res) {
+import { FieldValue, getFirebaseAdminDb } from "./_firebaseAdmin.js";
+
+const TEMP_FIX_CODE = "FRANCESCO-20260630";
+
+function clean(value) {
+  return String(value || "").trim();
+}
+
+function normalize(value) {
+  return clean(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function isActiveStatus(status) {
+  const value = clean(status).toLowerCase();
+  return !["cancelled", "canceled", "deleted", "available", "rejected", "declined"].includes(value);
+}
+
+function isProtectedExternal(data) {
+  const source = clean(data?.source).toLowerCase();
+  return source.includes("booking") || source.includes("airbnb") || Boolean(data?.externalKey);
+}
+
+function getNightDates(checkIn, checkOut) {
+  const nights = [];
+  const cursor = new Date(`${checkIn}T00:00:00.000Z`);
+  const end = new Date(`${checkOut}T00:00:00.000Z`);
+
+  while (cursor < end) {
+    nights.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return nights;
+}
+
+function getCreatedMs(value) {
+  if (typeof value?.toDate === "function") return value.toDate().getTime();
+  const parsed = new Date(value || 0).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function keepScore(item, nightOwnerIds) {
+  const data = item.data || {};
+  let score = 0;
+
+  if (nightOwnerIds.has(item.id)) score += 10000;
+  if (isProtectedExternal(data)) score += 5000;
+  if (clean(data.guestPhone)) score += 100;
+  if (clean(data.guestEmail)) score += 80;
+  if (Number(data.totalPrice || 0) > 0) score += 60;
+  if (["paid", "deposit_paid"].includes(clean(data.paymentStatus).toLowerCase())) score += 40;
+
+  const created = getCreatedMs(data.createdAt);
+  if (created) score -= created / 100000000000;
+
+  return score;
+}
+
+async function fixFrancescoDuplicate(req, res) {
+  const code = clean(req.query?.code || req.body?.code);
+
+  if (code !== TEMP_FIX_CODE) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    return res.status(403).json({ ok: false, message: "Codice sicurezza non valido." });
+  }
+
+  const unitId = "lunarossa1";
+  const checkIn = "2026-06-30";
+  const checkOut = "2026-07-02";
+  const guestNeedle = "francesco";
+  const adminDb = getFirebaseAdminDb();
+
+  const snapshot = await adminDb
+    .collection("bookings")
+    .where("unitId", "==", unitId)
+    .where("checkIn", "==", checkIn)
+    .where("checkOut", "==", checkOut)
+    .get();
+
+  const candidates = snapshot.docs
+    .map((doc) => ({ id: doc.id, ref: doc.ref, data: doc.data() || {} }))
+    .filter((item) => isActiveStatus(item.data.status))
+    .filter((item) => normalize(item.data.guestName).includes(guestNeedle));
+
+  if (candidates.length <= 1) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    return res.status(200).json({
+      ok: true,
+      message: "Nessun doppione attivo trovato. Non ho cancellato nulla.",
+      count: candidates.length,
+      candidates: candidates.map((item) => ({ id: item.id, guestName: item.data.guestName, source: item.data.source, status: item.data.status })),
+    });
+  }
+
+  const nights = getNightDates(checkIn, checkOut);
+  const nightRefs = nights.map((night) => adminDb.collection("nights").doc(`${unitId}_${night}`));
+  const nightSnaps = nightRefs.length ? await adminDb.getAll(...nightRefs) : [];
+  const nightOwnerIds = new Set(
+    nightSnaps
+      .filter((snap) => snap.exists)
+      .map((snap) => clean(snap.data()?.bookingId))
+      .filter(Boolean)
+  );
+
+  const sorted = [...candidates].sort((a, b) => keepScore(b, nightOwnerIds) - keepScore(a, nightOwnerIds));
+  const keep = sorted[0];
+  const duplicates = sorted.slice(1).filter((item) => !isProtectedExternal(item.data));
+  const protectedDuplicates = sorted.slice(1).filter((item) => isProtectedExternal(item.data));
+
+  if (duplicates.length === 0) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    return res.status(200).json({
+      ok: true,
+      message: "Doppioni trovati, ma protetti perché arrivano da portali esterni. Non ho cancellato nulla.",
+      keep: keep.id,
+      protectedDuplicates: protectedDuplicates.map((item) => item.id),
+    });
+  }
+
+  const batch = adminDb.batch();
+
+  nights.forEach((night, index) => {
+    batch.set(
+      nightRefs[index],
+      {
+        unitId,
+        date: night,
+        bookingId: keep.id,
+        status: keep.data.status || "confirmed_direct",
+        source: keep.data.source || "manual",
+        guestName: keep.data.guestName || "Francesco D Natale",
+        duplicateFixAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+
+  duplicates.forEach((item) => {
+    batch.delete(item.ref);
+  });
+
+  batch.set(adminDb.collection("maintenanceLogs").doc(), {
+    type: "admin_fix",
+    action: "fixed_duplicate_francesco_booking",
+    unitId,
+    checkIn,
+    checkOut,
+    keptBookingId: keep.id,
+    deletedBookingIds: duplicates.map((item) => item.id),
+    protectedDuplicateIds: protectedDuplicates.map((item) => item.id),
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  await batch.commit();
+
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  return res.status(200).json({
+    ok: true,
+    message: `Pulizia completata: eliminati ${duplicates.length} doppioni. Date ancora bloccate sulla prenotazione tenuta.`,
+    keptBookingId: keep.id,
+    deletedBookingIds: duplicates.map((item) => item.id),
+    nightsProtected: nights,
+  });
+}
+
+export default async function handler(req, res) {
+  if (clean(req.query?.fix || req.body?.fix) === "francesco-duplicate") {
+    try {
+      return await fixFrancescoDuplicate(req, res);
+    } catch (error) {
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      return res.status(500).json({
+        ok: false,
+        message: "Errore durante la pulizia del doppione.",
+        error: error?.message || String(error),
+      });
+    }
+  }
+
   res.setHeader("Content-Type", "text/html; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=86400");
   res.setHeader("X-Robots-Tag", "noindex, nofollow");
