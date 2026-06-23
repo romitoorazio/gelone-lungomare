@@ -56,6 +56,15 @@ function escapeSingleLine(value) {
   return cleanText(value).replace(/\s+/g, " ").slice(0, 500);
 }
 
+function normalizeForMatch(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function sha1(value) {
   return crypto.createHash("sha1").update(String(value)).digest("hex");
 }
@@ -221,6 +230,51 @@ function isCancelledOrTransparent(event) {
   const status = cleanText(getFirstIcsValue(event, "STATUS")).toUpperCase();
   const transp = cleanText(getFirstIcsValue(event, "TRANSP")).toUpperCase();
   return status === "CANCELLED" || transp === "TRANSPARENT";
+}
+
+function getRawIcsEventText(event) {
+  const parts = [];
+  for (const values of Object.values(event || {})) {
+    if (!Array.isArray(values)) continue;
+    for (const item of values) {
+      parts.push(unescapeIcsText(item?.value || ""));
+    }
+  }
+  return parts.join(" \n ");
+}
+
+function isGeloneEchoEvent(event, sourceConfig) {
+  // Evita il loop: Booking/Airbnb importano il nostro feed gelone.it e poi ce lo
+  // rimandano indietro nel loro iCal. Quegli eventi non devono diventare
+  // blocchi reali nel PMS.
+  const uid = normalizeForMatch(getFirstIcsValue(event, "UID"));
+  const summary = normalizeForMatch(unescapeIcsText(getFirstIcsValue(event, "SUMMARY")));
+  const description = normalizeForMatch(unescapeIcsText(getFirstIcsValue(event, "DESCRIPTION")));
+  const location = normalizeForMatch(unescapeIcsText(getFirstIcsValue(event, "LOCATION")));
+  const rawText = normalizeForMatch(getRawIcsEventText(event));
+  const text = `${uid} ${summary} ${description} ${location} ${rawText}`;
+
+  if (uid.includes("gelone.it") || uid.includes("gelone-lungomare")) return true;
+  if (text.includes("gelone.it") && text.includes("booking_ical")) return true;
+  if (text.includes("gelone.it") && text.includes("airbnb_ical")) return true;
+  if (text.includes("struttura: gelone lungomare") && text.includes("origine:")) return true;
+  if (text.includes("gelone lungomare") && text.includes("importata ical")) return true;
+  if (text.includes("occupato - gelone") || text.includes("bloccato - gelone")) return true;
+  if (text.includes("richiesta sito - gelone")) return true;
+
+  // Difesa extra: se il feed Booking contiene un evento che dichiara chiaramente
+  // che arriva dal nostro sito, non lo importiamo come prenotazione Booking.
+  if (sourceConfig?.key === "booking_ical" && text.includes("gelone")) {
+    const looksLikeOwnExport =
+      text.includes("origine:") ||
+      text.includes("source:") ||
+      text.includes("site") ||
+      text.includes("sito") ||
+      text.includes("ical");
+    if (looksLikeOwnExport) return true;
+  }
+
+  return false;
 }
 
 function normalizeExternalEvent(event, sourceConfig) {
@@ -507,6 +561,7 @@ export default async function handler(req, res) {
       cancelledStale: 0,
       movedNightsDeleted: 0,
       skippedIgnored: 0,
+      skippedEcho: 0,
       staleGuardTriggered: false,
       staleGuardSources: [],
       sources: {},
@@ -521,6 +576,7 @@ export default async function handler(req, res) {
         cancelledStale: 0,
         movedNightsDeleted: 0,
         skippedIgnored: 0,
+        skippedEcho: 0,
         urlPresent: Boolean(url),
         guardTriggered: false,
         previousActiveCount: 0,
@@ -536,7 +592,9 @@ export default async function handler(req, res) {
 
       const icsText = await fetchIcs(url);
       const rawEvents = parseIcsEvents(icsText);
-      const normalizedEvents = rawEvents
+      const echoEvents = rawEvents.filter((event) => isGeloneEchoEvent(event, sourceConfig));
+      const importableRawEvents = rawEvents.filter((event) => !isGeloneEchoEvent(event, sourceConfig));
+      const normalizedEvents = importableRawEvents
         .map((event) => normalizeExternalEvent(event, sourceConfig))
         .filter(Boolean);
 
@@ -548,9 +606,16 @@ export default async function handler(req, res) {
         (event) => !isAirbnbRollingAvailabilityFence(event)
       );
 
-      const skippedInvalid = Math.max(0, rawEvents.length - normalizedEvents.length);
+      const skippedInvalid = Math.max(0, importableRawEvents.length - normalizedEvents.length);
       totals.skippedInvalid += skippedInvalid;
       totals.sources[sourceConfig.key].skippedInvalid += skippedInvalid;
+
+      if (echoEvents.length > 0) {
+        totals.skippedEcho += echoEvents.length;
+        totals.skippedIgnored += echoEvents.length;
+        totals.sources[sourceConfig.key].skippedEcho += echoEvents.length;
+        totals.sources[sourceConfig.key].skippedIgnored += echoEvents.length;
+      }
 
       if (ignoredRollingAvailabilityFence.length > 0) {
         totals.skippedIgnored += ignoredRollingAvailabilityFence.length;
