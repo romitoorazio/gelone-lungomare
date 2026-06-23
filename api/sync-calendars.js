@@ -9,19 +9,6 @@ import { DEFAULT_UNIT_ID, getUnitConfig, sanitizeUnitId } from "./_units.js";
 const ADMIN_EMAILS = ["romitoorazio@gmail.com", "romitofrancesco1@gmail.com"];
 const FETCH_TIMEOUT_MS = 15000;
 
-// Protezione anti-cancellazioni di massa nella sync iCal.
-// Se piu' del 30% delle prenotazioni esterne attive di una sorgente
-// risulta "sparito" dal feed in una singola sync, blocchiamo tutte le
-// cancellazioni di quella sorgente per evitare disastri quando
-// Booking/Airbnb restituiscono un feed vuoto o parziale.
-const MAX_STALE_EXTERNAL_DELETE_RATIO = 0.30;
-// Soglia minima di prenotazioni esterne attive precedenti prima di
-// applicare il controllo sul rapporto. Con prev < 2 la guard non scatta,
-// cosi' una singola cancellazione legittima passa normalmente.
-const MIN_PREVIOUS_FOR_RATIO_CHECK = 2;
-const STALE_GUARD_MESSAGE =
-  "Sync protetta: troppi eventi esterni risultano spariti dal feed. Nessuna cancellazione applicata.";
-
 const SOURCE_CONFIGS = [
   {
     key: "booking_ical",
@@ -262,8 +249,6 @@ function isGeloneEchoEvent(event, sourceConfig) {
   if (text.includes("occupato - gelone") || text.includes("bloccato - gelone")) return true;
   if (text.includes("richiesta sito - gelone")) return true;
 
-  // Difesa extra: se il feed Booking contiene un evento che dichiara chiaramente
-  // che arriva dal nostro sito, non lo importiamo come prenotazione Booking.
   if (sourceConfig?.key === "booking_ical" && text.includes("gelone")) {
     const looksLikeOwnExport =
       text.includes("origine:") ||
@@ -418,7 +403,7 @@ async function deleteMovedNightsForBooking(adminDb, unitId, bookingId, previousC
   return deleted;
 }
 
-async function cancelStaleExternalBookings(adminDb, unitId, sourceConfig, activeExternalKeys, options = {}) {
+async function markMissingExternalBookingsForReview(adminDb, unitId, sourceConfig, activeExternalKeys, options = {}) {
   const mode = options.mode || "automatic";
   const snapshot = await adminDb
     .collection("bookings")
@@ -443,91 +428,56 @@ async function cancelStaleExternalBookings(adminDb, unitId, sourceConfig, active
     candidates.push({ ref: bookingSnapshot.ref, id: bookingSnapshot.id, data });
   }
 
-  const staleCount = candidates.length;
-  const staleRatio = previousActiveCount > 0 ? staleCount / previousActiveCount : 0;
-
-  if (
-    previousActiveCount >= MIN_PREVIOUS_FOR_RATIO_CHECK &&
-    staleRatio > MAX_STALE_EXTERNAL_DELETE_RATIO
-  ) {
-    try {
-      const isManual = mode === "manual";
-      await adminDb.collection("maintenanceLogs").add({
-        type: "calendar_sync",
-        action: isManual ? "manual_calendar_sync" : "automatic_calendar_sync",
-        mode: isManual ? "manual_guard" : "automatic_guard",
-        source: isManual ? "admin_manual_sync" : "vercel_cron",
-        triggerSource: isManual ? "admin_manual_sync" : "vercel_cron",
-        icalSource: sourceConfig.key,
-        sourceLabel: sourceConfig.label,
-        unitId,
-        ok: false,
-        message: STALE_GUARD_MESSAGE,
-        guardTriggered: true,
-        previousActiveCount,
-        staleCount,
-        staleRatio,
-        staleThreshold: MAX_STALE_EXTERNAL_DELETE_RATIO,
-        cancelledStale: 0,
-        createdAt: FieldValue.serverTimestamp(),
-      });
-    } catch (logError) {
-      console.error("Errore scrittura log guard sync calendars:", logError);
-    }
-
-    return {
-      cancelled: 0,
-      guardTriggered: true,
-      previousActiveCount,
-      staleCount,
-      staleRatio,
-      staleThreshold: MAX_STALE_EXTERNAL_DELETE_RATIO,
-    };
-  }
-
-  let cancelled = 0;
+  let markedForReview = 0;
 
   for (const candidate of candidates) {
-    const data = candidate.data;
-    const nights = getNightDates(data.checkIn, data.checkOut);
-    const nightRefs = nights.map((night) => adminDb.collection("nights").doc(`${unitId}_${night}`));
-    const nightSnapshots = nightRefs.length > 0 ? await adminDb.getAll(...nightRefs) : [];
-
-    const batch = adminDb.batch();
-
-    nightSnapshots.forEach((nightSnapshot, index) => {
-      if (!nightSnapshot.exists) return;
-      const nightData = nightSnapshot.data();
-
-      if (nightData?.bookingId === candidate.id) {
-        batch.delete(nightRefs[index]);
-      }
-    });
-
-    batch.set(
-      candidate.ref,
+    await candidate.ref.set(
       {
-        status: "cancelled",
         staleExternal: true,
         staleExternalSource: sourceConfig.key,
-        cancellationReason: `Evento non piu presente nel calendario ${sourceConfig.label}`,
-        cancelledAt: FieldValue.serverTimestamp(),
+        syncWarning: true,
+        syncReviewRequired: true,
+        syncReviewReason: `Evento non trovato nell'ultimo calendario ${sourceConfig.label}. Prenotazione mantenuta attiva per sicurezza.`,
+        lastMissingFromIcalAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
+    markedForReview += 1;
+  }
 
-    await batch.commit();
-    cancelled += 1;
+  if (markedForReview > 0) {
+    try {
+      await adminDb.collection("maintenanceLogs").add({
+        type: "calendar_sync",
+        action: mode === "manual" ? "manual_calendar_sync" : "automatic_calendar_sync",
+        mode,
+        source: mode === "manual" ? "admin_manual_sync" : "vercel_cron",
+        triggerSource: mode === "manual" ? "admin_manual_sync" : "vercel_cron",
+        icalSource: sourceConfig.key,
+        sourceLabel: sourceConfig.label,
+        unitId,
+        ok: true,
+        message: "Prenotazioni esterne mancanti mantenute attive e marcate da controllare.",
+        previousActiveCount,
+        staleCount: candidates.length,
+        markedForReview,
+        cancelledStale: 0,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    } catch (logError) {
+      console.error("Errore scrittura log sync calendars review:", logError);
+    }
   }
 
   return {
-    cancelled,
+    cancelled: 0,
+    markedForReview,
     guardTriggered: false,
     previousActiveCount,
-    staleCount,
-    staleRatio,
-    staleThreshold: MAX_STALE_EXTERNAL_DELETE_RATIO,
+    staleCount: candidates.length,
+    staleRatio: previousActiveCount > 0 ? candidates.length / previousActiveCount : 0,
+    staleThreshold: 0,
   };
 }
 
@@ -559,11 +509,10 @@ export default async function handler(req, res) {
       skippedInvalid: 0,
       skippedConflict: 0,
       cancelledStale: 0,
+      markedForReview: 0,
       movedNightsDeleted: 0,
       skippedIgnored: 0,
       skippedEcho: 0,
-      staleGuardTriggered: false,
-      staleGuardSources: [],
       sources: {},
     };
 
@@ -574,15 +523,14 @@ export default async function handler(req, res) {
         skippedConflict: 0,
         skippedInvalid: 0,
         cancelledStale: 0,
+        markedForReview: 0,
         movedNightsDeleted: 0,
         skippedIgnored: 0,
         skippedEcho: 0,
         urlPresent: Boolean(url),
-        guardTriggered: false,
         previousActiveCount: 0,
         staleCount: 0,
         staleRatio: 0,
-        staleThreshold: MAX_STALE_EXTERNAL_DELETE_RATIO,
       };
 
       if (!url) {
@@ -625,7 +573,7 @@ export default async function handler(req, res) {
       const activeExternalKeys = new Set(events.map((event) => event.externalKey));
 
       if (rawEvents.length > 0) {
-        const staleResult = await cancelStaleExternalBookings(
+        const staleResult = await markMissingExternalBookingsForReview(
           adminDb,
           unit.id,
           sourceConfig,
@@ -633,16 +581,12 @@ export default async function handler(req, res) {
           { mode: callMode }
         );
         totals.cancelledStale += staleResult.cancelled;
+        totals.markedForReview += staleResult.markedForReview;
         totals.sources[sourceConfig.key].cancelledStale += staleResult.cancelled;
-        totals.sources[sourceConfig.key].guardTriggered = staleResult.guardTriggered;
+        totals.sources[sourceConfig.key].markedForReview += staleResult.markedForReview;
         totals.sources[sourceConfig.key].previousActiveCount = staleResult.previousActiveCount;
         totals.sources[sourceConfig.key].staleCount = staleResult.staleCount;
         totals.sources[sourceConfig.key].staleRatio = staleResult.staleRatio;
-        totals.sources[sourceConfig.key].staleThreshold = staleResult.staleThreshold;
-        if (staleResult.guardTriggered) {
-          totals.staleGuardTriggered = true;
-          totals.staleGuardSources.push(sourceConfig.key);
-        }
       }
 
       for (const event of events) {
@@ -696,90 +640,90 @@ export default async function handler(req, res) {
 
           if (deletedIgnoredNights > 0) {
             await ignoreBatch.commit();
+            totals.movedNightsDeleted += deletedIgnoredNights;
+            totals.sources[sourceConfig.key].movedNightsDeleted += deletedIgnoredNights;
           }
 
           continue;
         }
 
-        const movedNightsDeleted = existingBookingSnapshot.exists
+        const preservedStatus = getPreservedNightStatus(existingBookingData);
+        const movedDeleted = existingBookingData
           ? await deleteMovedNightsForBooking(
               adminDb,
               unit.id,
               bookingId,
-              existingBookingData?.checkIn,
-              existingBookingData?.checkOut,
+              existingBookingData.checkIn,
+              existingBookingData.checkOut,
               event.nights,
               batch
             )
           : 0;
 
-        totals.movedNightsDeleted += movedNightsDeleted;
-        totals.sources[sourceConfig.key].movedNightsDeleted += movedNightsDeleted;
+        batch.set(
+          bookingRef,
+          {
+            ...(existingBookingData ? {} : getImportedBookingCreateDefaults(event, unit)),
+            unitId: unit.id,
+            checkIn: event.checkIn,
+            checkOut: event.checkOut,
+            nights: event.nights.length,
+            status: preservedStatus,
+            source: event.source,
+            sourceLabel: event.sourceLabel,
+            externalKey: event.externalKey,
+            externalUid: event.externalUid,
+            sourceSummary: event.sourceSummary,
+            sourceDescription: event.sourceDescription,
+            guestName: existingBookingData?.guestName && existingBookingData.guestName !== event.guestName
+              ? existingBookingData.guestName
+              : event.guestName,
+            staleExternal: false,
+            syncWarning: false,
+            syncReviewRequired: false,
+            lastSeenInIcalAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
 
-        const isExistingBooking = existingBookingSnapshot.exists;
-        const preservedGuestName = cleanText(existingBookingData?.guestName) || event.guestName;
-        const nightStatus = getPreservedNightStatus(existingBookingData);
-        const bookingSyncData = {
-          unitId: unit.id,
-          unitName: unit.publicName || unit.name,
-          checkIn: event.checkIn,
-          checkOut: event.checkOut,
-          source: event.source,
-          sourceLabel: event.sourceLabel,
-          sourceSummary: event.sourceSummary,
-          sourceDescription: event.sourceDescription,
-          externalKey: event.externalKey,
-          externalUid: event.externalUid || "",
-          lastIcalSyncAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-          ...(isExistingBooking ? {} : getImportedBookingCreateDefaults(event, unit)),
-        };
-
-        batch.set(bookingRef, bookingSyncData, { merge: true });
-
-        event.nights.forEach((night, index) => {
-          const existingNightSnapshot = nightSnapshots[index];
+        for (const nightRef of nightRefs) {
+          const night = nightRef.id.replace(`${unit.id}_`, "");
           batch.set(
-            adminDb.collection("nights").doc(`${unit.id}_${night}`),
+            nightRef,
             {
               unitId: unit.id,
               date: night,
               bookingId,
-              status: nightStatus,
               source: event.source,
-              guestName: preservedGuestName,
+              status: preservedStatus,
+              guestName: existingBookingData?.guestName || event.guestName,
+              checkIn: event.checkIn,
+              checkOut: event.checkOut,
               updatedAt: FieldValue.serverTimestamp(),
-              ...(existingNightSnapshot?.exists ? {} : { createdAt: FieldValue.serverTimestamp() }),
             },
             { merge: true }
           );
-        });
+        }
 
         await batch.commit();
         totals.imported += 1;
         totals.sources[sourceConfig.key].imported += 1;
+        totals.movedNightsDeleted += movedDeleted;
+        totals.sources[sourceConfig.key].movedNightsDeleted += movedDeleted;
       }
     }
 
-    const responsePayload = {
+    return json(res, 200, {
       ok: true,
-      unitId: unit.id,
-      unitName: unit.publicName || unit.name,
+      message: `Sincronizzazione completata. Importate/aggiornate ${totals.imported} prenotazioni.`,
       totals,
-      importedBookings: totals.imported,
-      skippedNights: totals.skippedConflict,
-    };
-
-    if (totals.staleGuardTriggered) {
-      responsePayload.warning = STALE_GUARD_MESSAGE;
-    }
-
-    return json(res, 200, responsePayload);
+    });
   } catch (error) {
-    console.error("Errore sync-calendars:", error);
+    console.error("Errore sync calendars:", error);
     return json(res, 500, {
       ok: false,
-      message: error?.message || "Errore tecnico durante la sincronizzazione calendari.",
+      message: error?.message || "Errore durante la sincronizzazione calendari.",
     });
   }
 }
