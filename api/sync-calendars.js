@@ -697,7 +697,6 @@ export default async function handler(req, res) {
               bookingId,
               source: event.source,
               status: preservedStatus,
-              guestName: existingBookingData?.guestName || event.guestName,
               checkIn: event.checkIn,
               checkOut: event.checkOut,
               updatedAt: FieldValue.serverTimestamp(),

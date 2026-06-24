@@ -585,7 +585,6 @@ export default async function handler(req, res) {
           bookingId: bookingRef.id,
           status: "pending_direct",
           source: "direct_site",
-          guestName,
           expiresAt: pendingExpiresAt,
           holdExpiresAt: pendingExpiresAt.toISOString(),
           holdExpiresHours: PENDING_REQUEST_HOLD_HOURS,

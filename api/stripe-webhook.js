@@ -446,7 +446,6 @@ async function markBookingPaid(adminDb, session, event) {
           bookingId,
           status: nextStatus,
           source: booking.source || "direct_site",
-          guestName: booking.guestName || "",
           paymentStatus: nextPaymentStatus,
           updatedAt: FieldValue.serverTimestamp(),
         },

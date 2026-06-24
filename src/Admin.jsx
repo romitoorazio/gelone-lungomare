@@ -3079,7 +3079,6 @@ wifiName: settings.wifiName || "",
           bookingId: bookingRef.id,
           status: newBooking.status,
           source: newBooking.source,
-          guestName: newBooking.guestName || "Prenotazione manuale",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
