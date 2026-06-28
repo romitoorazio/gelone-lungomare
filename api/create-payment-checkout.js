@@ -1,5 +1,4 @@
-﻿import crypto from "crypto";
-import Stripe from "stripe";
+import crypto from "crypto";
 import { getFirebaseAdminAuth, getFirebaseAdminDb, FieldValue } from "./_firebaseAdmin.js";
 import { calculateServerBookingPricing, loadServerPricing } from "./_pricing.js";
 
@@ -7,16 +6,6 @@ const ADMIN_EMAILS = [
   "romitoorazio@gmail.com",
   "romitofrancesco1@gmail.com",
 ].map((email) => email.toLowerCase());
-
-function getStripe() {
-  const secretKey = String(process.env.STRIPE_SECRET_KEY || "").trim();
-
-  if (!secretKey) {
-    throw new Error("STRIPE_SECRET_KEY non configurata su Vercel.");
-  }
-
-  return new Stripe(secretKey);
-}
 
 function getBody(req) {
   if (!req.body) return {};
@@ -34,6 +23,23 @@ function getBody(req) {
 
 function cleanText(value) {
   return String(value || "").trim();
+}
+
+function createShortPaymentToken() {
+  return crypto.randomBytes(9).toString("base64url");
+}
+
+async function createUniquePaymentLinkToken(adminDb) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const token = createShortPaymentToken();
+    const snapshot = await adminDb.collection("paymentLinks").doc(token).get();
+
+    if (!snapshot.exists) {
+      return token;
+    }
+  }
+
+  throw new Error("Non riesco a generare un codice pagamento univoco. Riprova.");
 }
 
 function hashPublicPaymentToken(value) {
@@ -192,7 +198,6 @@ export default async function handler(req, res) {
 
   try {
     const adminDb = getFirebaseAdminDb();
-    const stripe = getStripe();
     const body = getBody(req);
     const publicDirectPayment = body.publicDirectPayment === true;
     const adminUser = publicDirectPayment ? null : await verifyAdminRequest(req);
@@ -294,59 +299,30 @@ export default async function handler(req, res) {
     }
 
     const origin = getSiteOrigin(req);
+    const token = await createUniquePaymentLinkToken(adminDb);
+    const shortUrl = `${origin}/p/${token}`;
     const unitName = cleanText(booking.unitName) || "Gelone Lungomare";
     const guestEmail = cleanText(booking.guestEmail);
-    const cancelParams = new URLSearchParams({
-      payment: "cancelled",
+
+    await adminDb.collection("paymentLinks").doc(token).set({
+      token,
       bookingId,
+      unitId: String(booking.unitId || ""),
+      unitName,
+      guestName: cleanText(booking.guestName),
+      guestEmail,
       paymentType,
-    });
-
-    if (publicDirectPayment && publicPaymentToken) {
-      cancelParams.set("paymentToken", publicPaymentToken);
-    }
-
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      locale: "it",
-      customer_email: guestEmail || undefined,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "eur",
-            unit_amount: amountCents,
-            product_data: {
-              name:
-                paymentType === "balance"
-                  ? `Saldo soggiorno ${unitName}`
-                  : paymentType === "full"
-                    ? `Pagamento soggiorno ${unitName}`
-                    : `Caparra confirmatoria prenotazione ${unitName}`,
-              description:
-                paymentType === "deposit"
-                  ? `Soggiorno: ${booking.checkIn || "-"} / ${booking.checkOut || "-"}. Condizioni: rimborso totale fino a 14 giorni prima del check-in; da 13 a 7 giorni caparra trattenuta; ultimi 6 giorni, no-show o partenza anticipata non rimborsabili salvo accordo scritto.`
-                  : `Soggiorno: ${booking.checkIn || "-"} / ${booking.checkOut || "-"}. Pagamento collegato alla prenotazione Gelone Lungomare.`,
-            },
-          },
-        },
-      ],
-      metadata: {
-        bookingId,
-        unitId: String(booking.unitId || ""),
-        paymentType,
-        source: "gelone_lungomare",
-      },
-      payment_intent_data: {
-        metadata: {
-          bookingId,
-          unitId: String(booking.unitId || ""),
-          paymentType,
-          source: "gelone_lungomare",
-        },
-      },
-      success_url: `${origin}/?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/?${cancelParams.toString()}`,
+      amount,
+      amountCents,
+      totalPrice,
+      depositAmount,
+      shortUrl,
+      status: "active",
+      source: publicDirectPayment ? "public_site" : "admin",
+      createdBy: adminUser?.email || "public_site",
+      publicDirectPayment: Boolean(publicDirectPayment),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
 
     await bookingRef.update({
@@ -355,9 +331,12 @@ export default async function handler(req, res) {
       paymentStatus: "pending",
       paymentType,
       paymentAmount: amount,
-      stripeCheckoutSessionId: session.id,
-      paymentCheckoutUrl: session.url,
+      paymentCheckoutUrl: shortUrl,
+      paymentLinkToken: token,
+      paymentLinkCreatedAt: FieldValue.serverTimestamp(),
       paymentCreatedBy: adminUser?.email || "public_site",
+      stripeCheckoutSessionId: "",
+      stripeCheckoutUrl: "",
       ...(publicDirectPayment ? { publicPaymentTokenLastUsedAt: FieldValue.serverTimestamp() } : {}),
       paymentUpdatedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -368,9 +347,10 @@ export default async function handler(req, res) {
       bookingId,
       paymentType,
       amount,
-      checkoutSessionId: session.id,
-      checkoutUrl: session.url,
-      message: "Link pagamento creato correttamente.",
+      paymentLinkToken: token,
+      checkoutUrl: shortUrl,
+      shortUrl,
+      message: "Link pagamento breve creato correttamente.",
     });
   } catch (error) {
     console.error("Errore create-payment-checkout:", error);
@@ -383,4 +363,3 @@ export default async function handler(req, res) {
     });
   }
 }
-
