@@ -26,6 +26,15 @@
       ]
     },
     {
+      "source": "/p/:token",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
       "source": "/reviews/add",
       "headers": [
         {
@@ -126,6 +135,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/p/:token",
+      "destination": "/api/pay?token=:token"
+    },
     {
       "source": "/api/ical-booking/:unitId",
       "destination": "/api/ical/:unitId?target=booking"
