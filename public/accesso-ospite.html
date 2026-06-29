@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Istruzioni ingresso ospite - Gelone Lungomare</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin:0; font-family: Arial, Helvetica, sans-serif; background:#faf6ee; color:#0a1d35; }
+      main { width:min(1050px, calc(100% - 28px)); margin:0 auto; padding:26px 0 60px; }
+      .hero { background:#0a1d35; color:white; border-radius:30px; padding:30px 24px; margin-bottom:18px; }
+      .hero p { color:#dbe6f4; line-height:1.65; max-width:780px; }
+      .eyebrow { color:#f5c84b; text-transform:uppercase; letter-spacing:.18em; font-size:12px; font-weight:900; }
+      h1 { margin:10px 0 0; font-family:Georgia,serif; font-size:clamp(32px, 5vw, 52px); line-height:1; }
+      h2 { margin:0 0 12px; }
+      .card { background:white; border:1px solid #e4d8c2; border-radius:28px; padding:22px; box-shadow:0 18px 60px rgba(10,29,53,.08); }
+      .grid { display:grid; gap:16px; }
+      @media (min-width: 860px) { .two { grid-template-columns:1fr 1fr; } .three { grid-template-columns:repeat(3,1fr); } }
+      label { display:block; font-weight:800; font-size:14px; margin-bottom:8px; }
+      input, textarea, select { width:100%; border:1px solid #d7c49f; border-radius:18px; padding:14px 15px; font:inherit; color:#0a1d35; background:white; }
+      textarea { min-height:100px; resize:vertical; }
+      .field { margin-bottom:14px; }
+      .notice { border-radius:18px; padding:14px 16px; background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; line-height:1.55; margin-bottom:16px; }
+      .preview { white-space:pre-wrap; word-break:break-word; background:#0a1d35; color:white; border-radius:22px; padding:18px; line-height:1.6; min-height:280px; }
+      .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+      button, .button { border:0; border-radius:999px; background:#0a1d35; color:white; padding:13px 18px; font-weight:900; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
+      .green { background:#166534; }
+      .gold { background:#9b6b25; }
+      .secondary { background:white; color:#0a1d35; border:1px solid #0a1d35; }
+      .muted { color:#6b5b46; font-size:13px; line-height:1.55; }
+      .hidden { display:none !important; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <div class="eyebrow">Gelone Lungomare · strumento interno</div>
+        <h1>Istruzioni ingresso ospite</h1>
+        <p>Genera il messaggio per il self check-in con cassetta esterna e combinazione. Questa pagina non salva nulla nel sito: compili, copi e invii solo quando serve.</p>
+      </section>
+
+      <div class="notice">
+        Sicurezza: usa questa pagina solo tu. Il codice della cassetta non viene salvato qui. Invia il messaggio solo a prenotazione confermata e vicino all'arrivo.
+      </div>
+
+      <section class="grid two">
+        <div class="card">
+          <h2>Dati ingresso</h2>
+          <div class="grid two">
+            <div class="field"><label>Nome ospite</label><input id="guestName" placeholder="Francesco Di Natale" /></div>
+            <div class="field"><label>Telefono ospite</label><input id="guestPhone" placeholder="+39..." /></div>
+          </div>
+          <div class="grid two">
+            <div class="field"><label>Alloggio</label><input id="unitName" value="Gelone Lungomare - Lunarossa 1" /></div>
+            <div class="field"><label>Indirizzo</label><input id="address" value="Via Pascoli 1, Gela" /></div>
+          </div>
+          <div class="grid three">
+            <div class="field"><label>Arrivo</label><input id="checkIn" type="date" /></div>
+            <div class="field"><label>Check-in da</label><input id="checkInTime" value="15:00" /></div>
+            <div class="field"><label>Check-out entro</label><input id="checkOutTime" value="10:00" /></div>
+          </div>
+          <div class="field"><label>Dove si trova la cassetta esterna</label><textarea id="boxLocation" placeholder="Esempio: La cassetta si trova all'esterno vicino al portone..."></textarea></div>
+          <div class="grid two">
+            <div class="field"><label>Combinazione</label><input id="boxCode" placeholder="Esempio: 1234" /></div>
+            <div class="field"><label>Nome Wi-Fi</label><input id="wifiName" value="lunarossa" /></div>
+          </div>
+          <div class="field"><label>Password Wi-Fi</label><input id="wifiPassword" value="gelone123" /></div>
+          <div class="field"><label>Note aggiuntive</label><textarea id="extra" placeholder="Esempio: Dopo aver preso le chiavi richiudi bene la cassetta e mescola i numeri."></textarea></div>
+        </div>
+
+        <div class="card">
+          <h2>Messaggio pronto</h2>
+          <div id="preview" class="preview"></div>
+          <div class="field" style="margin-top:16px;">
+            <label>Puoi modificarlo prima di inviare</label>
+            <textarea id="manualMessage" style="min-height:220px;"></textarea>
+          </div>
+          <div class="row">
+            <button id="copyBtn" type="button">Copia testo</button>
+            <a id="whatsappBtn" class="button green hidden" target="_blank" rel="noreferrer">Apri WhatsApp</a>
+            <a id="emailBtn" class="button gold" href="#">Apri email</a>
+            <button id="resetBtn" type="button" class="secondary">Pulisci dati ospite</button>
+          </div>
+          <p id="status" class="muted"></p>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const fields = ["guestName", "guestPhone", "unitName", "address", "checkIn", "checkInTime", "checkOutTime", "boxLocation", "boxCode", "wifiName", "wifiPassword", "extra"];
+
+      function formatDate(value) {
+        if (!value) return "-";
+        const parts = value.split("-");
+        if (parts.length !== 3) return value;
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+
+      function phoneForWhatsApp(phone) {
+        const digits = String(phone || "").replace(/\D/g, "");
+        if (!digits) return "";
+        return digits.startsWith("39") ? digits : `39${digits}`;
+      }
+
+      function buildMessage() {
+        const name = $("guestName").value.trim() || "ospite";
+        const unit = $("unitName").value.trim() || "Gelone Lungomare";
+        const address = $("address").value.trim();
+        const checkIn = formatDate($("checkIn").value);
+        const checkInTime = $("checkInTime").value.trim() || "15:00";
+        const checkOutTime = $("checkOutTime").value.trim() || "10:00";
+        const boxLocation = $("boxLocation").value.trim() || "Le chiavi si trovano nella cassetta esterna vicino all'ingresso.";
+        const boxCode = $("boxCode").value.trim() || "da comunicare";
+        const wifiName = $("wifiName").value.trim();
+        const wifiPassword = $("wifiPassword").value.trim();
+        const extra = $("extra").value.trim();
+
+        return [
+          `Ciao ${name},`,
+          "",
+          `ti invio le istruzioni per accedere a ${unit}.`,
+          "",
+          checkIn !== "-" ? `Arrivo: ${checkIn} dalle ore ${checkInTime}` : `Check-in dalle ore ${checkInTime}`,
+          `Check-out entro le ore ${checkOutTime}`,
+          address ? `Indirizzo: ${address}` : "",
+          "",
+          "Modalità di ingresso:",
+          boxLocation,
+          `Combinazione cassetta: ${boxCode}`,
+          "",
+          "Dopo aver preso le chiavi, richiudi bene la cassetta e mescola i numeri.",
+          extra,
+          wifiName || wifiPassword ? "\nWi-Fi:" : "",
+          wifiName ? `Nome rete: ${wifiName}` : "",
+          wifiPassword ? `Password: ${wifiPassword}` : "",
+          "",
+          "Per qualsiasi problema chiamami o scrivimi su WhatsApp.",
+          "Orazio",
+          "Gelone Lungomare",
+        ].filter(Boolean).join("\n");
+      }
+
+      function update() {
+        const text = buildMessage();
+        $("preview").textContent = text;
+        if (document.activeElement !== $("manualMessage")) $("manualMessage").value = text;
+        const phone = phoneForWhatsApp($("guestPhone").value);
+        if (phone) {
+          $("whatsappBtn").href = `https://wa.me/${phone}?text=${encodeURIComponent($("manualMessage").value || text)}`;
+          $("whatsappBtn").classList.remove("hidden");
+        } else {
+          $("whatsappBtn").classList.add("hidden");
+        }
+        $("emailBtn").href = `mailto:?subject=${encodeURIComponent("Istruzioni ingresso Gelone Lungomare")}&body=${encodeURIComponent($("manualMessage").value || text)}`;
+      }
+
+      fields.forEach((id) => $(id).addEventListener("input", update));
+      $("manualMessage").addEventListener("input", update);
+      $("copyBtn").addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText($("manualMessage").value || buildMessage());
+          $("status").textContent = "Testo copiato negli appunti.";
+        } catch {
+          $("status").textContent = "Copia automatica non riuscita: seleziona il testo e copialo manualmente.";
+        }
+      });
+      $("resetBtn").addEventListener("click", () => {
+        ["guestName", "guestPhone", "checkIn", "boxCode"].forEach((id) => $(id).value = "");
+        update();
+      });
+      update();
+    </script>
+  </body>
+</html>
