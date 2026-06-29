@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   getIdToken,
   onAuthStateChanged,
@@ -356,6 +356,58 @@ Gelone Lungomare`;
 }
 
 
+function buildAccessInstructionsText(booking, settings, selectedUnit, accessForm = {}) {
+  if (!booking) return "";
+
+  const name = booking.guestName || "ospite";
+  const unitName =
+    selectedUnit?.publicName ||
+    selectedUnit?.name ||
+    booking.unitName ||
+    "Gelone Lungomare";
+  const checkIn = formatDate(booking.checkIn);
+  const checkOut = formatDate(booking.checkOut);
+  const checkInTime = settings?.checkInTime || defaultSettings.checkInTime;
+  const checkOutTime = settings?.checkOutTime || defaultSettings.checkOutTime;
+  const address = accessForm.address || "Via Pascoli 1, Gela";
+  const location =
+    accessForm.location ||
+    "La cassetta esterna si trova vicino all'ingresso.";
+  const code = String(accessForm.code || "").trim();
+  const note =
+    accessForm.note ||
+    "Dopo aver preso le chiavi, richiudi bene la cassetta e mescola i numeri.";
+  const wifiName = settings?.wifiName || defaultSettings.wifiName;
+  const wifiPassword = settings?.wifiPassword || defaultSettings.wifiPassword;
+
+  return [
+    `Ciao ${name},`,
+    "",
+    `ti invio le istruzioni per accedere a ${unitName}.`,
+    "",
+    `Arrivo: ${checkIn} dalle ore ${checkInTime}`,
+    `Partenza: ${checkOut} entro le ore ${checkOutTime}`,
+    address ? `Indirizzo: ${address}` : "",
+    "",
+    "Modalit? di ingresso:",
+    location,
+    code
+      ? `Codice cassetta chiavi: ${code}`
+      : "Codice cassetta chiavi: da comunicare dalla struttura.",
+    "",
+    note,
+    wifiName || wifiPassword ? "\nWi-Fi:" : "",
+    wifiName ? `Nome rete: ${wifiName}` : "",
+    wifiPassword ? `Password: ${wifiPassword}` : "",
+    "",
+    "Per qualsiasi problema chiamami o scrivimi su WhatsApp.",
+    "Orazio",
+    "Gelone Lungomare",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 function createUnitForm(unit = DEFAULT_UNIT) {
   const normalized = normalizeUnit(unit);
 
@@ -554,6 +606,13 @@ export default function Admin() {
   const [cleanupLoading, setCleanupLoading] = useState(false);
   const [cleanupResult, setCleanupResult] = useState(null);
   const [manualCopy, setManualCopy] = useState({ title: "", text: "" });
+  const [accessForm, setAccessForm] = useState({
+    code: "",
+    address: "Via Pascoli 1, Gela",
+    location: "La cassetta esterna si trova vicino all'ingresso.",
+    note: "Dopo aver preso le chiavi, richiudi bene la cassetta e mescola i numeri.",
+  });
+
   const [photoUploading, setPhotoUploading] = useState(false);
   const [activityLogs, setActivityLogs] = useState([]);
   const [internalRecords, setInternalRecords] = useState([]);
@@ -612,6 +671,21 @@ export default function Admin() {
     () => bookings.find((booking) => booking.id === selectedBookingId) || null,
     [bookings, selectedBookingId]
   );
+
+  const accessInstructionsText = useMemo(
+    () =>
+      selectedBooking
+        ? buildAccessInstructionsText(selectedBooking, settings, selectedUnit, accessForm)
+        : "",
+    [selectedBooking, settings, selectedUnit, accessForm]
+  );
+
+  useEffect(() => {
+    setAccessForm((current) => ({
+      ...current,
+      code: "",
+    }));
+  }, [selectedBookingId]);
 
   function scrollToBookingSection(sectionId) {
     window.setTimeout(() => {
@@ -7725,6 +7799,96 @@ wifiName: settings.wifiName || "",
                         >
                           <MessageCircle size={16} />
                           Invia su WhatsApp
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+
+                <div className="mt-6 rounded-[1.5rem] border border-[#d7c49f] bg-[#faf6ee] p-5">
+                  <div className="flex flex-col gap-4">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#9b6b25]">
+                        <span id="booking-section-access" className="scroll-mt-28">Ingresso ospite / cassetta chiavi</span>
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-[#555]">
+                        Messaggio automatico con nome ospite, date, alloggio e Wi-Fi gi? presi dal PMS. Il codice non viene salvato: lo inserisci solo al momento dell'invio.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField label="Combinazione da inviare ora">
+                        <input
+                          value={accessForm.code}
+                          onChange={(event) =>
+                            setAccessForm({ ...accessForm, code: event.target.value })
+                          }
+                          placeholder="Esempio 1234"
+                          className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4 text-lg font-black tracking-[0.2em]"
+                        />
+                      </FormField>
+
+                      <FormField label="Indirizzo">
+                        <input
+                          value={accessForm.address}
+                          onChange={(event) =>
+                            setAccessForm({ ...accessForm, address: event.target.value })
+                          }
+                          className="w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                        />
+                      </FormField>
+
+                      <FormField label="Dove si trova la cassetta">
+                        <textarea
+                          value={accessForm.location}
+                          onChange={(event) =>
+                            setAccessForm({ ...accessForm, location: event.target.value })
+                          }
+                          className="min-h-24 w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                        />
+                      </FormField>
+
+                      <FormField label="Nota finale">
+                        <textarea
+                          value={accessForm.note}
+                          onChange={(event) =>
+                            setAccessForm({ ...accessForm, note: event.target.value })
+                          }
+                          className="min-h-24 w-full rounded-2xl border border-[#d7c49f] bg-white px-4 py-4"
+                        />
+                      </FormField>
+                    </div>
+
+                    <div className="whitespace-pre-wrap rounded-2xl bg-white px-4 py-4 text-sm font-semibold leading-7 text-[#0a1d35]">
+                      {accessInstructionsText}
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <SmallButton
+                        onClick={() =>
+                          copyText(
+                            accessInstructionsText,
+                            "Istruzioni ingresso copiate negli appunti."
+                          )
+                        }
+                        className="bg-[#0a1d35] px-5 py-3 text-white"
+                      >
+                        <Copy size={16} />
+                        Copia istruzioni
+                      </SmallButton>
+
+                      {selectedBooking.guestPhone && (
+                        <a
+                          href={`https://wa.me/${normalizePhoneForWhatsApp(
+                            selectedBooking.guestPhone
+                          )}?text=${encodeURIComponent(accessInstructionsText)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-3 text-sm font-bold text-white"
+                        >
+                          <MessageCircle size={16} />
+                          WhatsApp ingresso
                         </a>
                       )}
                     </div>
