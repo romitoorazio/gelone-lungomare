@@ -356,10 +356,17 @@ Gelone Lungomare`;
 }
 
 
+
+function formatGuestDisplayName(value) {
+  const cleaned = String(value || "ospite").replace(/\s+/g, " ").trim();
+
+  return cleaned.replace(/\bdi natale\b/gi, "Di Natale");
+}
+
 function buildAccessInstructionsText(booking, settings, selectedUnit, accessForm = {}) {
   if (!booking) return "";
 
-  const name = booking.guestName || "ospite";
+  const name = formatGuestDisplayName(booking.guestName || "ospite");
   const unitName =
     selectedUnit?.publicName ||
     selectedUnit?.name ||
@@ -389,7 +396,7 @@ function buildAccessInstructionsText(booking, settings, selectedUnit, accessForm
     `Partenza: ${checkOut} entro le ore ${checkOutTime}`,
     address ? `Indirizzo: ${address}` : "",
     "",
-    "Modalit? di ingresso:",
+    "Modalit\u00e0 di ingresso:",
     location,
     code
       ? `Codice cassetta chiavi: ${code}`
