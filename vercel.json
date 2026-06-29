@@ -137,7 +137,7 @@
   "rewrites": [
     {
       "source": "/p/:token",
-      "destination": "/api/pay?token=:token"
+      "destination": "/api/create-payment-checkout?token=:token"
     },
     {
       "source": "/api/ical-booking/:unitId",
