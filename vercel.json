@@ -202,7 +202,7 @@
   ],
   "crons": [
     {
-      "path": "/api/cron-sync-calendars-fratelli",
+      "path": "/api/cron-sync-calendars",
       "schedule": "0 5 * * *"
     }
   ]
