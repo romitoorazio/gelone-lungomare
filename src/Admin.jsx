@@ -4855,7 +4855,7 @@ wifiName: settings.wifiName || "",
                           <th className="py-3">Pulizie</th>
                           <th className="py-3">Netto</th>
                           <th className="py-3">Da pulire</th>
-                          <th className="py-3">Azioni</th>
+                          <th className="py-3 pl-6 whitespace-nowrap">Azioni</th>
                         </tr>
                       </thead>
 
@@ -5546,7 +5546,16 @@ wifiName: settings.wifiName || "",
                 </h3>
 
                 <div className="mt-5 overflow-x-auto">
-                  <table className="w-full min-w-[1100px] border-collapse text-left">
+                  <table className="w-full min-w-[1520px] table-fixed border-collapse text-left">
+                    <colgroup>
+                      <col style={{ width: "160px" }} />
+                      <col style={{ width: "220px" }} />
+                      <col style={{ width: "230px" }} />
+                      <col style={{ width: "170px" }} />
+                      <col style={{ width: "180px" }} />
+                      <col style={{ width: "380px" }} />
+                      <col style={{ width: "180px" }} />
+                    </colgroup>
                     <thead>
                       <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
                         <th className="py-3">Stato</th>
@@ -5741,7 +5750,7 @@ wifiName: settings.wifiName || "",
                                 </Pill>
                               )}
                             </td>
-                            <td className="py-4 font-semibold">{booking.guestName || "-"}</td>
+                            <td className="py-4 pr-4 font-semibold whitespace-nowrap">{booking.guestName || "-"}</td>
                             <td className="py-4">
                               {booking.nextBooking ? (
                                 <div>
@@ -5926,12 +5935,12 @@ wifiName: settings.wifiName || "",
                                 {booking.readiness.label}
                               </Pill>
                             </td>
-                            <td className="py-4">{getPaymentLabel(booking.paymentStatus)}</td>
+                            <td className="py-4 pr-4 whitespace-nowrap">{getPaymentLabel(booking.paymentStatus)}</td>
                             <td className="py-4 font-bold text-[#0a1d35]">
                               {formatEuro(booking.balanceDue)}
                             </td>
-                            <td className="py-4">{getWelcomateLabel(booking.welcomateStatus)}</td>
-                            <td className="py-4 text-sm text-[#555]">
+                            <td className="py-4 pr-6 whitespace-nowrap">{getWelcomateLabel(booking.welcomateStatus)}</td>
+                            <td className="py-4 pr-6 text-sm leading-6 text-[#555]">
                               {booking.internalNotes || "-"}
                             </td>
                             <td className="py-4">
@@ -6044,7 +6053,7 @@ wifiName: settings.wifiName || "",
                         <th className="py-3">Date</th>
                         <th className="py-3">Pagamento</th>
                         <th className="py-3">WelcoMate</th>
-                        <th className="py-3">Problemi rilevati</th>
+                        <th className="py-3 pr-6">Problemi rilevati</th>
                         <th className="py-3">Azioni</th>
                       </tr>
                     </thead>
