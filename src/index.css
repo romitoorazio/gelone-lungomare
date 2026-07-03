@@ -43,50 +43,51 @@ img {
   color: #0a1d35;
 }
 
-.admin-shell table {
+/* Fix tabelle PMS admin su iPhone/Safari: le colonne con date non devono incollarsi. */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+.overflow-x-auto > table {
+  width: 100%;
+  min-width: 1100px;
   border-spacing: 0;
   table-layout: auto;
 }
 
-.admin-shell th,
-.admin-shell td {
-  padding-left: 0.85rem;
-  padding-right: 0.85rem;
+.overflow-x-auto th,
+.overflow-x-auto td {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
   vertical-align: top;
 }
 
-.admin-shell th:first-child,
-.admin-shell td:first-child {
-  padding-left: 0;
+.overflow-x-auto th:first-child,
+.overflow-x-auto td:first-child {
+  padding-left: 0 !important;
 }
 
-.admin-shell th:last-child,
-.admin-shell td:last-child {
-  padding-right: 0;
+.overflow-x-auto th:last-child,
+.overflow-x-auto td:last-child {
+  padding-right: 0 !important;
 }
 
-.admin-shell th {
+.overflow-x-auto th,
+.overflow-x-auto td:nth-child(1),
+.overflow-x-auto td:nth-child(2),
+.overflow-x-auto td:nth-child(3) {
   white-space: nowrap;
-}
-
-.admin-shell td:nth-child(1),
-.admin-shell td:nth-child(2),
-.admin-shell td:nth-child(3) {
-  white-space: nowrap;
-}
-
-.admin-shell .overflow-x-auto {
-  -webkit-overflow-scrolling: touch;
 }
 
 @media (max-width: 640px) {
-  .admin-shell th,
-  .admin-shell td {
-    padding-left: 1rem;
-    padding-right: 1rem;
+  .overflow-x-auto > table {
+    min-width: 1250px;
+    font-size: 0.95rem;
   }
 
-  .admin-shell table {
-    font-size: 0.95rem;
+  .overflow-x-auto th,
+  .overflow-x-auto td {
+    padding-left: 1.15rem !important;
+    padding-right: 1.15rem !important;
   }
 }
