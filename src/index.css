@@ -42,3 +42,51 @@ img {
   background: #d8b66c;
   color: #0a1d35;
 }
+
+.admin-shell table {
+  border-spacing: 0;
+  table-layout: auto;
+}
+
+.admin-shell th,
+.admin-shell td {
+  padding-left: 0.85rem;
+  padding-right: 0.85rem;
+  vertical-align: top;
+}
+
+.admin-shell th:first-child,
+.admin-shell td:first-child {
+  padding-left: 0;
+}
+
+.admin-shell th:last-child,
+.admin-shell td:last-child {
+  padding-right: 0;
+}
+
+.admin-shell th {
+  white-space: nowrap;
+}
+
+.admin-shell td:nth-child(1),
+.admin-shell td:nth-child(2),
+.admin-shell td:nth-child(3) {
+  white-space: nowrap;
+}
+
+.admin-shell .overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  .admin-shell th,
+  .admin-shell td {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .admin-shell table {
+    font-size: 0.95rem;
+  }
+}
