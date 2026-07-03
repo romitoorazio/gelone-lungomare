@@ -1,4 +1,4 @@
-﻿import { getFirebaseAdminDb } from "./_firebaseAdmin.js";
+import { getFirebaseAdminDb } from "./_firebaseAdmin.js";
 import { DEFAULT_UNIT_ID, bookingUnitId, getPublicUnitConfig } from "./_units.js";
 
 function isValidDate(value) {
@@ -132,7 +132,7 @@ export default async function handler(req, res) {
     if (!unit) {
       return res.status(404).json({
         ok: false,
-        message: "UnitÃ  non disponibile sul sito pubblico.",
+        message: "Unità non disponibile sul sito pubblico.",
       });
     }
 
@@ -209,7 +209,7 @@ export default async function handler(req, res) {
       ok: false,
       message:
         error?.message ||
-        "Errore tecnico durante il controllo disponibilitÃ . Riprova più tardi o contatta la struttura.",
+        "Errore tecnico durante il controllo disponibilità. Riprova più tardi o contatta la struttura.",
     });
   }
 }
