@@ -1,0 +1,206 @@
+.gelone-promo-open {
+  overflow: hidden;
+}
+
+.gelone-promo-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 18, 34, 0.72);
+  backdrop-filter: blur(8px);
+  animation: gelone-promo-fade-in 220ms ease-out both;
+}
+
+.gelone-promo-card {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: min(760px, calc(100vh - 32px));
+  overflow-y: auto;
+  border: 1px solid rgba(200, 155, 60, 0.55);
+  border-radius: 30px;
+  padding: 34px 30px 28px;
+  color: #0a1d35;
+  text-align: center;
+  background:
+    radial-gradient(circle at top right, rgba(245, 200, 75, 0.25), transparent 34%),
+    linear-gradient(180deg, #fffdf8 0%, #faf3e5 100%);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
+  animation: gelone-promo-card-in 280ms ease-out both;
+}
+
+.gelone-promo-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(10, 29, 53, 0.18);
+  border-radius: 999px;
+  color: #0a1d35;
+  font: 400 30px/1 Arial, sans-serif;
+  background: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+}
+
+.gelone-promo-close:hover,
+.gelone-promo-close:focus-visible {
+  background: #ffffff;
+  outline: 3px solid rgba(200, 155, 60, 0.35);
+}
+
+.gelone-promo-eyebrow {
+  margin: 0 48px 10px;
+  color: #9b6b25;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.gelone-promo-card h2 {
+  margin: 0;
+  color: #0a1d35;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(32px, 8vw, 48px);
+  line-height: 1.05;
+}
+
+.gelone-promo-price {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 22px auto 18px;
+  padding: 18px 20px;
+  border: 1px solid rgba(200, 155, 60, 0.45);
+  border-radius: 22px;
+  background: #0a1d35;
+  box-shadow: 0 14px 34px rgba(10, 29, 53, 0.18);
+}
+
+.gelone-promo-price strong {
+  color: #f5c84b;
+  font-size: clamp(44px, 12vw, 66px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.gelone-promo-price span {
+  margin-top: 8px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gelone-promo-intro {
+  margin: 0 auto 12px;
+  color: #39485b;
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+.gelone-promo-units {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.gelone-promo-units li {
+  border: 1px solid #e4d8c2;
+  border-radius: 16px;
+  padding: 13px 10px;
+  color: #0a1d35;
+  font-size: 16px;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.gelone-promo-note {
+  margin: 0 auto 20px;
+  color: #5d6570;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.gelone-promo-cta {
+  display: block;
+  border-radius: 999px;
+  padding: 16px 20px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 900;
+  text-decoration: none;
+  background: #1f9d55;
+  box-shadow: 0 14px 30px rgba(31, 157, 85, 0.25);
+}
+
+.gelone-promo-cta:hover,
+.gelone-promo-cta:focus-visible {
+  transform: translateY(-1px);
+  background: #188348;
+  outline: 3px solid rgba(31, 157, 85, 0.24);
+}
+
+.gelone-promo-deadline {
+  margin: 14px 0 0;
+  color: #9b6b25;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 540px) {
+  .gelone-promo-overlay {
+    align-items: end;
+    padding: 10px;
+  }
+
+  .gelone-promo-card {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    border-radius: 26px;
+    padding: 30px 18px 22px;
+  }
+
+  .gelone-promo-units {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gelone-promo-overlay,
+  .gelone-promo-card {
+    animation: none;
+  }
+
+  .gelone-promo-cta:hover,
+  .gelone-promo-cta:focus-visible {
+    transform: none;
+  }
+}
+
+@keyframes gelone-promo-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes gelone-promo-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
