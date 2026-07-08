@@ -1,6 +1,8 @@
-﻿import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import "./promo-agosto.css";
+import { installPromoAgosto } from "./promo-agosto.js";
 
 const App = lazy(() => import("./App.jsx"));
 const Admin = lazy(() => import("./Admin.jsx"));
@@ -33,6 +35,8 @@ function Router() {
     </Suspense>
   );
 }
+
+installPromoAgosto();
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
