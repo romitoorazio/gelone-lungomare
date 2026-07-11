@@ -1,5 +1,7 @@
-﻿import syncCalendarsHandler from "./sync-calendars.js";
+import syncCalendarsHandler from "./sync-calendars.js";
 import { FieldValue, getFirebaseAdminDb } from "./_firebaseAdmin.js";
+
+const BROTHER_ARRIVAL_EMAIL = "romitofrancesco1@gmail.com";
 
 function json(res, status, payload) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -290,6 +292,15 @@ async function getArrivalReminderEmail(adminDb) {
   return "romitoorazio@gmail.com";
 }
 
+function getArrivalReminderRecipients(primaryEmail) {
+  return [...new Set(
+    [primaryEmail, BROTHER_ARRIVAL_EMAIL]
+      .flatMap((value) => String(value || "").split(","))
+      .map((value) => value.trim())
+      .filter(Boolean)
+  )];
+}
+
 async function loadArrivalBookings(adminDb, tomorrow) {
   const snapshot = await adminDb
     .collection("bookings")
@@ -326,7 +337,8 @@ async function sendArrivalReminderEmail(adminDb, tomorrow, arrivals) {
     throw new Error("RESEND_API_KEY o EMAIL_FROM mancanti su Vercel.");
   }
 
-  const toEmail = await getArrivalReminderEmail(adminDb);
+  const primaryEmail = await getArrivalReminderEmail(adminDb);
+  const toEmails = getArrivalReminderRecipients(primaryEmail);
 
   const rowsText = arrivals
     .map((booking) => {
@@ -367,7 +379,7 @@ async function sendArrivalReminderEmail(adminDb, tomorrow, arrivals) {
     },
     body: JSON.stringify({
       from: emailFrom,
-      to: [toEmail],
+      to: toEmails,
       subject,
       text: textBody,
       html,
@@ -379,7 +391,7 @@ async function sendArrivalReminderEmail(adminDb, tomorrow, arrivals) {
     throw new Error("Resend errore " + response.status + ": " + responseText);
   }
 
-  return toEmail;
+  return toEmails.join(", ");
 }
 
 async function runArrivalReminder(options = {}) {
