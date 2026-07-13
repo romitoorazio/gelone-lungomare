@@ -1,9 +1,6 @@
-﻿name: Sync calendari Gelone
+name: Sync calendari Gelone
 
 on:
-  schedule:
-    # Ogni giorno alle 05:10 UTC, cioè 07:10 in Italia con ora legale.
-    - cron: "10 5 * * *"
   workflow_dispatch:
 
 jobs:
