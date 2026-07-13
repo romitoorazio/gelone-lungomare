@@ -83,7 +83,7 @@
       "schedule": "0 5 * * *"
     },
     {
-      "path": "/api/cron-arrival-reminders",
+      "path": "/api/cron-sync-calendars?mode=arrival-reminders&send=1",
       "schedule": "5 5 * * *"
     }
   ]
