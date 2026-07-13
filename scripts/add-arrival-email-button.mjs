@@ -21,14 +21,14 @@ adminSource = replaceOnce(
 adminSource = replaceOnce(
   adminSource,
   `  async function cleanupGhostNights() {`,
-  `  async function sendArrivalReminderNow() {\n    clearMessages();\n\n    const confirmed = window.confirm(\n      "Vuoi inviare adesso il promemoria degli arrivi di domani a Orazio e Francesco?"\n    );\n\n    if (!confirmed) return;\n\n    try {\n      setArrivalEmailLoading(true);\n      const token = await getIdToken(user, true);\n      const response = await fetch(\n        "/api/cron-sync-calendars?mode=arrival-reminders&send=1",\n        {\n          method: "GET",\n          headers: { Authorization: \`Bearer \${token}\` },\n        }\n      );\n      const data = await response.json().catch(() => null);\n\n      if (!response.ok || !data?.ok) {\n        setError(data?.message || "Email promemoria non inviata.");\n        return;\n      }\n\n      if (data.sent) {\n        setMessage(\n          "Promemoria inviato a " +\n            (data.emailTo || "Orazio e Francesco") +\n            ". Arrivi trovati: " +\n            (data.arrivals || 0) +\n            "."\n        );\n      } else {\n        setMessage(data.message || "Nessuna email inviata.");\n      }\n    } catch (err) {\n      console.error(err);\n      setError("Errore tecnico durante l'invio del promemoria email.");\n    } finally {\n      setArrivalEmailLoading(false);\n    }\n  }\n\n  async function cleanupGhostNights() {`,
+  `  async function sendArrivalReminderNow() {\n    clearMessages();\n\n    const confirmed = window.confirm(\n      "Vuoi inviare adesso una email di prova a Orazio e Francesco?"\n    );\n\n    if (!confirmed) return;\n\n    try {\n      setArrivalEmailLoading(true);\n      const token = await getIdToken(user, true);\n      const response = await fetch(\n        "/api/cron-sync-calendars?mode=arrival-reminders&send=1&test=1&_=" + Date.now(),\n        {\n          method: "GET",\n          cache: "no-store",\n          headers: {\n            Authorization: \`Bearer \${token}\`,\n            "Cache-Control": "no-cache",\n          },\n        }\n      );\n      const data = await response.json().catch(() => null);\n\n      if (!response.ok || !data?.ok) {\n        const errorMessage = data?.message || "Email di prova non inviata.";\n        setError(errorMessage);\n        window.alert(errorMessage);\n        return;\n      }\n\n      const successMessage = data.message ||\n        (data.sent\n          ? "Email inviata a " + (data.emailTo || "Orazio e Francesco") + "."\n          : "Nessuna email inviata.");\n      setMessage(successMessage);\n      window.alert(successMessage);\n    } catch (err) {\n      console.error(err);\n      const errorMessage = "Errore tecnico durante il test email.";\n      setError(errorMessage);\n      window.alert(errorMessage);\n    } finally {\n      setArrivalEmailLoading(false);\n    }\n  }\n\n  async function cleanupGhostNights() {`,
   "funzione invio manuale promemoria"
 );
 
 adminSource = replaceOnce(
   adminSource,
   `                <button\n                  type="button"\n                  onClick={syncCalendars}\n                  disabled={syncLoading}\n                  className="inline-flex items-center gap-2 rounded-full bg-[#9b6b25] px-6 py-4 font-bold text-white disabled:opacity-60"\n                >\n                  <RefreshCcw size={18} />\n                  {syncLoading ? "Sincronizzazione..." : "Sincronizza ora"}\n                </button>`,
-  `                <button\n                  type="button"\n                  onClick={syncCalendars}\n                  disabled={syncLoading}\n                  className="inline-flex items-center gap-2 rounded-full bg-[#9b6b25] px-6 py-4 font-bold text-white disabled:opacity-60"\n                >\n                  <RefreshCcw size={18} />\n                  {syncLoading ? "Sincronizzazione..." : "Sincronizza ora"}\n                </button>\n\n                <button\n                  type="button"\n                  onClick={sendArrivalReminderNow}\n                  disabled={arrivalEmailLoading}\n                  className="inline-flex items-center gap-2 rounded-full bg-green-700 px-6 py-4 font-bold text-white disabled:opacity-60"\n                >\n                  <Mail size={18} />\n                  {arrivalEmailLoading\n                    ? "Invio email..."\n                    : "Invia promemoria email adesso"}\n                </button>`,
+  `                <button\n                  type="button"\n                  onClick={syncCalendars}\n                  disabled={syncLoading}\n                  className="inline-flex items-center gap-2 rounded-full bg-[#9b6b25] px-6 py-4 font-bold text-white disabled:opacity-60"\n                >\n                  <RefreshCcw size={18} />\n                  {syncLoading ? "Sincronizzazione..." : "Sincronizza ora"}\n                </button>\n\n                <button\n                  type="button"\n                  onClick={sendArrivalReminderNow}\n                  disabled={arrivalEmailLoading}\n                  className="inline-flex items-center gap-2 rounded-full bg-green-700 px-6 py-4 font-bold text-white disabled:opacity-60"\n                >\n                  <Mail size={18} />\n                  {arrivalEmailLoading\n                    ? "Invio email..."\n                    : "Invia email di prova adesso"}\n                </button>`,
   "pulsante invio promemoria"
 );
 
@@ -51,5 +51,26 @@ cronSource = replaceOnce(
   "autorizzazione admin Firebase"
 );
 
+cronSource = replaceOnce(
+  cronSource,
+  `function json(res, status, payload) {\n  res.setHeader("Content-Type", "application/json; charset=utf-8");\n  return res.status(status).json(payload);\n}`,
+  `function json(res, status, payload) {\n  res.setHeader("Content-Type", "application/json; charset=utf-8");\n  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");\n  res.setHeader("Pragma", "no-cache");\n  res.setHeader("Expires", "0");\n  return res.status(status).json(payload);\n}`,
+  "header no-cache"
+);
+
+cronSource = replaceOnce(
+  cronSource,
+  `  const send = Boolean(options.send);\n  const source = options.source || "manual";\n  const adminDb = getFirebaseAdminDb();\n  const today = getRomeDate(0);\n  const tomorrow = getRomeDate(1);\n  const arrivals = await loadArrivalBookings(adminDb, tomorrow);`,
+  `  const send = Boolean(options.send);\n  const forceTest = Boolean(options.forceTest);\n  const source = options.source || "manual";\n  const adminDb = getFirebaseAdminDb();\n  const today = getRomeDate(0);\n  const tomorrow = getRomeDate(1);\n\n  if (forceTest) {\n    const primaryEmail = await getPrimaryNotificationEmail(adminDb);\n    const recipients = splitEmails(primaryEmail, BROTHER_ARRIVAL_EMAIL);\n    const sentAt = new Date().toLocaleString("it-IT", { timeZone: "Europe/Rome" });\n    const subject = "Gelone - TEST email promemoria";\n    const text = "TEST RIUSCITO. Sistema email Gelone attivo. Data e ora: " + sentAt;\n    const html = "<h2>TEST RIUSCITO</h2><p>Il sistema email Gelone e attivo.</p><p>Data e ora: " + escapeHtml(sentAt) + "</p>";\n    await sendResendEmail({ to: recipients, subject, text, html });\n    return {\n      ok: true,\n      sent: true,\n      test: true,\n      today,\n      tomorrow,\n      arrivals: 0,\n      emailTo: recipients.join(", "),\n      message: "Email di prova inviata correttamente a " + recipients.join(", ") + ".",\n    };\n  }\n\n  const arrivals = await loadArrivalBookings(adminDb, tomorrow);`,
+  "modalita test"
+);
+
+cronSource = replaceOnce(
+  cronSource,
+  `        send: String(req.query?.send || "") === "1",\n        source: "manual_api",`,
+  `        send: String(req.query?.send || "") === "1",\n        forceTest: String(req.query?.test || "") === "1",\n        source: "manual_api",`,
+  "parametro test"
+);
+
 fs.writeFileSync(cronPath, cronSource, "utf8");
-console.log("Pulsante email arrivi e autorizzazione admin applicati.");
+console.log("Pulsante test email, no-cache, messaggi visibili e autorizzazione admin applicati.");
