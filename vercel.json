@@ -3,207 +3,88 @@
     {
       "source": "/(.*)",
       "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=()"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
-        },
-        {
-          "key": "Strict-Transport-Security",
-          "value": "max-age=31536000; includeSubDomains"
-        }
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" }
       ]
     },
     {
       "source": "/p/:token",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/reviews/add",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/reviews/add/:path*",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/ospiti.html",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/service-32",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/service-21",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/service-6",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/users/view",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/login",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/recover",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/page/:path*",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {
       "source": "/booking/request",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        }
-      ]
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     }
   ],
   "rewrites": [
-    {
-      "source": "/p/:token",
-      "destination": "/api/create-payment-checkout?token=:token"
-    },
-    {
-      "source": "/api/ical-booking/:unitId",
-      "destination": "/api/ical/:unitId?target=booking"
-    },
-    {
-      "source": "/api/ical-booking/:unitId.ics",
-      "destination": "/api/ical/:unitId?target=booking"
-    },
-    {
-      "source": "/api/ical-airbnb/:unitId",
-      "destination": "/api/ical/:unitId?target=airbnb"
-    },
-    {
-      "source": "/api/ical-airbnb/:unitId.ics",
-      "destination": "/api/ical/:unitId?target=airbnb"
-    },
-    {
-      "source": "/service-32",
-      "destination": "/api/gone"
-    },
-    {
-      "source": "/service-21",
-      "destination": "/api/gone"
-    },
-    {
-      "source": "/service-6",
-      "destination": "/api/gone"
-    },
-    {
-      "source": "/login",
-      "destination": "/api/gone"
-    },
-    {
-      "source": "/recover",
-      "destination": "/api/gone"
-    },
-    {
-      "source": "/booking/request",
-      "destination": "/api/gone"
-    },
-    {
-      "source": "/page/:path*",
-      "destination": "/api/gone"
-    },
-    {
-      "source": "/users/view",
-      "destination": "/api/gone"
-    },
-    {
-      "source": "/admin",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/admin/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/admin/:path*",
-      "destination": "/index.html"
-    }
+    { "source": "/p/:token", "destination": "/api/create-payment-checkout?token=:token" },
+    { "source": "/api/ical-booking/:unitId", "destination": "/api/ical/:unitId?target=booking" },
+    { "source": "/api/ical-booking/:unitId.ics", "destination": "/api/ical/:unitId?target=booking" },
+    { "source": "/api/ical-airbnb/:unitId", "destination": "/api/ical/:unitId?target=airbnb" },
+    { "source": "/api/ical-airbnb/:unitId.ics", "destination": "/api/ical/:unitId?target=airbnb" },
+    { "source": "/service-32", "destination": "/api/gone" },
+    { "source": "/service-21", "destination": "/api/gone" },
+    { "source": "/service-6", "destination": "/api/gone" },
+    { "source": "/login", "destination": "/api/gone" },
+    { "source": "/recover", "destination": "/api/gone" },
+    { "source": "/booking/request", "destination": "/api/gone" },
+    { "source": "/page/:path*", "destination": "/api/gone" },
+    { "source": "/users/view", "destination": "/api/gone" },
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/admin/", "destination": "/index.html" },
+    { "source": "/admin/:path*", "destination": "/index.html" }
   ],
   "crons": [
     {
       "path": "/api/cron-sync-calendars",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron-arrival-reminders",
+      "schedule": "5 5 * * *"
     }
   ]
 }
