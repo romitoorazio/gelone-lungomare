@@ -168,7 +168,6 @@ function groupConsecutiveNights(nights) {
     if (a.date === b.date) return getGroupKey(a).localeCompare(getGroupKey(b));
     return a.date.localeCompare(b.date);
   });
-
   const groups = [];
 
   for (const night of sortedNights) {
@@ -195,7 +194,7 @@ function groupConsecutiveNights(nights) {
   return groups;
 }
 
-function getSummary(group, unitName) {
+function getSummary(group, unitName, includeGuestDetails = false) {
   const source = String(group.source || "").toLowerCase();
 
   if (group.status === "blocked" || source === "manual_block" || source === "manual") {
@@ -204,6 +203,11 @@ function getSummary(group, unitName) {
 
   if (source === "direct_site" || group.status === "pending_direct") {
     return `Richiesta sito - ${unitName}`;
+  }
+
+  const guestName = String(group.guestName || "").trim();
+  if (includeGuestDetails && guestName) {
+    return `${guestName} - ${unitName}`;
   }
 
   return `Occupato - ${unitName}`;
@@ -288,16 +292,20 @@ export async function sendIcal(req, res, requestedUnitId = DEFAULT_UNIT_ID, expl
       const checkIn = formatDateForIcs(group.startDate);
       const checkOut = formatDateForIcs(addOneDay(group.endDate));
       const uidBase = group.bookingId || `${unit.id}-${group.startDate}-${group.endDate}-${index}`;
+      const includeGuestDetails = !target;
 
       const description = [
         `Struttura: ${unitName}`,
         `Unità: ${unit.name}`,
+        includeGuestDetails && group.guestName ? `Ospite: ${group.guestName}` : "",
         `Stato: ${group.status}`,
         `Origine: ${group.source}`,
         target ? `Feed destinato a: ${getTargetLabel(target)}` : "Feed destinato a: tutti i canali",
         `Arrivo: ${group.startDate}`,
         `Partenza: ${addOneDay(group.endDate)}`,
-      ].join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
 
       return [
         "BEGIN:VEVENT",
@@ -305,7 +313,7 @@ export async function sendIcal(req, res, requestedUnitId = DEFAULT_UNIT_ID, expl
         `DTSTAMP:${now}`,
         `DTSTART;VALUE=DATE:${checkIn}`,
         `DTEND;VALUE=DATE:${checkOut}`,
-        `SUMMARY:${escapeIcsText(getSummary(group, unitName))}`,
+        `SUMMARY:${escapeIcsText(getSummary(group, unitName, includeGuestDetails))}`,
         `DESCRIPTION:${escapeIcsText(description)}`,
         "TRANSP:OPAQUE",
         "STATUS:CONFIRMED",
