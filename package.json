@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/patch-admin-quality.mjs && node scripts/fix-vercel-cron-auth.mjs && node scripts/add-arrival-email-button.mjs && node scripts/unify-booking-emails.mjs && vite build",
+    "build": "node scripts/patch-admin-quality.mjs && node scripts/fix-vercel-cron-auth.mjs && node scripts/add-arrival-email-button.mjs && node scripts/unify-booking-emails.mjs && node scripts/add-checkout-reminders.mjs && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
