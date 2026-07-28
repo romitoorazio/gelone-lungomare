@@ -8,12 +8,90 @@ if (source.includes("async function runCheckoutReminder(")) {
   process.exit(0);
 }
 
+const constantsBlock = `const BROTHER_ARRIVAL_EMAIL = "romitofrancesco1@gmail.com";
+const FALLBACK_ARRIVAL_EMAIL = "romitoorazio@gmail.com";`;
+const constantsReplacement = `const BROTHER_ARRIVAL_EMAIL = "romitofrancesco1@gmail.com";
+const PRIMARY_NOTIFICATION_EMAIL = "info@gelone.it";
+const FALLBACK_ARRIVAL_EMAIL = "romitoorazio@gmail.com";`;
+
+if (!source.includes(constantsBlock)) {
+  throw new Error("Costanti destinatari promemoria non trovate.");
+}
+source = source.replace(constantsBlock, constantsReplacement);
+
+const primaryEmailFunction = `async function getPrimaryNotificationEmail(adminDb) {
+  const envEmail = String(process.env.ARRIVAL_REMINDER_EMAIL || "").trim();
+  if (envEmail) return envEmail;
+
+  for (const documentId of ["lunarossa1", "pms"]) {
+    try {
+      const snapshot = await adminDb.collection("privateSettings").doc(documentId).get();
+      const email = String(snapshot.data()?.notificationEmail || "").trim();
+      if (email) return email;
+    } catch (error) {
+      console.warn(\`Email notifica non leggibile da privateSettings/\${documentId}:\`, error);
+    }
+  }
+
+  return FALLBACK_ARRIVAL_EMAIL;
+}`;
+const primaryEmailReplacement = `async function getPrimaryNotificationEmail() {
+  return PRIMARY_NOTIFICATION_EMAIL;
+}`;
+
+if (!source.includes(primaryEmailFunction)) {
+  throw new Error("Funzione destinatario principale non trovata.");
+}
+source = source.replace(primaryEmailFunction, primaryEmailReplacement);
+
 const insertionPoint = "async function runArrivalReminder(options = {}) {";
 if (!source.includes(insertionPoint)) {
   throw new Error("Punto di inserimento promemoria check-out non trovato.");
 }
 
-const checkoutCode = `async function loadCheckoutBookings(adminDb, today) {
+const checkoutCode = `async function sendReminderEmailWithFallback(adminDb, { subject, text, html }) {
+  const primaryEmail = await getPrimaryNotificationEmail(adminDb);
+  const delivered = [];
+  const failures = [];
+
+  async function sendWithRetry(email, label) {
+    let lastError = null;
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      try {
+        await sendResendEmail({ to: [email], subject, text, html });
+        delivered.push(email);
+        return true;
+      } catch (error) {
+        lastError = error;
+        console.warn(label + " non inviato, tentativo " + attempt + ":", error);
+      }
+    }
+    failures.push({ email, label, error: lastError?.message || "Invio fallito" });
+    return false;
+  }
+
+  await sendWithRetry(BROTHER_ARRIVAL_EMAIL, "Promemoria a Francesco");
+
+  const primarySent = await sendWithRetry(primaryEmail, "Promemoria principale");
+  if (!primarySent && primaryEmail !== FALLBACK_ARRIVAL_EMAIL) {
+    await sendWithRetry(FALLBACK_ARRIVAL_EMAIL, "Promemoria di ripiego a Orazio");
+  }
+
+  if (delivered.length === 0) {
+    throw new Error(
+      "Nessuna email promemoria inviata: " +
+        failures.map((item) => item.email + " (" + item.error + ")").join(", ")
+    );
+  }
+
+  if (failures.length > 0) {
+    console.warn("Alcuni destinatari non hanno ricevuto il promemoria:", failures);
+  }
+
+  return delivered;
+}
+
+async function loadCheckoutBookings(adminDb, today) {
   const snapshot = await adminDb
     .collection("bookings")
     .where("checkOut", "==", today)
@@ -42,9 +120,6 @@ const checkoutCode = `async function loadCheckoutBookings(adminDb, today) {
 }
 
 async function sendCheckoutReminderEmail(adminDb, today, departures) {
-  const primaryEmail = await getPrimaryNotificationEmail(adminDb);
-  const recipients = splitEmails(primaryEmail, BROTHER_ARRIVAL_EMAIL);
-
   const rowsText = departures
     .map((booking) =>
       [
@@ -74,7 +149,7 @@ async function sendCheckoutReminderEmail(adminDb, today, departures) {
     '<pre style="white-space:pre-wrap;background:#faf6ee;padding:14px;border-radius:12px;">' + escapeHtml(rowsText) + '</pre>' +
     '</div>';
 
-  await sendResendEmail({ to: recipients, subject, text, html });
+  const recipients = await sendReminderEmailWithFallback(adminDb, { subject, text, html });
   return recipients.join(", ");
 }
 
@@ -154,6 +229,24 @@ async function runCheckoutReminder(options = {}) {
 
 source = source.replace(insertionPoint, checkoutCode + insertionPoint);
 
+const arrivalRecipientsBlock = `  const primaryEmail = await getPrimaryNotificationEmail(adminDb);
+  const recipients = splitEmails(primaryEmail, BROTHER_ARRIVAL_EMAIL);
+
+`;
+if (!source.includes(arrivalRecipientsBlock)) {
+  throw new Error("Destinatari promemoria arrivi non trovati.");
+}
+source = source.replace(arrivalRecipientsBlock, "");
+
+const arrivalSendBlock = `  await sendResendEmail({ to: recipients, subject, text, html });
+  return recipients.join(", ");`;
+const arrivalSendReplacement = `  const recipients = await sendReminderEmailWithFallback(adminDb, { subject, text, html });
+  return recipients.join(", ");`;
+if (!source.includes(arrivalSendBlock)) {
+  throw new Error("Invio promemoria arrivi non trovato.");
+}
+source = source.replace(arrivalSendBlock, arrivalSendReplacement);
+
 const modeBlock = `      const result = await runArrivalReminder({
         send: String(req.query?.send || "") === "1",
         source: "manual_api",
@@ -223,4 +316,4 @@ if (!source.includes(automaticReturn)) {
 source = source.replace(automaticReturn, automaticReturnReplacement);
 
 fs.writeFileSync(filePath, source);
-console.log("Promemoria check-out aggiunto al cron esistente.");
+console.log("Promemoria arrivi e check-out aggiornati con destinatario principale e fallback.");
