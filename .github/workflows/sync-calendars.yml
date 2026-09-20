@@ -2,6 +2,13 @@ name: Sync calendari Gelone
 
 on:
   workflow_dispatch:
+  schedule:
+    # GitHub Actions usa UTC. La sincronizzazione non dipende dall'ora locale.
+    - cron: "*/15 * * * *"
+
+concurrency:
+  group: gelone-calendar-sync
+  cancel-in-progress: false
 
 jobs:
   sync-calendars:
@@ -21,7 +28,7 @@ jobs:
             exit 1
           fi
 
-          response="$(curl -sS -w '\nHTTP_STATUS:%{http_code}' \
+          response="$(curl --retry 2 --retry-delay 5 --connect-timeout 15 --max-time 120 -sS -w '\nHTTP_STATUS:%{http_code}' \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             -H "User-Agent: github-actions-calendar-sync" \
             "https://www.gelone.it/api/cron-sync-calendars")"
@@ -30,8 +37,8 @@ jobs:
 
           status="$(echo "$response" | sed -n 's/^HTTP_STATUS://p')"
 
-          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
-            echo "ERRORE: sincronizzazione fallita con HTTP $status"
+          if [ -z "$status" ] || [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            echo "ERRORE: sincronizzazione fallita con HTTP ${status:-sconosciuto}"
             exit 1
           fi
 
