@@ -71,3 +71,25 @@ test("l'admin ha una modalità iPhone-first con navigazione rapida", () => {
   assert.match(main, /pms-mobile\.css/);
   assert.match(pkg, /pms-v2-mobile-first\.mjs/);
 });
+
+test("tutte le pagine PMS ricevono il trattamento responsive mobile", () => {
+  const pagesPatch = read("scripts/pms-v2-mobile-pages.mjs");
+  const mobileCss = read("src/pms-mobile.css");
+  const pkg = read("package.json");
+
+  for (const tab of [
+    "dashboard", "structure", "availability", "calendar", "new", "economy",
+    "checks", "backup", "checkin", "preparation", "quality", "internal",
+    "block", "units", "settings", "maintenance", "logs", "visits",
+  ]) {
+    assert.match(pagesPatch, new RegExp(`\\"${tab}\\"`));
+  }
+
+  assert.match(pagesPatch, /pms-responsive-table/);
+  assert.match(pagesPatch, /data-label/);
+  assert.match(pagesPatch, /querySelectorAll\("\.pms-admin \.pms-page table"\)/);
+  assert.match(mobileCss, /pms-page:not\(\.pms-page-availability\) \.pms-responsive-table/);
+  assert.match(mobileCss, /content: attr\(data-label\)/);
+  assert.match(mobileCss, /pms-page-availability \.pms-responsive-table/);
+  assert.match(pkg, /pms-v2-mobile-pages\.mjs/);
+});
