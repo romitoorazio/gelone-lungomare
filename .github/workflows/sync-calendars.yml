@@ -6,6 +6,10 @@ on:
     # GitHub Actions usa UTC. La sincronizzazione non dipende dall'ora locale.
     - cron: "*/15 * * * *"
 
+permissions:
+  contents: read
+  id-token: write
+
 concurrency:
   group: gelone-calendar-sync
   cancel-in-progress: false
@@ -17,19 +21,23 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Chiama endpoint sincronizzazione calendari
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      - name: Chiama endpoint sincronizzazione calendari con OIDC GitHub
         run: |
           set -euo pipefail
 
-          if [ -z "${CRON_SECRET}" ]; then
-            echo "ERRORE: secret GitHub CRON_SECRET mancante."
+          oidc_response="$(curl --retry 2 --retry-delay 3 --connect-timeout 15 --max-time 60 -sS \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https%3A%2F%2Fwww.gelone.it")"
+
+          oidc_token="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("value", ""))' "$oidc_response")"
+
+          if [ -z "$oidc_token" ]; then
+            echo "ERRORE: token OIDC GitHub non disponibile."
             exit 1
           fi
 
           response="$(curl --retry 2 --retry-delay 5 --connect-timeout 15 --max-time 120 -sS -w '\nHTTP_STATUS:%{http_code}' \
-            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Authorization: Bearer ${oidc_token}" \
             -H "User-Agent: github-actions-calendar-sync" \
             "https://www.gelone.it/api/cron-sync-calendars")"
 
