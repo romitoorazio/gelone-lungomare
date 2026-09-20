@@ -258,6 +258,244 @@
     gap: 0.65rem !important;
   }
 
+  /* Tutte le pagine admin hanno una shell mobile coerente. */
+  .pms-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .pms-page > div,
+  .pms-page > form {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .pms-page h2 {
+    font-size: 1.65rem !important;
+    line-height: 1.08 !important;
+  }
+
+  .pms-page h3 {
+    font-size: 1.35rem !important;
+    line-height: 1.12 !important;
+  }
+
+  .pms-page input,
+  .pms-page select,
+  .pms-page textarea,
+  .pms-page button,
+  .pms-page a {
+    min-width: 0;
+  }
+
+  .pms-page form > button[type="submit"],
+  .pms-page form > div > button[type="submit"] {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Ricerca e filtri prenotazioni: impilati, senza larghezze desktop residue. */
+  .pms-page-calendar input[placeholder*="Cerca ospite"] {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .pms-page-calendar input[placeholder*="Cerca ospite"] + * {
+    min-width: 0;
+  }
+
+  .pms-page-calendar select {
+    width: 100%;
+  }
+
+  .pms-page-calendar .relative {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Coppie input + pulsante (iCal, copia link, ecc.) non possono uscire dallo schermo. */
+  .pms-page .flex.gap-3 > input,
+  .pms-page .flex.gap-2 > input {
+    flex: 1 1 auto;
+    width: auto !important;
+    min-width: 0 !important;
+  }
+
+  .pms-page .flex.gap-3 > button,
+  .pms-page .flex.gap-2 > button {
+    flex: 0 0 auto;
+  }
+
+  /* Tutte le tabelle operative diventano card su iPhone. Le etichette vengono prese in runtime dal thead. */
+  .pms-page:not(.pms-page-availability) .overflow-x-auto {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    overflow: visible !important;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    font-size: 0.92rem !important;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table colgroup,
+  .pms-page:not(.pms-page-availability) .pms-responsive-table thead {
+    display: none !important;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody {
+    display: grid !important;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody tr {
+    display: block !important;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #e4d8c2 !important;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 5px 15px rgba(10, 29, 53, 0.05);
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td {
+    position: static !important;
+    z-index: auto !important;
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.8rem;
+    border: 0 !important;
+    border-bottom: 1px solid #f0e6d5 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0.68rem 0.78rem !important;
+    text-align: right;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child {
+    border-bottom: 0 !important;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 38%;
+    max-width: 38%;
+    color: #9b6b25;
+    font-size: 0.68rem;
+    font-weight: 900;
+    line-height: 1.25;
+    letter-spacing: 0.08em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td[colspan] {
+    display: block !important;
+    padding: 1rem !important;
+    text-align: center;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td[colspan]::before {
+    display: none;
+    content: none;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td > .flex,
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td > div {
+    max-width: 62%;
+    justify-content: flex-end;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child > .flex,
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child > div {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child {
+    display: block !important;
+    text-align: left;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child::before {
+    display: block;
+    max-width: 100%;
+    margin-bottom: 0.55rem;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child button,
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child a {
+    min-height: 42px;
+  }
+
+  /* Calendario disponibilità: resta una matrice, ma più compatta e scorrevole con la data sempre visibile. */
+  .pms-page-availability .max-h-\[640px\] {
+    max-width: 100%;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-inline: contain;
+  }
+
+  .pms-page-availability .pms-responsive-table {
+    width: max-content !important;
+    min-width: 100% !important;
+    font-size: 0.78rem !important;
+  }
+
+  .pms-page-availability .pms-responsive-table th:first-child,
+  .pms-page-availability .pms-responsive-table td:first-child {
+    width: 92px !important;
+    min-width: 92px !important;
+    max-width: 92px !important;
+  }
+
+  .pms-page-availability .pms-responsive-table th:not(:first-child),
+  .pms-page-availability .pms-responsive-table td:not(:first-child) {
+    width: 168px !important;
+    min-width: 168px !important;
+    max-width: 168px !important;
+  }
+
+  .pms-page-availability .pms-responsive-table td button {
+    min-height: 72px !important;
+    padding: 0.65rem !important;
+  }
+
+  /* Pagine con testi tecnici / URL lunghi. */
+  .pms-page-settings,
+  .pms-page-units,
+  .pms-page-maintenance,
+  .pms-page-logs,
+  .pms-page-visits {
+    overflow-wrap: anywhere;
+  }
+
+  .pms-page-settings input,
+  .pms-page-units input {
+    text-overflow: ellipsis;
+  }
+
+  .pms-page-units img {
+    width: 100%;
+  }
+
   .pms-mobile-nav {
     position: fixed;
     z-index: 70;
@@ -304,5 +542,15 @@
 
   .pms-top-stats {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .pms-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .pms-page .overflow-x-auto {
+    max-width: 100%;
   }
 }
