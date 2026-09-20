@@ -1,0 +1,259 @@
+.pms-mobile-nav {
+  display: none;
+}
+
+.pms-admin,
+.pms-admin * {
+  box-sizing: border-box;
+}
+
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .pms-admin {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .pms-admin-header {
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  .pms-admin-header-inner {
+    width: 100%;
+    max-width: none !important;
+    min-width: 0;
+    gap: 0.65rem !important;
+    padding: 0.7rem 0.75rem !important;
+  }
+
+  .pms-admin-header-inner > div {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pms-admin-header-inner > div:first-child > p:first-child {
+    font-size: 0.64rem !important;
+    line-height: 1.1 !important;
+    letter-spacing: 0.24em !important;
+  }
+
+  .pms-admin-header-inner h1 {
+    margin-top: 0.12rem;
+    font-size: 1.45rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .pms-admin-header-inner > div:first-child > p:last-child {
+    margin-top: 0.18rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.72rem !important;
+  }
+
+  .pms-admin-header-inner > div:last-child {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto 44px;
+    width: 100%;
+    min-width: 0;
+    gap: 0.45rem !important;
+    overflow: visible !important;
+    padding-bottom: 0 !important;
+  }
+
+  .pms-admin-header-inner > div:last-child select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.62rem 0.72rem !important;
+    font-size: 0.8rem !important;
+    line-height: 1.1;
+  }
+
+  .pms-admin-header-inner > div:last-child > a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.62rem 0.8rem !important;
+    white-space: nowrap;
+    font-size: 0.78rem !important;
+  }
+
+  .pms-admin-header-inner > div:last-child > button {
+    display: inline-flex;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 0 !important;
+    overflow: hidden;
+    padding: 0 !important;
+    font-size: 0 !important;
+  }
+
+  .pms-admin-header-inner > div:last-child > button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .pms-admin-shell {
+    width: 100%;
+    max-width: none !important;
+    min-width: 0;
+    overflow: visible;
+    padding: 0.8rem 0.75rem 1.4rem !important;
+  }
+
+  .pms-top-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.6rem !important;
+  }
+
+  .pms-top-stats > * {
+    min-width: 0;
+    overflow: hidden;
+    padding: 0.8rem !important;
+  }
+
+  .pms-top-stats > *:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .pms-top-stats p,
+  .pms-top-stats div {
+    overflow-wrap: anywhere;
+  }
+
+  .pms-tab-strip {
+    display: flex !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex-wrap: nowrap !important;
+    gap: 0.5rem !important;
+    margin-top: 0.75rem !important;
+    overflow-x: auto !important;
+    overscroll-behavior-inline: contain;
+    padding: 0 0 0.35rem !important;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pms-tab-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pms-tab-strip > * {
+    flex: 0 0 auto !important;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
+
+  .pms-admin section,
+  .pms-admin section > div,
+  .pms-admin .grid,
+  .pms-admin form {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .pms-admin section.mt-8 {
+    margin-top: 1rem !important;
+  }
+
+  .pms-admin .overflow-x-auto {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .pms-admin input,
+  .pms-admin select,
+  .pms-admin textarea {
+    max-width: 100%;
+  }
+
+  .pms-admin .p-6 {
+    padding: 0.9rem !important;
+  }
+
+  .pms-admin .p-5 {
+    padding: 0.8rem !important;
+  }
+
+  .pms-admin .gap-6 {
+    gap: 0.85rem !important;
+  }
+
+  .pms-admin .gap-5 {
+    gap: 0.75rem !important;
+  }
+
+  .pms-admin .gap-4 {
+    gap: 0.65rem !important;
+  }
+
+  .pms-mobile-nav {
+    position: fixed;
+    z-index: 70;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+    border-top: 1px solid #d8c7a6;
+    background: rgba(250, 246, 238, 0.97);
+    box-shadow: 0 -10px 28px rgba(10, 29, 53, 0.12);
+    padding: 0.42rem 0.45rem max(0.42rem, env(safe-area-inset-bottom, 0px));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .pms-mobile-nav button {
+    min-width: 0;
+    min-height: 50px;
+    border: 0;
+    border-radius: 0.9rem;
+    background: transparent;
+    color: #0a1d35;
+    padding: 0.4rem 0.28rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1.05;
+    text-align: center;
+  }
+
+  .pms-mobile-nav button.is-active {
+    background: #0a1d35;
+    color: #fff;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .pms-admin-header-inner,
+  .pms-admin-shell {
+    width: 100%;
+    max-width: none !important;
+  }
+
+  .pms-top-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
