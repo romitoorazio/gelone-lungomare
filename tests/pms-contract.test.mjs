@@ -54,3 +54,20 @@ test("la migrazione sicurezza riusa il cron esistente e cancella i campi pubblic
   assert.match(migration, /privateSettings/);
   assert.match(migration, /saveCronSyncLog/);
 });
+
+test("l'admin ha una modalità iPhone-first con navigazione rapida", () => {
+  const mobilePatch = read("scripts/pms-v2-mobile-first.mjs");
+  const mobileCss = read("src/pms-mobile.css");
+  const main = read("src/main.jsx");
+  const pkg = read("package.json");
+
+  assert.match(mobilePatch, /pms-admin-shell/);
+  assert.match(mobilePatch, /pms-mobile-nav/);
+  assert.match(mobilePatch, /Calendario/);
+  assert.match(mobilePatch, /Prenotazioni/);
+  assert.match(mobileCss, /@media \(max-width: 767px\)/);
+  assert.match(mobileCss, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(mobileCss, /env\(safe-area-inset-bottom/);
+  assert.match(main, /pms-mobile\.css/);
+  assert.match(pkg, /pms-v2-mobile-first\.mjs/);
+});
