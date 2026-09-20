@@ -120,34 +120,44 @@ async function verifyGithubActionsOidc(authorization) {
 
 replaceOnce(headerBlock, oidcHelpers, "verifica GitHub Actions OIDC");
 
-const oldAuthBlock = `  const authorizedByCron =
+const oldAuthBlock = `  const vercelCronSchedule = getHeader(req, "x-vercel-cron-schedule");
+  const userAgent = getHeader(req, "user-agent");
+  const authorizedByCron =
     Boolean(cronSecret) && authorization === \`Bearer \${cronSecret}\`;
   const authorizedBySync =
     Boolean(syncSecret) &&
     (authorization === \`Bearer \${syncSecret}\` ||
       xSyncSecret === syncSecret ||
       querySecret === syncSecret);
+  const authorizedByVercelCron =
+    ["0 5 * * *", "5 5 * * *"].includes(vercelCronSchedule) &&
+    userAgent.toLowerCase().includes("vercel-cron");
 
-  if (!authorizedByCron && !authorizedBySync) {
+  if (!authorizedByCron && !authorizedBySync && !authorizedByVercelCron) {
     return json(res, 401, { ok: false, message: "Cron non autorizzato." });
   }`;
 
-const newAuthBlock = `  const authorizedByCron =
+const newAuthBlock = `  const vercelCronSchedule = getHeader(req, "x-vercel-cron-schedule");
+  const userAgent = getHeader(req, "user-agent");
+  const authorizedByCron =
     Boolean(cronSecret) && authorization === \`Bearer \${cronSecret}\`;
   const authorizedBySync =
     Boolean(syncSecret) &&
     (authorization === \`Bearer \${syncSecret}\` ||
       xSyncSecret === syncSecret ||
       querySecret === syncSecret);
-
+  const authorizedByVercelCron =
+    ["0 5 * * *", "5 5 * * *"].includes(vercelCronSchedule) &&
+    userAgent.toLowerCase().includes("vercel-cron");
   const authorizedByGithubOidc =
     !authorizedByCron &&
     !authorizedBySync &&
+    !authorizedByVercelCron &&
     authorization.startsWith("Bearer ")
       ? await verifyGithubActionsOidc(authorization)
       : false;
 
-  if (!authorizedByCron && !authorizedBySync && !authorizedByGithubOidc) {
+  if (!authorizedByCron && !authorizedBySync && !authorizedByVercelCron && !authorizedByGithubOidc) {
     return json(res, 401, { ok: false, message: "Cron non autorizzato." });
   }`;
 
