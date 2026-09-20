@@ -14,6 +14,7 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -33,6 +34,13 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
 img {
   max-width: 100%;
   display: block;
@@ -43,9 +51,11 @@ img {
   color: #0a1d35;
 }
 
-/* Fix tabelle PMS admin su iPhone/Safari. */
+/* Tabelle PMS: scroll fluido e leggibile anche da touch. */
 .overflow-x-auto {
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
 }
 
 .overflow-x-auto > table {
@@ -113,25 +123,134 @@ img {
   width: 130px;
 }
 
+/* iPhone / smartphone: niente zoom sui form, target touch da 44px e tabelle meno larghe. */
 @media (max-width: 640px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  button,
+  [role="button"],
+  select {
+    min-height: 44px;
+  }
+
+  .overflow-x-auto {
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    scroll-snap-type: x proximity;
+  }
+
   .overflow-x-auto > table {
-    min-width: 1180px;
-    font-size: 0.95rem;
+    min-width: 920px;
+    font-size: 0.9rem;
   }
 
   .overflow-x-auto th,
   .overflow-x-auto td {
-    padding-left: 0.9rem !important;
-    padding-right: 0.9rem !important;
+    padding-left: 0.65rem !important;
+    padding-right: 0.65rem !important;
+  }
+
+  .overflow-x-auto th:first-child,
+  .overflow-x-auto td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: inherit;
+    box-shadow: 10px 0 16px -16px rgba(10, 29, 53, 0.75);
+  }
+
+  .overflow-x-auto thead th:first-child {
+    z-index: 3;
+  }
+
+  .overflow-x-auto > table.min-w-\[1250px\] {
+    min-width: 980px;
+  }
+
+  .overflow-x-auto > table.min-w-\[1250px\] th:nth-child(1),
+  .overflow-x-auto > table.min-w-\[1250px\] td:nth-child(1),
+  .overflow-x-auto > table.min-w-\[1250px\] th:nth-child(2),
+  .overflow-x-auto > table.min-w-\[1250px\] td:nth-child(2) {
+    width: 112px;
   }
 
   .overflow-x-auto > table.min-w-\[1250px\] th:nth-child(4),
   .overflow-x-auto > table.min-w-\[1250px\] td:nth-child(4) {
-    width: 300px;
+    width: 230px;
   }
 
   .overflow-x-auto > table.min-w-\[1250px\] th:nth-child(5),
   .overflow-x-auto > table.min-w-\[1250px\] td:nth-child(5) {
-    width: 140px;
+    width: 128px;
+  }
+
+  /* Le barre di pulsanti diventano scorrevoli invece di creare righe altissime. */
+  .flex.flex-wrap.gap-3 {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.35rem;
+    scrollbar-width: none;
+  }
+
+  .flex.flex-wrap.gap-3::-webkit-scrollbar {
+    display: none;
+  }
+
+  .flex.flex-wrap.gap-3 > button,
+  .flex.flex-wrap.gap-3 > a {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  /* Card e pannelli admin respirano di più sullo schermo stretto. */
+  .rounded-\[2rem\] {
+    border-radius: 1.25rem !important;
+  }
+
+  .rounded-\[1\.5rem\] {
+    border-radius: 1rem !important;
+  }
+
+  .p-6 {
+    padding: 1rem !important;
+  }
+
+  .p-5 {
+    padding: 0.9rem !important;
+  }
+
+  .text-4xl {
+    font-size: 2rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .text-3xl {
+    font-size: 1.65rem !important;
+    line-height: 1.15 !important;
+  }
+}
+
+/* Safe-area iPhone con notch / Dynamic Island. */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  @media (max-width: 640px) {
+    body {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
   }
 }
