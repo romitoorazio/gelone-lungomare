@@ -39,6 +39,22 @@ test("la sincronizzazione OTA è programmata ogni 15 minuti", () => {
   assert.match(workflow, /cancel-in-progress: false/);
 });
 
+test("la sincronizzazione GitHub usa OIDC e non dipende più dal secret condiviso", () => {
+  const workflow = read(".github/workflows/sync-calendars.yml");
+  const oidcPatch = read("scripts/pms-v2-github-oidc.mjs");
+  const pkg = read("package.json");
+
+  assert.match(workflow, /id-token: write/);
+  assert.match(workflow, /ACTIONS_ID_TOKEN_REQUEST_TOKEN/);
+  assert.match(workflow, /audience=https%3A%2F%2Fwww\.gelone\.it/);
+  assert.doesNotMatch(workflow, /secrets\.CRON_SECRET/);
+  assert.match(oidcPatch, /verifyGithubActionsOidc/);
+  assert.match(oidcPatch, /token\.actions\.githubusercontent\.com/);
+  assert.match(oidcPatch, /romitoorazio\/gelone-lungomare/);
+  assert.match(oidcPatch, /refs\/heads\/main/);
+  assert.match(pkg, /pms-v2-github-oidc\.mjs/);
+});
+
 test("l'hardening rimuove il Wi-Fi dal documento pubblico e corregge il click Pulizie", () => {
   const hardening = read("scripts/pms-v2-hardening.mjs");
   assert.match(hardening, /revenue management pubblico senza Wi-Fi/);
