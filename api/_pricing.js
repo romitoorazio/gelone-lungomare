@@ -42,6 +42,18 @@ function parseUtcDate(value) {
   return new Date(Date.UTC(year, month - 1, day));
 }
 
+export function getNightDatesBetween(checkIn, checkOut) {
+  if (!isIsoDate(checkIn) || !isIsoDate(checkOut) || checkOut <= checkIn) return [];
+  const cursor = parseUtcDate(checkIn);
+  const end = parseUtcDate(checkOut);
+  const nights = [];
+  while (cursor < end) {
+    nights.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return nights;
+}
+
 function daysFromToday(dateString) {
   const date = parseUtcDate(dateString);
   if (!date) return Number.POSITIVE_INFINITY;
@@ -62,6 +74,30 @@ function isHighSeasonNight(dateString, pricing) {
     return false;
   }
   return dateString >= pricing.highSeasonStart && dateString <= pricing.highSeasonEnd;
+}
+
+function normalizeNightInput(input) {
+  if (Array.isArray(input)) {
+    const dates = input.filter(isIsoDate);
+    return { nightDates: dates, nightsCount: dates.length };
+  }
+
+  if (input && typeof input === "object") {
+    const directDates = Array.isArray(input.nights) ? input.nights.filter(isIsoDate) : [];
+    const derivedDates = directDates.length > 0
+      ? directDates
+      : getNightDatesBetween(input.checkIn, input.checkOut);
+    if (derivedDates.length > 0) {
+      return { nightDates: derivedDates, nightsCount: derivedDates.length };
+    }
+    const count = Math.max(0, Math.round(Number(input.nightsCount || 0)));
+    return { nightDates: [], nightsCount: count };
+  }
+
+  return {
+    nightDates: [],
+    nightsCount: Math.max(0, Math.round(Number(input || 0))),
+  };
 }
 
 export async function loadServerPricing(adminDb, unitId = DEFAULT_UNIT_ID) {
@@ -116,10 +152,11 @@ export function calculateNightlyBreakdown(pricing, nightDates = []) {
   return dates.map((date) => {
     const highSeason = isHighSeasonNight(date, pricing) && pricing.highSeasonNightlyRate > 0;
     const weekend = isWeekendNight(date) && pricing.weekendSurcharge > 0;
+    const daysAhead = daysFromToday(date);
     const lastMinute =
       pricing.lastMinuteDiscountPercent > 0 &&
-      daysFromToday(date) >= 0 &&
-      daysFromToday(date) <= pricing.lastMinuteDays;
+      daysAhead >= 0 &&
+      daysAhead <= pricing.lastMinuteDays;
 
     let rate = highSeason ? pricing.highSeasonNightlyRate : pricing.nightlyRate;
     if (weekend) rate += pricing.weekendSurcharge;
@@ -140,12 +177,11 @@ export function calculateNightlyBreakdown(pricing, nightDates = []) {
   });
 }
 
-export async function calculateServerBookingPricing(adminDb, unitId, nightsOrCount) {
+export async function calculateServerBookingPricing(adminDb, unitId, nightsOrBooking) {
   const pricing = await loadServerPricing(adminDb, unitId);
-  const nightDates = Array.isArray(nightsOrCount) ? nightsOrCount.filter(isIsoDate) : [];
-  const nights = nightDates.length > 0
-    ? nightDates.length
-    : Math.max(0, Math.round(Number(nightsOrCount || 0)));
+  const normalized = normalizeNightInput(nightsOrBooking);
+  const nightDates = normalized.nightDates;
+  const nights = normalized.nightsCount;
 
   const nightlyBreakdown = nightDates.length > 0 ? calculateNightlyBreakdown(pricing, nightDates) : [];
   const subtotal = nightlyBreakdown.length > 0
