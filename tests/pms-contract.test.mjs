@@ -41,14 +41,16 @@ test("la sincronizzazione OTA è programmata ogni 15 minuti", () => {
 
 test("l'hardening rimuove il Wi-Fi dal documento pubblico e corregge il click Pulizie", () => {
   const hardening = read("scripts/pms-v2-hardening.mjs");
-  assert.match(hardening, /rimozione Wi-Fi dalle impostazioni pubbliche/);
+  assert.match(hardening, /revenue management pubblico senza Wi-Fi/);
   assert.match(hardening, /salvataggio Wi-Fi in privateSettings/);
   assert.match(hardening, /openBookingFromDashboard\(booking, "calendar"\)/);
 });
 
-test("l'endpoint di migrazione elimina credenziali dal documento pubblico", () => {
-  const migration = read("api/migrate-private-settings.js");
+test("la migrazione sicurezza riusa il cron esistente e cancella i campi pubblici", () => {
+  const migration = read("scripts/pms-v2-security-migration.mjs");
+  assert.match(migration, /migrateSensitivePmsSettings/);
   assert.match(migration, /FieldValue\.delete\(\)/);
   assert.match(migration, /wifiPassword/);
   assert.match(migration, /privateSettings/);
+  assert.match(migration, /saveCronSyncLog/);
 });
