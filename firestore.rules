@@ -47,13 +47,16 @@ service cloud.firestore {
         || bookingAfterNoLongerUsesNight(resource.data.bookingId);
     }
 
-    match /settings/{document=**} {
-      allow read: if true;
+    // Il sito pubblico legge solo i documenti necessari a unità, prezzi e disponibilità.
+    // Qualsiasi altra impostazione resta chiusa per default.
+    match /settings/{settingId} {
+      allow read: if settingId == "pms"
+        || settingId == "units"
+        || settingId.matches('pms_.*');
       allow write: if isAdmin();
     }
 
-    // Qui salviamo dati riservati admin, come i link iCal Booking/Airbnb.
-    // Non devono essere leggibili pubblicamente dal sito.
+    // Dati riservati admin: link iCal, Wi-Fi, codici accesso e contatti interni.
     match /privateSettings/{document=**} {
       allow read, write: if isAdmin();
     }
