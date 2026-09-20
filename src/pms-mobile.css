@@ -1,0 +1,556 @@
+.pms-mobile-nav {
+  display: none;
+}
+
+.pms-admin,
+.pms-admin * {
+  box-sizing: border-box;
+}
+
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .pms-admin {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .pms-admin-header {
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  .pms-admin-header-inner {
+    width: 100%;
+    max-width: none !important;
+    min-width: 0;
+    gap: 0.65rem !important;
+    padding: 0.7rem 0.75rem !important;
+  }
+
+  .pms-admin-header-inner > div {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pms-admin-header-inner > div:first-child > p:first-child {
+    font-size: 0.64rem !important;
+    line-height: 1.1 !important;
+    letter-spacing: 0.24em !important;
+  }
+
+  .pms-admin-header-inner h1 {
+    margin-top: 0.12rem;
+    font-size: 1.45rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .pms-admin-header-inner > div:first-child > p:last-child {
+    margin-top: 0.18rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.72rem !important;
+  }
+
+  .pms-admin-header-inner > div:last-child {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto 44px;
+    width: 100%;
+    min-width: 0;
+    gap: 0.45rem !important;
+    overflow: visible !important;
+    padding-bottom: 0 !important;
+  }
+
+  .pms-admin-header-inner > div:last-child select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.62rem 0.72rem !important;
+    font-size: 0.8rem !important;
+    line-height: 1.1;
+  }
+
+  .pms-admin-header-inner > div:last-child > a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.62rem 0.8rem !important;
+    white-space: nowrap;
+    font-size: 0.78rem !important;
+  }
+
+  .pms-admin-header-inner > div:last-child > button {
+    display: inline-flex;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 0 !important;
+    overflow: hidden;
+    padding: 0 !important;
+    font-size: 0 !important;
+  }
+
+  .pms-admin-header-inner > div:last-child > button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .pms-admin-shell {
+    width: 100%;
+    max-width: none !important;
+    min-width: 0;
+    overflow: visible;
+    padding: 0.8rem 0.75rem 1.4rem !important;
+  }
+
+  .pms-top-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.6rem !important;
+  }
+
+  .pms-top-stats > * {
+    min-width: 0;
+    overflow: hidden;
+    padding: 0.8rem !important;
+  }
+
+  .pms-top-stats > *:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .pms-top-stats p,
+  .pms-top-stats div {
+    overflow-wrap: anywhere;
+  }
+
+  .pms-tab-strip {
+    display: flex !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex-wrap: nowrap !important;
+    gap: 0.5rem !important;
+    margin-top: 0.75rem !important;
+    overflow-x: auto !important;
+    overscroll-behavior-inline: contain;
+    padding: 0 0 0.35rem !important;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pms-tab-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pms-tab-strip > * {
+    flex: 0 0 auto !important;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
+
+  /* Le azioni operative devono restare cliccabili e visibili: soltanto la barra tab scorre in orizzontale. */
+  .pms-admin .flex.flex-wrap.gap-3:not(.pms-tab-strip) {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+    max-width: 100%;
+    min-width: 0;
+    padding-bottom: 0 !important;
+  }
+
+  .pms-admin .flex.flex-wrap.gap-3:not(.pms-tab-strip) > button,
+  .pms-admin .flex.flex-wrap.gap-3:not(.pms-tab-strip) > a {
+    flex: 1 1 145px !important;
+    max-width: 100%;
+    white-space: normal !important;
+  }
+
+  /* Le card tipo 'Controllare WelcoMate / Pulizie / Attività future' non devono spingere il tasto Apri fuori schermo. */
+  .pms-admin .flex.items-center.justify-between,
+  .pms-admin .flex.items-start.justify-between {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap !important;
+    gap: 0.7rem !important;
+  }
+
+  .pms-admin .flex.items-center.justify-between > :first-child,
+  .pms-admin .flex.items-start.justify-between > :first-child {
+    flex: 1 1 190px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .pms-admin .flex.items-center.justify-between > button,
+  .pms-admin .flex.items-center.justify-between > a,
+  .pms-admin .flex.items-start.justify-between > button,
+  .pms-admin .flex.items-start.justify-between > a {
+    flex: 0 0 auto !important;
+    max-width: 100%;
+  }
+
+  .pms-admin h1,
+  .pms-admin h2,
+  .pms-admin h3,
+  .pms-admin h4,
+  .pms-admin p {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .pms-admin section,
+  .pms-admin section > div,
+  .pms-admin .grid,
+  .pms-admin form {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .pms-admin section.mt-8 {
+    margin-top: 1rem !important;
+  }
+
+  .pms-admin .overflow-x-auto {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .pms-admin input,
+  .pms-admin select,
+  .pms-admin textarea {
+    max-width: 100%;
+  }
+
+  .pms-admin .p-6 {
+    padding: 0.9rem !important;
+  }
+
+  .pms-admin .p-5 {
+    padding: 0.8rem !important;
+  }
+
+  .pms-admin .gap-6 {
+    gap: 0.85rem !important;
+  }
+
+  .pms-admin .gap-5 {
+    gap: 0.75rem !important;
+  }
+
+  .pms-admin .gap-4 {
+    gap: 0.65rem !important;
+  }
+
+  /* Tutte le pagine admin hanno una shell mobile coerente. */
+  .pms-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .pms-page > div,
+  .pms-page > form {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .pms-page h2 {
+    font-size: 1.65rem !important;
+    line-height: 1.08 !important;
+  }
+
+  .pms-page h3 {
+    font-size: 1.35rem !important;
+    line-height: 1.12 !important;
+  }
+
+  .pms-page input,
+  .pms-page select,
+  .pms-page textarea,
+  .pms-page button,
+  .pms-page a {
+    min-width: 0;
+  }
+
+  .pms-page form > button[type="submit"],
+  .pms-page form > div > button[type="submit"] {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Ricerca e filtri prenotazioni: impilati, senza larghezze desktop residue. */
+  .pms-page-calendar input[placeholder*="Cerca ospite"] {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .pms-page-calendar input[placeholder*="Cerca ospite"] + * {
+    min-width: 0;
+  }
+
+  .pms-page-calendar select {
+    width: 100%;
+  }
+
+  .pms-page-calendar .relative {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Coppie input + pulsante (iCal, copia link, ecc.) non possono uscire dallo schermo. */
+  .pms-page .flex.gap-3 > input,
+  .pms-page .flex.gap-2 > input {
+    flex: 1 1 auto;
+    width: auto !important;
+    min-width: 0 !important;
+  }
+
+  .pms-page .flex.gap-3 > button,
+  .pms-page .flex.gap-2 > button {
+    flex: 0 0 auto;
+  }
+
+  /* Tutte le tabelle operative diventano card su iPhone. Le etichette vengono prese in runtime dal thead. */
+  .pms-page:not(.pms-page-availability) .overflow-x-auto {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    overflow: visible !important;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    font-size: 0.92rem !important;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table colgroup,
+  .pms-page:not(.pms-page-availability) .pms-responsive-table thead {
+    display: none !important;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody {
+    display: grid !important;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody tr {
+    display: block !important;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid #e4d8c2 !important;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 5px 15px rgba(10, 29, 53, 0.05);
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td {
+    position: static !important;
+    z-index: auto !important;
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.8rem;
+    border: 0 !important;
+    border-bottom: 1px solid #f0e6d5 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0.68rem 0.78rem !important;
+    text-align: right;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child {
+    border-bottom: 0 !important;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 38%;
+    max-width: 38%;
+    color: #9b6b25;
+    font-size: 0.68rem;
+    font-weight: 900;
+    line-height: 1.25;
+    letter-spacing: 0.08em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td[colspan] {
+    display: block !important;
+    padding: 1rem !important;
+    text-align: center;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td[colspan]::before {
+    display: none;
+    content: none;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td > .flex,
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td > div {
+    max-width: 62%;
+    justify-content: flex-end;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child > .flex,
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child > div {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child {
+    display: block !important;
+    text-align: left;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child::before {
+    display: block;
+    max-width: 100%;
+    margin-bottom: 0.55rem;
+  }
+
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child button,
+  .pms-page:not(.pms-page-availability) .pms-responsive-table tbody td:last-child a {
+    min-height: 42px;
+  }
+
+  /* Calendario disponibilità: resta una matrice, ma più compatta e scorrevole con la data sempre visibile. */
+  .pms-page-availability .max-h-\[640px\] {
+    max-width: 100%;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-inline: contain;
+  }
+
+  .pms-page-availability .pms-responsive-table {
+    width: max-content !important;
+    min-width: 100% !important;
+    font-size: 0.78rem !important;
+  }
+
+  .pms-page-availability .pms-responsive-table th:first-child,
+  .pms-page-availability .pms-responsive-table td:first-child {
+    width: 92px !important;
+    min-width: 92px !important;
+    max-width: 92px !important;
+  }
+
+  .pms-page-availability .pms-responsive-table th:not(:first-child),
+  .pms-page-availability .pms-responsive-table td:not(:first-child) {
+    width: 168px !important;
+    min-width: 168px !important;
+    max-width: 168px !important;
+  }
+
+  .pms-page-availability .pms-responsive-table td button {
+    min-height: 72px !important;
+    padding: 0.65rem !important;
+  }
+
+  /* Pagine con testi tecnici / URL lunghi. */
+  .pms-page-settings,
+  .pms-page-units,
+  .pms-page-maintenance,
+  .pms-page-logs,
+  .pms-page-visits {
+    overflow-wrap: anywhere;
+  }
+
+  .pms-page-settings input,
+  .pms-page-units input {
+    text-overflow: ellipsis;
+  }
+
+  .pms-page-units img {
+    width: 100%;
+  }
+
+  .pms-mobile-nav {
+    position: fixed;
+    z-index: 70;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+    border-top: 1px solid #d8c7a6;
+    background: rgba(250, 246, 238, 0.97);
+    box-shadow: 0 -10px 28px rgba(10, 29, 53, 0.12);
+    padding: 0.42rem 0.45rem max(0.42rem, env(safe-area-inset-bottom, 0px));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .pms-mobile-nav button {
+    min-width: 0;
+    min-height: 50px;
+    border: 0;
+    border-radius: 0.9rem;
+    background: transparent;
+    color: #0a1d35;
+    padding: 0.4rem 0.28rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1.05;
+    text-align: center;
+  }
+
+  .pms-mobile-nav button.is-active {
+    background: #0a1d35;
+    color: #fff;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .pms-admin-header-inner,
+  .pms-admin-shell {
+    width: 100%;
+    max-width: none !important;
+  }
+
+  .pms-top-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .pms-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .pms-page .overflow-x-auto {
+    max-width: 100%;
+  }
+}

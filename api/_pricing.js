@@ -7,6 +7,13 @@ export const DEFAULT_PRICING = {
   depositPercent: 30,
   directRateText: "Miglior tariffa prenotando dal sito",
   directPaymentEnabled: false,
+  weekendSurcharge: 0,
+  lastMinuteDays: 3,
+  lastMinuteDiscountPercent: 0,
+  highSeasonStart: "",
+  highSeasonEnd: "",
+  highSeasonNightlyRate: 0,
+  highSeasonMinimumNights: 0,
 };
 
 export function getPricingSettingsDocId(unitId = DEFAULT_UNIT_ID) {
@@ -25,6 +32,74 @@ function roundMoney(value) {
   return Math.round(number * 100) / 100;
 }
 
+function isIsoDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+}
+
+function parseUtcDate(value) {
+  if (!isIsoDate(value)) return null;
+  const [year, month, day] = String(value).split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+export function getNightDatesBetween(checkIn, checkOut) {
+  if (!isIsoDate(checkIn) || !isIsoDate(checkOut) || checkOut <= checkIn) return [];
+  const cursor = parseUtcDate(checkIn);
+  const end = parseUtcDate(checkOut);
+  const nights = [];
+  while (cursor < end) {
+    nights.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return nights;
+}
+
+function daysFromToday(dateString) {
+  const date = parseUtcDate(dateString);
+  if (!date) return Number.POSITIVE_INFINITY;
+  const now = new Date();
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.floor((date.getTime() - todayUtc) / 86400000);
+}
+
+function isWeekendNight(dateString) {
+  const date = parseUtcDate(dateString);
+  if (!date) return false;
+  const day = date.getUTCDay();
+  return day === 5 || day === 6;
+}
+
+function isHighSeasonNight(dateString, pricing) {
+  if (!isIsoDate(dateString) || !isIsoDate(pricing.highSeasonStart) || !isIsoDate(pricing.highSeasonEnd)) {
+    return false;
+  }
+  return dateString >= pricing.highSeasonStart && dateString <= pricing.highSeasonEnd;
+}
+
+function normalizeNightInput(input) {
+  if (Array.isArray(input)) {
+    const dates = input.filter(isIsoDate);
+    return { nightDates: dates, nightsCount: dates.length };
+  }
+
+  if (input && typeof input === "object") {
+    const directDates = Array.isArray(input.nights) ? input.nights.filter(isIsoDate) : [];
+    const derivedDates = directDates.length > 0
+      ? directDates
+      : getNightDatesBetween(input.checkIn, input.checkOut);
+    if (derivedDates.length > 0) {
+      return { nightDates: derivedDates, nightsCount: derivedDates.length };
+    }
+    const count = Math.max(0, Math.round(Number(input.nightsCount || 0)));
+    return { nightDates: [], nightsCount: count };
+  }
+
+  return {
+    nightDates: [],
+    nightsCount: Math.max(0, Math.round(Number(input || 0))),
+  };
+}
+
 export async function loadServerPricing(adminDb, unitId = DEFAULT_UNIT_ID) {
   const settingsDocId = getPricingSettingsDocId(unitId);
   const snapshot = await adminDb.collection("settings").doc(settingsDocId).get();
@@ -37,6 +112,20 @@ export async function loadServerPricing(adminDb, unitId = DEFAULT_UNIT_ID) {
     100,
     Math.max(0, safeNumber(data.depositPercent, DEFAULT_PRICING.depositPercent))
   );
+  const weekendSurcharge = Math.max(0, safeNumber(data.weekendSurcharge, DEFAULT_PRICING.weekendSurcharge));
+  const lastMinuteDays = Math.max(0, Math.round(safeNumber(data.lastMinuteDays, DEFAULT_PRICING.lastMinuteDays)));
+  const lastMinuteDiscountPercent = Math.min(
+    60,
+    Math.max(0, safeNumber(data.lastMinuteDiscountPercent, DEFAULT_PRICING.lastMinuteDiscountPercent))
+  );
+  const highSeasonNightlyRate = Math.max(
+    0,
+    safeNumber(data.highSeasonNightlyRate, DEFAULT_PRICING.highSeasonNightlyRate)
+  );
+  const highSeasonMinimumNights = Math.max(
+    0,
+    Math.round(safeNumber(data.highSeasonMinimumNights, DEFAULT_PRICING.highSeasonMinimumNights))
+  );
 
   return {
     nightlyRate: roundMoney(nightlyRate),
@@ -45,24 +134,79 @@ export async function loadServerPricing(adminDb, unitId = DEFAULT_UNIT_ID) {
     depositPercent,
     directRateText: String(data.directRateText || DEFAULT_PRICING.directRateText).trim(),
     directPaymentEnabled: data.directPaymentEnabled === true,
+    weekendSurcharge: roundMoney(weekendSurcharge),
+    lastMinuteDays,
+    lastMinuteDiscountPercent,
+    highSeasonStart: isIsoDate(data.highSeasonStart) ? data.highSeasonStart : "",
+    highSeasonEnd: isIsoDate(data.highSeasonEnd) ? data.highSeasonEnd : "",
+    highSeasonNightlyRate: roundMoney(highSeasonNightlyRate),
+    highSeasonMinimumNights,
     settingsDocId,
     source: snapshot.exists ? "firestore" : "fallback",
   };
 }
 
-export async function calculateServerBookingPricing(adminDb, unitId, nightsCount) {
+export function calculateNightlyBreakdown(pricing, nightDates = []) {
+  const dates = Array.isArray(nightDates) ? nightDates.filter(isIsoDate) : [];
+
+  return dates.map((date) => {
+    const highSeason = isHighSeasonNight(date, pricing) && pricing.highSeasonNightlyRate > 0;
+    const weekend = isWeekendNight(date) && pricing.weekendSurcharge > 0;
+    const daysAhead = daysFromToday(date);
+    const lastMinute =
+      pricing.lastMinuteDiscountPercent > 0 &&
+      daysAhead >= 0 &&
+      daysAhead <= pricing.lastMinuteDays;
+
+    let rate = highSeason ? pricing.highSeasonNightlyRate : pricing.nightlyRate;
+    if (weekend) rate += pricing.weekendSurcharge;
+    const beforeDiscount = roundMoney(rate);
+    if (lastMinute) {
+      rate = rate * (1 - pricing.lastMinuteDiscountPercent / 100);
+    }
+
+    return {
+      date,
+      baseRate: pricing.nightlyRate,
+      highSeason,
+      weekend,
+      lastMinute,
+      beforeDiscount,
+      rate: roundMoney(rate),
+    };
+  });
+}
+
+export async function calculateServerBookingPricing(adminDb, unitId, nightsOrBooking) {
   const pricing = await loadServerPricing(adminDb, unitId);
-  const nights = Math.max(0, Math.round(Number(nightsCount || 0)));
-  const subtotal = roundMoney(nights * pricing.nightlyRate);
+  const normalized = normalizeNightInput(nightsOrBooking);
+  const nightDates = normalized.nightDates;
+  const nights = normalized.nightsCount;
+
+  const nightlyBreakdown = nightDates.length > 0 ? calculateNightlyBreakdown(pricing, nightDates) : [];
+  const subtotal = nightlyBreakdown.length > 0
+    ? roundMoney(nightlyBreakdown.reduce((sum, night) => sum + night.rate, 0))
+    : roundMoney(nights * pricing.nightlyRate);
   const totalPrice = nights > 0 ? roundMoney(subtotal + pricing.cleaningFee) : 0;
-  const depositAmount = totalPrice > 0 ? roundMoney(Math.round((totalPrice * pricing.depositPercent) / 100)) : 0;
+  const depositAmount = totalPrice > 0
+    ? roundMoney((totalPrice * pricing.depositPercent) / 100)
+    : 0;
+  const touchesHighSeason = nightlyBreakdown.some((night) => night.highSeason);
+  const effectiveMinimumNights = touchesHighSeason && pricing.highSeasonMinimumNights > 0
+    ? Math.max(pricing.minimumNights, pricing.highSeasonMinimumNights)
+    : pricing.minimumNights;
+  const effectiveNightlyRate = nights > 0 ? roundMoney(subtotal / nights) : 0;
 
   return {
     ...pricing,
+    minimumNights: effectiveMinimumNights,
+    baseMinimumNights: pricing.minimumNights,
     nightsCount: nights,
     subtotal,
     totalPrice,
     depositAmount,
-    pricingCalculatedBy: "server",
+    effectiveNightlyRate,
+    nightlyBreakdown,
+    pricingCalculatedBy: "server_v2",
   };
 }

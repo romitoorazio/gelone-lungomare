@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import "./pms-mobile.css";
 import "./promo-agosto.css";
 import { installPromoAgosto } from "./promo-agosto.js";
 
