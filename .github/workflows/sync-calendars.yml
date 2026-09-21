@@ -2,13 +2,6 @@ name: Sync calendari Gelone
 
 on:
   workflow_dispatch:
-  schedule:
-    # GitHub Actions usa UTC. La sincronizzazione non dipende dall'ora locale.
-    - cron: "*/15 * * * *"
-
-concurrency:
-  group: gelone-calendar-sync
-  cancel-in-progress: false
 
 jobs:
   sync-calendars:
