@@ -1,4 +1,5 @@
 {
+  "installCommand": "npm ci --include=dev --no-audit --no-fund",
   "headers": [
     {
       "source": "/(.*)",
