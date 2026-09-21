@@ -1,6 +1,6 @@
 name: Build check
 
-# CI diagnostica e protezione contro deploy non compilabili.
+# CI diagnostica: esegue prima test e patch del build, poi compila Vite.
 on:
   push:
     branches: [main]
@@ -16,5 +16,25 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --ignore-scripts --no-audit --no-fund
-      - run: npm run build
+      - name: Test contratti
+        run: node --test tests/*.test.mjs
+      - name: Patch build
+        run: |
+          node scripts/patch-admin-quality.mjs
+          node scripts/pms-default-all-units.mjs
+          node scripts/fix-vercel-cron-auth.mjs
+          node scripts/add-arrival-email-button.mjs
+          node scripts/unify-booking-emails.mjs
+          node scripts/add-checkout-reminders-v2.mjs
+          node scripts/polish-all-email-templates.mjs
+          node scripts/fix-manual-email-test-flow.mjs
+          node scripts/pms-v2-hardening.mjs
+          node scripts/pms-v2-security-migration.mjs
+          node scripts/pms-v2-dashboard.mjs
+          node scripts/pms-v2-mobile-first.mjs
+          node scripts/pms-v2-mobile-pages.mjs
+          node scripts/pms-login-recovery.mjs
+      - name: Installa dipendenze
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Compila Vite
+        run: npx vite build
