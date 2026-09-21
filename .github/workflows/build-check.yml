@@ -1,5 +1,6 @@
 name: Build check
 
+# CI diagnostica e protezione contro deploy non compilabili.
 on:
   push:
     branches: [main]
