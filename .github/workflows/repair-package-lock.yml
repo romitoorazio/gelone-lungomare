@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   repair:
-    if: ${{ !contains(github.event.head_commit.message, 'chore: sync package lock') }}
+    if: "${{ !contains(github.event.head_commit.message, 'chore: sync package lock') }}"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
