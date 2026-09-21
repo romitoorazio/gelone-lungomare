@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "vite",
     "build": "npm test && node scripts/patch-admin-quality.mjs && node scripts/pms-default-all-units.mjs && node scripts/fix-vercel-cron-auth.mjs && node scripts/add-arrival-email-button.mjs && node scripts/unify-booking-emails.mjs && node scripts/add-checkout-reminders-v2.mjs && node scripts/polish-all-email-templates.mjs && node scripts/fix-manual-email-test-flow.mjs && node scripts/pms-v2-hardening.mjs && node scripts/pms-v2-security-migration.mjs && node scripts/pms-v2-dashboard.mjs && node scripts/pms-v2-mobile-first.mjs && node scripts/pms-v2-mobile-pages.mjs && node scripts/pms-login-recovery.mjs && vite build",
