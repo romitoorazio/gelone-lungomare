@@ -33,10 +33,14 @@ test("le sole impostazioni PMS previste restano pubbliche", () => {
   assert.match(rules, /settingId\.matches\('pms_\.\*'\)/);
 });
 
-test("la sincronizzazione OTA è programmata ogni 15 minuti", () => {
+test("la sincronizzazione automatica OTA resta su Vercel e GitHub è solo manuale", () => {
   const workflow = read(".github/workflows/sync-calendars.yml");
-  assert.match(workflow, /cron: "\*\/15 \* \* \* \*"/);
-  assert.match(workflow, /cancel-in-progress: false/);
+  const vercel = read("vercel.json");
+
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /\n\s*schedule:/);
+  assert.match(vercel, /"path": "\/api\/cron-sync-calendars"/);
+  assert.match(vercel, /"schedule": "0 5 \* \* \*"/);
 });
 
 test("l'hardening rimuove il Wi-Fi dal documento pubblico e corregge il click Pulizie", () => {
