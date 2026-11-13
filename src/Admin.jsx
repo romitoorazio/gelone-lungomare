@@ -912,6 +912,18 @@ export default function Admin() {
     });
   }, [selectedBookingId, selectedBooking?.updatedAt]);
 
+  // Risolve il nome dell'alloggio per ogni riga, indipendentemente dal filtro.
+  const bookingUnitNames = useMemo(
+    () => new Map(units.map((unit) => [unit.id, unit.name || unit.publicName || unit.id])),
+    [units]
+  );
+  function bookingUnitLabel(booking) {
+    const id = sanitizeUnitId(booking?.unitId || UNIT_ID) || UNIT_ID;
+    return bookingUnitNames.get(id) ||
+      booking?.unitName ||
+      (id === UNIT_ID ? DEFAULT_UNIT.name : id);
+  }
+
   const filteredBookings = useMemo(() => {
     const text = bookingSearch.trim().toLowerCase();
     const today = getToday();
@@ -937,6 +949,7 @@ export default function Admin() {
 
       return [
         booking.guestName,
+        bookingUnitLabel(booking),
         booking.guestEmail,
         booking.guestPhone,
         booking.checkIn,
@@ -952,7 +965,7 @@ export default function Admin() {
         .toLowerCase()
         .includes(text);
     });
-  }, [bookings, bookingSearch, sourceFilter, statusFilter]);
+  }, [bookings, bookingSearch, sourceFilter, statusFilter, bookingUnitNames]);
 
   const visibleActivityLogs = useMemo(() => {
     return activityLogs
@@ -7294,7 +7307,7 @@ wifiName: settings.wifiName || "",
                     <input
                       value={bookingSearch}
                       onChange={(event) => setBookingSearch(event.target.value)}
-                      placeholder="Cerca ospite, telefono, data..."
+                      placeholder="Cerca ospite, alloggio, data..."
                       className="w-full min-w-[260px] rounded-full border border-[#d7c49f] bg-[#faf6ee] py-3 pl-11 pr-4 outline-none"
                     />
                   </div>
@@ -7329,9 +7342,10 @@ wifiName: settings.wifiName || "",
               </div>
 
               <div className="mt-6 overflow-x-auto">
-                <table className="w-full min-w-[1250px] border-collapse text-left">
+                <table className="pms-bookings-table w-full min-w-[1250px] border-collapse text-left">
                   <thead>
                     <tr className="border-b border-[#e4d8c2] text-sm uppercase tracking-[0.15em] text-[#9b6b25]">
+                      <th className="py-3">Alloggio</th>
                       <th className="py-3">Arrivo</th>
                       <th className="py-3">Partenza</th>
                       <th className="py-3">Notti</th>
@@ -7349,7 +7363,7 @@ wifiName: settings.wifiName || "",
                   <tbody>
                     {filteredBookings.length === 0 && (
                       <tr>
-                        <td colSpan="11" className="py-8 text-center text-[#555]">
+                        <td colSpan="12" className="py-8 text-center text-[#555]">
                           Nessuna prenotazione trovata.
                         </td>
                       </tr>
@@ -7365,6 +7379,11 @@ wifiName: settings.wifiName || "",
 
                       return (
                         <tr key={booking.id} className="border-b border-[#f0e6d5]">
+                          <td className="py-4 font-black text-[#0a1d35]">
+                            <span className="inline-flex rounded-xl border border-[#d7c49f] bg-[#faf6ee] px-3 py-2 font-extrabold">
+                              {bookingUnitLabel(booking)}
+                            </span>
+                          </td>
                           <td className="py-4">{formatDate(booking.checkIn)}</td>
                           <td className="py-4">{formatDate(booking.checkOut)}</td>
                           <td className="py-4">
@@ -7459,6 +7478,9 @@ wifiName: settings.wifiName || "",
                     <h3 className="mt-2 font-serif text-3xl">
                       {selectedBooking.guestName || "Prenotazione"}
                     </h3>
+                    <p className="mt-3 rounded-xl border border-[#d7c49f] bg-[#faf6ee] px-4 py-3 text-base font-bold text-[#0a1d35]">
+                      Alloggio: {bookingUnitLabel(selectedBooking)}
+                    </p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Pill className={getStatusClass(selectedBooking.status)}>
                         {getStatusLabel(selectedBooking.status)}

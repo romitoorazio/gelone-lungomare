@@ -90,6 +90,24 @@ img {
   white-space: nowrap;
 }
 
+/* Prenotazioni PMS: 12 colonne compreso Alloggio.
+   La tabella desktop resta leggibile e scorre orizzontalmente senza comprimere i nomi. */
+@media (min-width: 641px) {
+  .overflow-x-auto > table.pms-bookings-table {
+    min-width: 1510px;
+    table-layout: auto;
+  }
+  .overflow-x-auto > table.pms-bookings-table th,
+  .overflow-x-auto > table.pms-bookings-table td {
+    width: auto;
+  }
+  .overflow-x-auto > table.pms-bookings-table th:first-child,
+  .overflow-x-auto > table.pms-bookings-table td:first-child {
+    min-width: 190px;
+    white-space: normal;
+  }
+}
+
 /* Tabella Prenotazioni e blocchi: colonne più pulite. */
 .overflow-x-auto > table.min-w-\[1250px\] th:nth-child(1),
 .overflow-x-auto > table.min-w-\[1250px\] td:nth-child(1) {
