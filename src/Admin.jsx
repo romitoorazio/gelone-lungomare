@@ -595,6 +595,7 @@ export default function Admin() {
   const [authReady, setAuthReady] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
+  const [calendarLoaded, setCalendarLoaded] = useState({ units: false, bookings: false });
   const [units, setUnits] = useState(DEFAULT_UNITS);
   const [unitForm, setUnitForm] = useState(() => createUnitForm(DEFAULT_UNIT));
   const [settings, setSettings] = useState(defaultSettings);
@@ -751,12 +752,14 @@ export default function Admin() {
 
         const nextUnits = rows.length > 0 ? rows : DEFAULT_UNITS;
         setUnits(nextUnits);
+        setCalendarLoaded((prev) => ({ ...prev, units: true }));
         setSelectedUnitId((current) =>
           nextUnits.some((unit) => unit.id === current) ? current : UNIT_ID
         );
       },
       (err) => {
         console.error("Errore lettura unità:", err);
+        setCalendarLoaded((prev) => ({ ...prev, units: false }));
         setUnits(DEFAULT_UNITS);
         setError("ATTENZIONE: elenco alloggi non caricato. Il calendario potrebbe essere incompleto e non va usato per decidere la disponibilità.");
       }
@@ -782,9 +785,11 @@ export default function Admin() {
         }));
 
         setAllBookings(rows);
+        setCalendarLoaded((prev) => ({ ...prev, bookings: true }));
       },
       (err) => {
         console.error("Errore lettura prenotazioni globali:", err);
+        setCalendarLoaded((prev) => ({ ...prev, bookings: false }));
         setAllBookings([]);
         setError("ATTENZIONE: prenotazioni globali non caricate. Le disponibilità nel calendario non sono affidabili.");
       }
@@ -1214,11 +1219,12 @@ export default function Admin() {
         ? availabilitySelectedDate
         : month + "-01";
 
-    const visibleUnits = units
-      .map((unit) => ({
+    const visibleUnits = calendarLoaded.units && calendarLoaded.bookings
+      ? units.map((unit) => ({
         ...unit,
         displayName: unit.publicName || unit.name || unit.id,
-      }));
+      }))
+      : [];
 
     const monthStart = parseDateAsUTC(month + "-01");
     const monthEnd = new Date(monthStart);
@@ -1373,7 +1379,7 @@ export default function Admin() {
         requestSlots,
       },
     };
-  }, [allBookings, availabilityMonth, availabilitySelectedDate, units]);
+  }, [allBookings, availabilityMonth, availabilitySelectedDate, units, calendarLoaded]);
 
   const economyStats = useMemo(() => {
     const today = getToday();
@@ -4968,6 +4974,11 @@ wifiName: settings.wifiName || "",
 
         {activeTab === "availability" && (
           <section className="mt-8 space-y-6">
+            {(!calendarLoaded.units || !calendarLoaded.bookings) && (
+              <div role="alert" className="rounded-2xl border border-red-400 bg-red-50 p-5 font-bold text-red-900">
+                Calendario non ancora verificato con Firebase. Le disponibilità non vengono mostrate finché non sono stati caricati alloggi e prenotazioni. Se il messaggio rimane, controlla accesso e connessione.
+              </div>
+            )}
             <div className="overflow-hidden rounded-[2.2rem] border border-[#d8c7a6] bg-white shadow-xl shadow-[#0a1d35]/5">
               <div className="bg-gradient-to-r from-[#0a1d35] via-[#12345a] to-[#9b6b25] p-6 text-white">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
