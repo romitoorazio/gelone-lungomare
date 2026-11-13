@@ -757,6 +757,7 @@ export default function Admin() {
       (err) => {
         console.error("Errore lettura unità:", err);
         setUnits(DEFAULT_UNITS);
+        setError("ATTENZIONE: elenco alloggi non caricato. Il calendario potrebbe essere incompleto e non va usato per decidere la disponibilità.");
       }
     );
 
@@ -784,6 +785,7 @@ export default function Admin() {
       (err) => {
         console.error("Errore lettura prenotazioni globali:", err);
         setAllBookings([]);
+        setError("ATTENZIONE: prenotazioni globali non caricate. Le disponibilità nel calendario non sono affidabili.");
       }
     );
 
@@ -1212,7 +1214,6 @@ export default function Admin() {
         : month + "-01";
 
     const visibleUnits = units
-      .filter((unit) => unit.active !== false)
       .map((unit) => ({
         ...unit,
         displayName: unit.publicName || unit.name || unit.id,
@@ -1349,10 +1350,12 @@ export default function Admin() {
     });
 
     const monthRows = rows.filter((row) => row.inMonth);
-    const totalSlots = monthRows.length * visibleUnits.length;
-    const occupiedSlots = monthRows.reduce((sum, row) => sum + row.occupiedCount, 0);
-    const blockedSlots = monthRows.reduce((sum, row) => sum + row.blockedCount, 0);
-    const requestSlots = monthRows.reduce((sum, row) => sum + row.requestCount, 0);
+    // Le bozze sono mostrate, ma escluse dalle disponibilità vendibili.
+    const activeCells = monthRows.flatMap((row) => row.cells.filter((cell) => cell.unit.active !== false));
+    const totalSlots = activeCells.length;
+    const occupiedSlots = activeCells.filter((cell) => cell.booking && !["blocked", "pending", "pending_direct"].includes(String(cell.booking.status || ""))).length;
+    const blockedSlots = activeCells.filter((cell) => String(cell.booking?.status || "") === "blocked").length;
+    const requestSlots = activeCells.filter((cell) => ["pending", "pending_direct"].includes(String(cell.booking?.status || ""))).length;
     const freeSlots = Math.max(totalSlots - occupiedSlots - blockedSlots - requestSlots, 0);
 
     return {
@@ -5044,7 +5047,40 @@ wifiName: settings.wifiName || "",
               </div>
 
               <div className="p-5">
-                <div className="overflow-hidden rounded-[1.8rem] border border-[#d8c7a6] bg-white">
+                {/* Su iPhone il planning presenta le schede verticali degli alloggi invece della tabella. */}
+                <div className="mb-4 rounded-2xl border border-[#d8c7a6] bg-[#faf6ee] p-4 md:hidden">
+                  <p className="font-bold">Tutti gli alloggi per giorno</p>
+                  <p className="mt-1 text-sm text-[#555]">Incluse le unità in bozza, chiaramente contrassegnate.</p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button type="button" aria-label="Giorno precedente"
+                      onClick={() => {
+                        const d = parseDateAsUTC(availabilityCalendar.selectedDate);
+                        d.setUTCDate(d.getUTCDate() - 1);
+                        const next = d.toISOString().slice(0, 10);
+                        setAvailabilitySelectedDate(next);
+                        setAvailabilityMonth(next.slice(0, 7));
+                      }}
+                      className="rounded-xl border border-[#d8c7a6] bg-white px-3 py-3 font-bold">←</button>
+                    <input type="date" aria-label="Data del planning" value={availabilityCalendar.selectedDate}
+                      onChange={(event) => {
+                        if (!event.target.value) return;
+                        setAvailabilitySelectedDate(event.target.value);
+                        setAvailabilityMonth(event.target.value.slice(0, 7));
+                      }}
+                      className="min-w-0 flex-1 rounded-xl border border-[#d8c7a6] bg-white px-2 py-3" />
+                    <button type="button" aria-label="Giorno successivo"
+                      onClick={() => {
+                        const d = parseDateAsUTC(availabilityCalendar.selectedDate);
+                        d.setUTCDate(d.getUTCDate() + 1);
+                        const next = d.toISOString().slice(0, 10);
+                        setAvailabilitySelectedDate(next);
+                        setAvailabilityMonth(next.slice(0, 7));
+                      }}
+                      className="rounded-xl border border-[#d8c7a6] bg-white px-3 py-3 font-bold">→</button>
+                  </div>
+                  <p className="mt-3 text-sm font-bold">{availabilityCalendar.units.length} alloggi registrati: consulta le schede qui sotto.</p>
+                </div>
+                <div className="hidden overflow-hidden rounded-[1.8rem] border border-[#d8c7a6] bg-white md:block">
                   <div className="max-h-[640px] overflow-auto">
                     <table className="w-full min-w-[1180px] border-separate border-spacing-0 text-left text-sm">
                       <thead>
@@ -5057,7 +5093,7 @@ wifiName: settings.wifiName || "",
                             <th key={unit.id} className="min-w-[210px] px-4 py-4">
                               <div className="flex items-center gap-2">
                                 <Building2 size={16} className="text-[#f6d899]" />
-                                <span className="font-bold">{unit.displayName}</span>
+                                <span className="font-bold">{unit.displayName}{unit.active === false ? " (BOZZA / NON ATTIVA)" : ""}</span>
                               </div>
                             </th>
                           ))}
@@ -5195,28 +5231,28 @@ wifiName: settings.wifiName || "",
                     <div className="mt-6 grid grid-cols-2 gap-3">
                       <div className="rounded-2xl bg-white/10 p-4">
                         <div className="text-3xl font-black">
-                          {availabilityCalendar.selectedRows.filter((row) => !row.booking).length}
+                          {availabilityCalendar.selectedRows.filter((row) => row.unit.active !== false && !row.booking).length}
                         </div>
                         <div className="text-sm text-white/70">Alloggi liberi</div>
                       </div>
 
                       <div className="rounded-2xl bg-white/10 p-4">
                         <div className="text-3xl font-black">
-                          {availabilityCalendar.selectedRows.filter((row) => row.booking && String(row.booking.status || "") !== "blocked").length}
+                          {availabilityCalendar.selectedRows.filter((row) => row.unit.active !== false && row.booking && !["blocked", "pending", "pending_direct"].includes(String(row.booking.status || ""))).length}
                         </div>
                         <div className="text-sm text-white/70">Occupati</div>
                       </div>
 
                       <div className="rounded-2xl bg-white/10 p-4">
                         <div className="text-3xl font-black">
-                          {availabilityCalendar.selectedRows.filter((row) => row.booking && ["pending_direct", "pending"].includes(String(row.booking.status || ""))).length}
+                          {availabilityCalendar.selectedRows.filter((row) => row.unit.active !== false && row.booking && ["pending_direct", "pending"].includes(String(row.booking.status || ""))).length}
                         </div>
                         <div className="text-sm text-white/70">Richieste</div>
                       </div>
 
                       <div className="rounded-2xl bg-white/10 p-4">
                         <div className="text-3xl font-black">
-                          {availabilityCalendar.selectedRows.filter((row) => String(row.booking?.status || "") === "blocked").length}
+                          {availabilityCalendar.selectedRows.filter((row) => row.unit.active !== false && String(row.booking?.status || "") === "blocked").length}
                         </div>
                         <div className="text-sm text-white/70">Blocchi</div>
                       </div>
@@ -5249,7 +5285,7 @@ wifiName: settings.wifiName || "",
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <p className="text-xs uppercase tracking-[0.18em] opacity-70">
-                                    {row.unit.displayName}
+                                    {row.unit.displayName}{row.unit.active === false ? " · BOZZA / NON PRENOTABILE" : ""}
                                   </p>
                                   <h4 className="mt-1 text-xl font-black">
                                     {booking ? row.label : "Libero"}
