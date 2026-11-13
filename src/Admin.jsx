@@ -15,6 +15,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  runTransaction,
   updateDoc,
   where,
   writeBatch,
@@ -594,6 +595,7 @@ export default function Admin() {
   const [authReady, setAuthReady] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
+  const [calendarLoaded, setCalendarLoaded] = useState({ units: false, bookings: false });
   const [units, setUnits] = useState(DEFAULT_UNITS);
   const [unitForm, setUnitForm] = useState(() => createUnitForm(DEFAULT_UNIT));
   const [settings, setSettings] = useState(defaultSettings);
@@ -750,13 +752,16 @@ export default function Admin() {
 
         const nextUnits = rows.length > 0 ? rows : DEFAULT_UNITS;
         setUnits(nextUnits);
+        setCalendarLoaded((prev) => ({ ...prev, units: true }));
         setSelectedUnitId((current) =>
           nextUnits.some((unit) => unit.id === current) ? current : UNIT_ID
         );
       },
       (err) => {
         console.error("Errore lettura unità:", err);
+        setCalendarLoaded((prev) => ({ ...prev, units: false }));
         setUnits(DEFAULT_UNITS);
+        setError("ATTENZIONE: elenco alloggi non caricato. Il calendario potrebbe essere incompleto e non va usato per decidere la disponibilità.");
       }
     );
 
@@ -780,10 +785,13 @@ export default function Admin() {
         }));
 
         setAllBookings(rows);
+        setCalendarLoaded((prev) => ({ ...prev, bookings: true }));
       },
       (err) => {
         console.error("Errore lettura prenotazioni globali:", err);
+        setCalendarLoaded((prev) => ({ ...prev, bookings: false }));
         setAllBookings([]);
+        setError("ATTENZIONE: prenotazioni globali non caricate. Le disponibilità nel calendario non sono affidabili.");
       }
     );
 
@@ -1211,12 +1219,12 @@ export default function Admin() {
         ? availabilitySelectedDate
         : month + "-01";
 
-    const visibleUnits = units
-      .filter((unit) => unit.active !== false)
-      .map((unit) => ({
+    const visibleUnits = calendarLoaded.units && calendarLoaded.bookings
+      ? units.map((unit) => ({
         ...unit,
         displayName: unit.publicName || unit.name || unit.id,
-      }));
+      }))
+      : [];
 
     const monthStart = parseDateAsUTC(month + "-01");
     const monthEnd = new Date(monthStart);
@@ -1349,10 +1357,12 @@ export default function Admin() {
     });
 
     const monthRows = rows.filter((row) => row.inMonth);
-    const totalSlots = monthRows.length * visibleUnits.length;
-    const occupiedSlots = monthRows.reduce((sum, row) => sum + row.occupiedCount, 0);
-    const blockedSlots = monthRows.reduce((sum, row) => sum + row.blockedCount, 0);
-    const requestSlots = monthRows.reduce((sum, row) => sum + row.requestCount, 0);
+    // Le bozze sono mostrate, ma escluse dalle disponibilità vendibili.
+    const activeCells = monthRows.flatMap((row) => row.cells.filter((cell) => cell.unit.active !== false));
+    const totalSlots = activeCells.length;
+    const occupiedSlots = activeCells.filter((cell) => cell.booking && !["blocked", "pending", "pending_direct"].includes(String(cell.booking.status || ""))).length;
+    const blockedSlots = activeCells.filter((cell) => String(cell.booking?.status || "") === "blocked").length;
+    const requestSlots = activeCells.filter((cell) => ["pending", "pending_direct"].includes(String(cell.booking?.status || ""))).length;
     const freeSlots = Math.max(totalSlots - occupiedSlots - blockedSlots - requestSlots, 0);
 
     return {
@@ -1369,7 +1379,7 @@ export default function Admin() {
         requestSlots,
       },
     };
-  }, [allBookings, availabilityMonth, availabilitySelectedDate, units]);
+  }, [allBookings, availabilityMonth, availabilitySelectedDate, units, calendarLoaded]);
 
   const economyStats = useMemo(() => {
     const today = getToday();
@@ -3437,12 +3447,48 @@ wifiName: settings.wifiName || "",
     );
   }
 
+  // Transazione atomica: libera solo le notti ancora appartenenti alla prenotazione.
+  async function mutateBookingAndOwnedNights(booking, cancelledFields = null) {
+    const unitId = booking.unitId || UNIT_ID;
+    const bookingRef = doc(db, "bookings", booking.id);
+    const nightRefs = getNightDates(booking.checkIn, booking.checkOut)
+      .map((night) => doc(db, "nights", unitId + "_" + night));
+    return runTransaction(db, async (tx) => {
+      const current = await tx.get(bookingRef);
+      if (!current.exists()) throw new Error("Prenotazione già rimossa: ricarica la pagina.");
+      const snapshots = await Promise.all(nightRefs.map((ref) => tx.get(ref)));
+      const owned = snapshots.filter((snap) => snap.exists() && snap.data()?.bookingId === booking.id);
+      if (cancelledFields) tx.update(bookingRef, cancelledFields);
+      else tx.delete(bookingRef);
+      owned.forEach((snap) => tx.delete(snap.ref));
+      return owned.length;
+    });
+  }
+
+  function describeBookingError(err) {
+    const code = String(err?.code || "");
+    if (code.includes("permission-denied")) return "Firebase ha negato l'operazione: controlla accesso amministratore e regole Firestore.";
+    if (code.includes("unavailable")) return "Firebase non raggiungibile: riprova quando la connessione è disponibile.";
+    if (code.includes("aborted") || code.includes("failed-precondition")) return "La prenotazione è stata modificata nel frattempo: ricarica e riprova.";
+    return String(err?.message || "Errore tecnico imprevisto.");
+  }
+
   async function cancelBooking(booking) {
     clearMessages();
 
     if (!booking?.id) {
       setError("Seleziona una prenotazione valida.");
       return;
+    }
+
+    if (booking.externalKey && ["booking_ical", "airbnb_ical"].includes(String(booking.source || ""))) {
+      const doneOnSource = window.confirm(
+        "Questa prenotazione proviene da Booking/Airbnb. Annullala prima sulla piattaforma originale per evitare doppie prenotazioni.\n\nHai già annullato sul portale?"
+      );
+      if (!doneOnSource) {
+        setMessage("Annullamento interrotto: controlla prima la piattaforma di origine.");
+        return;
+      }
     }
 
     const reason = window.prompt(
@@ -3484,9 +3530,7 @@ wifiName: settings.wifiName || "",
     }
 
     try {
-      const batch = writeBatch(db);
-
-      batch.update(doc(db, "bookings", booking.id), {
+      const nightsReleased = await mutateBookingAndOwnedNights(booking, {
         status: "cancelled",
         cancellationReason: cleanReason,
         cancellationPreviousStatus: booking.status || "",
@@ -3495,13 +3539,6 @@ wifiName: settings.wifiName || "",
         cancelledBy: user?.email || "",
         updatedAt: serverTimestamp(),
       });
-
-      const nights = getNightDates(booking.checkIn, booking.checkOut);
-      nights.forEach((night) => {
-        batch.delete(doc(db, "nights", `${booking.unitId || selectedUnitId}_${night}`));
-      });
-
-      await batch.commit();
 
       const emailResult = await sendGuestBookingEmail(
         "/api/send-cancellation-email",
@@ -3516,7 +3553,7 @@ wifiName: settings.wifiName || "",
         previousPaymentLabel: getPaymentLabel(booking.paymentStatus),
         totalPrice: booking.totalPrice ?? null,
         depositAmount: booking.depositAmount ?? null,
-        nightsReleased: nights.length,
+        nightsReleased,
         sensitivePayment: hasSensitivePayment(booking),
         guestEmailNotification: emailResult,
       });
@@ -3530,7 +3567,7 @@ wifiName: settings.wifiName || "",
       );
     } catch (err) {
       console.error(err);
-      setError("Errore durante l'annullamento.");
+      setError("Annullamento non riuscito: " + describeBookingError(err));
     }
   }
 
@@ -3539,6 +3576,11 @@ wifiName: settings.wifiName || "",
 
     if (!booking?.id) {
       setError("Seleziona una prenotazione valida.");
+      return;
+    }
+
+    if (booking.externalKey && ["booking_ical", "airbnb_ical"].includes(String(booking.source || ""))) {
+      setError("Prenotazione iCal da Booking/Airbnb: la rimozione definitiva la potrebbe reimportare. Annulla prima sul portale e poi usa ANNULLA nel PMS: la prenotazione resta come riferimento anti-duplicazione.");
       return;
     }
 
@@ -3592,16 +3634,7 @@ wifiName: settings.wifiName || "",
     }
 
     try {
-      const batch = writeBatch(db);
-      const nights = getNightDates(booking.checkIn, booking.checkOut);
-
-      nights.forEach((night) => {
-        batch.delete(doc(db, "nights", `${booking.unitId || selectedUnitId}_${night}`));
-      });
-
-      batch.delete(doc(db, "bookings", booking.id));
-
-      await batch.commit();
+      const nightsReleased = await mutateBookingAndOwnedNights(booking);
 
       await addActivityLog("deleted_booking", booking, {
         reason: cleanReason,
@@ -3610,7 +3643,7 @@ wifiName: settings.wifiName || "",
         previousPaymentLabel: getPaymentLabel(booking.paymentStatus),
         totalPrice: booking.totalPrice ?? null,
         depositAmount: booking.depositAmount ?? null,
-        nightsReleased: nights.length,
+        nightsReleased,
         sensitivePayment: hasSensitivePayment(booking),
         strongConfirmation: "ELIMINA",
       });
@@ -3622,7 +3655,7 @@ wifiName: settings.wifiName || "",
       setMessage("Prenotazione eliminata definitivamente con log di sicurezza registrato.");
     } catch (err) {
       console.error(err);
-      setError("Errore durante l'eliminazione.");
+      setError("Eliminazione non riuscita: " + describeBookingError(err));
     }
   }
 
@@ -4941,6 +4974,11 @@ wifiName: settings.wifiName || "",
 
         {activeTab === "availability" && (
           <section className="mt-8 space-y-6">
+            {(!calendarLoaded.units || !calendarLoaded.bookings) && (
+              <div role="alert" className="rounded-2xl border border-red-400 bg-red-50 p-5 font-bold text-red-900">
+                Calendario non ancora verificato con Firebase. Le disponibilità non vengono mostrate finché non sono stati caricati alloggi e prenotazioni. Se il messaggio rimane, controlla accesso e connessione.
+              </div>
+            )}
             <div className="overflow-hidden rounded-[2.2rem] border border-[#d8c7a6] bg-white shadow-xl shadow-[#0a1d35]/5">
               <div className="bg-gradient-to-r from-[#0a1d35] via-[#12345a] to-[#9b6b25] p-6 text-white">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -5044,7 +5082,40 @@ wifiName: settings.wifiName || "",
               </div>
 
               <div className="p-5">
-                <div className="overflow-hidden rounded-[1.8rem] border border-[#d8c7a6] bg-white">
+                {/* Su iPhone il planning presenta le schede verticali degli alloggi invece della tabella. */}
+                <div className="mb-4 rounded-2xl border border-[#d8c7a6] bg-[#faf6ee] p-4 md:hidden">
+                  <p className="font-bold">Tutti gli alloggi per giorno</p>
+                  <p className="mt-1 text-sm text-[#555]">Incluse le unità in bozza, chiaramente contrassegnate.</p>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button type="button" aria-label="Giorno precedente"
+                      onClick={() => {
+                        const d = parseDateAsUTC(availabilityCalendar.selectedDate);
+                        d.setUTCDate(d.getUTCDate() - 1);
+                        const next = d.toISOString().slice(0, 10);
+                        setAvailabilitySelectedDate(next);
+                        setAvailabilityMonth(next.slice(0, 7));
+                      }}
+                      className="rounded-xl border border-[#d8c7a6] bg-white px-3 py-3 font-bold">←</button>
+                    <input type="date" aria-label="Data del planning" value={availabilityCalendar.selectedDate}
+                      onChange={(event) => {
+                        if (!event.target.value) return;
+                        setAvailabilitySelectedDate(event.target.value);
+                        setAvailabilityMonth(event.target.value.slice(0, 7));
+                      }}
+                      className="min-w-0 flex-1 rounded-xl border border-[#d8c7a6] bg-white px-2 py-3" />
+                    <button type="button" aria-label="Giorno successivo"
+                      onClick={() => {
+                        const d = parseDateAsUTC(availabilityCalendar.selectedDate);
+                        d.setUTCDate(d.getUTCDate() + 1);
+                        const next = d.toISOString().slice(0, 10);
+                        setAvailabilitySelectedDate(next);
+                        setAvailabilityMonth(next.slice(0, 7));
+                      }}
+                      className="rounded-xl border border-[#d8c7a6] bg-white px-3 py-3 font-bold">→</button>
+                  </div>
+                  <p className="mt-3 text-sm font-bold">{availabilityCalendar.units.length} alloggi registrati: consulta le schede qui sotto.</p>
+                </div>
+                <div className="hidden overflow-hidden rounded-[1.8rem] border border-[#d8c7a6] bg-white md:block">
                   <div className="max-h-[640px] overflow-auto">
                     <table className="w-full min-w-[1180px] border-separate border-spacing-0 text-left text-sm">
                       <thead>
@@ -5057,7 +5128,7 @@ wifiName: settings.wifiName || "",
                             <th key={unit.id} className="min-w-[210px] px-4 py-4">
                               <div className="flex items-center gap-2">
                                 <Building2 size={16} className="text-[#f6d899]" />
-                                <span className="font-bold">{unit.displayName}</span>
+                                <span className="font-bold">{unit.displayName}{unit.active === false ? " (BOZZA / NON ATTIVA)" : ""}</span>
                               </div>
                             </th>
                           ))}
@@ -5195,28 +5266,28 @@ wifiName: settings.wifiName || "",
                     <div className="mt-6 grid grid-cols-2 gap-3">
                       <div className="rounded-2xl bg-white/10 p-4">
                         <div className="text-3xl font-black">
-                          {availabilityCalendar.selectedRows.filter((row) => !row.booking).length}
+                          {availabilityCalendar.selectedRows.filter((row) => row.unit.active !== false && !row.booking).length}
                         </div>
                         <div className="text-sm text-white/70">Alloggi liberi</div>
                       </div>
 
                       <div className="rounded-2xl bg-white/10 p-4">
                         <div className="text-3xl font-black">
-                          {availabilityCalendar.selectedRows.filter((row) => row.booking && String(row.booking.status || "") !== "blocked").length}
+                          {availabilityCalendar.selectedRows.filter((row) => row.unit.active !== false && row.booking && !["blocked", "pending", "pending_direct"].includes(String(row.booking.status || ""))).length}
                         </div>
                         <div className="text-sm text-white/70">Occupati</div>
                       </div>
 
                       <div className="rounded-2xl bg-white/10 p-4">
                         <div className="text-3xl font-black">
-                          {availabilityCalendar.selectedRows.filter((row) => row.booking && ["pending_direct", "pending"].includes(String(row.booking.status || ""))).length}
+                          {availabilityCalendar.selectedRows.filter((row) => row.unit.active !== false && row.booking && ["pending_direct", "pending"].includes(String(row.booking.status || ""))).length}
                         </div>
                         <div className="text-sm text-white/70">Richieste</div>
                       </div>
 
                       <div className="rounded-2xl bg-white/10 p-4">
                         <div className="text-3xl font-black">
-                          {availabilityCalendar.selectedRows.filter((row) => String(row.booking?.status || "") === "blocked").length}
+                          {availabilityCalendar.selectedRows.filter((row) => row.unit.active !== false && String(row.booking?.status || "") === "blocked").length}
                         </div>
                         <div className="text-sm text-white/70">Blocchi</div>
                       </div>
@@ -5249,7 +5320,7 @@ wifiName: settings.wifiName || "",
                               <div className="flex items-start justify-between gap-3">
                                 <div>
                                   <p className="text-xs uppercase tracking-[0.18em] opacity-70">
-                                    {row.unit.displayName}
+                                    {row.unit.displayName}{row.unit.active === false ? " · BOZZA / NON PRENOTABILE" : ""}
                                   </p>
                                   <h4 className="mt-1 text-xl font-black">
                                     {booking ? row.label : "Libero"}

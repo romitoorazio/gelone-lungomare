@@ -616,8 +616,9 @@ export default async function handler(req, res) {
           existingBookingData &&
           existingBookingData.externalKey === event.externalKey &&
           existingBookingData.source === event.source &&
-          String(existingBookingData.status || "").toLowerCase() === "cancelled" &&
-          existingBookingData.staleExternal !== true;
+          // Un annullamento manuale resta escluso anche se l'evento era stato
+          // precedentemente segnalato come mancante dal calendario remoto.
+          String(existingBookingData.status || "").toLowerCase() === "cancelled";
 
         if (wasManuallyCancelledExternal) {
           totals.skippedIgnored += 1;
