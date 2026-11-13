@@ -15,6 +15,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  runTransaction,
   updateDoc,
   where,
   writeBatch,
@@ -3440,12 +3441,48 @@ wifiName: settings.wifiName || "",
     );
   }
 
+  // Transazione atomica: libera solo le notti ancora appartenenti alla prenotazione.
+  async function mutateBookingAndOwnedNights(booking, cancelledFields = null) {
+    const unitId = booking.unitId || UNIT_ID;
+    const bookingRef = doc(db, "bookings", booking.id);
+    const nightRefs = getNightDates(booking.checkIn, booking.checkOut)
+      .map((night) => doc(db, "nights", unitId + "_" + night));
+    return runTransaction(db, async (tx) => {
+      const current = await tx.get(bookingRef);
+      if (!current.exists()) throw new Error("Prenotazione già rimossa: ricarica la pagina.");
+      const snapshots = await Promise.all(nightRefs.map((ref) => tx.get(ref)));
+      const owned = snapshots.filter((snap) => snap.exists() && snap.data()?.bookingId === booking.id);
+      if (cancelledFields) tx.update(bookingRef, cancelledFields);
+      else tx.delete(bookingRef);
+      owned.forEach((snap) => tx.delete(snap.ref));
+      return owned.length;
+    });
+  }
+
+  function describeBookingError(err) {
+    const code = String(err?.code || "");
+    if (code.includes("permission-denied")) return "Firebase ha negato l'operazione: controlla accesso amministratore e regole Firestore.";
+    if (code.includes("unavailable")) return "Firebase non raggiungibile: riprova quando la connessione è disponibile.";
+    if (code.includes("aborted") || code.includes("failed-precondition")) return "La prenotazione è stata modificata nel frattempo: ricarica e riprova.";
+    return String(err?.message || "Errore tecnico imprevisto.");
+  }
+
   async function cancelBooking(booking) {
     clearMessages();
 
     if (!booking?.id) {
       setError("Seleziona una prenotazione valida.");
       return;
+    }
+
+    if (booking.externalKey && ["booking_ical", "airbnb_ical"].includes(String(booking.source || ""))) {
+      const doneOnSource = window.confirm(
+        "Questa prenotazione proviene da Booking/Airbnb. Annullala prima sulla piattaforma originale per evitare doppie prenotazioni.\n\nHai già annullato sul portale?"
+      );
+      if (!doneOnSource) {
+        setMessage("Annullamento interrotto: controlla prima la piattaforma di origine.");
+        return;
+      }
     }
 
     const reason = window.prompt(
@@ -3487,9 +3524,7 @@ wifiName: settings.wifiName || "",
     }
 
     try {
-      const batch = writeBatch(db);
-
-      batch.update(doc(db, "bookings", booking.id), {
+      const nightsReleased = await mutateBookingAndOwnedNights(booking, {
         status: "cancelled",
         cancellationReason: cleanReason,
         cancellationPreviousStatus: booking.status || "",
@@ -3498,13 +3533,6 @@ wifiName: settings.wifiName || "",
         cancelledBy: user?.email || "",
         updatedAt: serverTimestamp(),
       });
-
-      const nights = getNightDates(booking.checkIn, booking.checkOut);
-      nights.forEach((night) => {
-        batch.delete(doc(db, "nights", `${booking.unitId || selectedUnitId}_${night}`));
-      });
-
-      await batch.commit();
 
       const emailResult = await sendGuestBookingEmail(
         "/api/send-cancellation-email",
@@ -3519,7 +3547,7 @@ wifiName: settings.wifiName || "",
         previousPaymentLabel: getPaymentLabel(booking.paymentStatus),
         totalPrice: booking.totalPrice ?? null,
         depositAmount: booking.depositAmount ?? null,
-        nightsReleased: nights.length,
+        nightsReleased,
         sensitivePayment: hasSensitivePayment(booking),
         guestEmailNotification: emailResult,
       });
@@ -3533,7 +3561,7 @@ wifiName: settings.wifiName || "",
       );
     } catch (err) {
       console.error(err);
-      setError("Errore durante l'annullamento.");
+      setError("Annullamento non riuscito: " + describeBookingError(err));
     }
   }
 
@@ -3542,6 +3570,11 @@ wifiName: settings.wifiName || "",
 
     if (!booking?.id) {
       setError("Seleziona una prenotazione valida.");
+      return;
+    }
+
+    if (booking.externalKey && ["booking_ical", "airbnb_ical"].includes(String(booking.source || ""))) {
+      setError("Prenotazione iCal da Booking/Airbnb: la rimozione definitiva la potrebbe reimportare. Annulla prima sul portale e poi usa ANNULLA nel PMS: la prenotazione resta come riferimento anti-duplicazione.");
       return;
     }
 
@@ -3595,16 +3628,7 @@ wifiName: settings.wifiName || "",
     }
 
     try {
-      const batch = writeBatch(db);
-      const nights = getNightDates(booking.checkIn, booking.checkOut);
-
-      nights.forEach((night) => {
-        batch.delete(doc(db, "nights", `${booking.unitId || selectedUnitId}_${night}`));
-      });
-
-      batch.delete(doc(db, "bookings", booking.id));
-
-      await batch.commit();
+      const nightsReleased = await mutateBookingAndOwnedNights(booking);
 
       await addActivityLog("deleted_booking", booking, {
         reason: cleanReason,
@@ -3613,7 +3637,7 @@ wifiName: settings.wifiName || "",
         previousPaymentLabel: getPaymentLabel(booking.paymentStatus),
         totalPrice: booking.totalPrice ?? null,
         depositAmount: booking.depositAmount ?? null,
-        nightsReleased: nights.length,
+        nightsReleased,
         sensitivePayment: hasSensitivePayment(booking),
         strongConfirmation: "ELIMINA",
       });
@@ -3625,7 +3649,7 @@ wifiName: settings.wifiName || "",
       setMessage("Prenotazione eliminata definitivamente con log di sicurezza registrato.");
     } catch (err) {
       console.error(err);
-      setError("Errore durante l'eliminazione.");
+      setError("Eliminazione non riuscita: " + describeBookingError(err));
     }
   }
 
